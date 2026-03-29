@@ -159,11 +159,11 @@ in
     # ── T-NM-02: Service lifecycle — verify service unit exists and starts ──
 
     with subtest("T-NM-02: nix-key-agent user service unit exists"):
-        machine.succeed("systemctl --user -M testuser@ cat nix-key-agent.service")
+        machine.succeed("test -f /etc/systemd/user/nix-key-agent.service")
 
     with subtest("T-NM-02: nix-key-agent service has correct ExecStart"):
         unit = machine.succeed(
-            "systemctl --user -M testuser@ cat nix-key-agent.service"
+            "cat /etc/systemd/user/nix-key-agent.service"
         )
         assert "nix-key" in unit, "ExecStart should reference nix-key binary"
         assert "daemon" in unit, "ExecStart should include 'daemon' subcommand"
@@ -212,7 +212,7 @@ in
 
     with subtest("T-NM-02: service environment includes NIXKEY vars"):
         unit = machine.succeed(
-            "systemctl --user -M testuser@ cat nix-key-agent.service"
+            "cat /etc/systemd/user/nix-key-agent.service"
         )
         assert "NIXKEY_LOG_LEVEL" in unit, "Should set NIXKEY_LOG_LEVEL"
         assert "NIXKEY_SOCKET_PATH" in unit, "Should set NIXKEY_SOCKET_PATH"

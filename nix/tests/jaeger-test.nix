@@ -73,7 +73,7 @@
             timeout=30,
         )
         unit = machine.succeed(
-            "systemctl --user -M testuser@ cat nix-key-agent.service"
+            "cat /etc/systemd/user/nix-key-agent.service"
         )
         assert "NIXKEY_OTEL_ENDPOINT" in unit, \
             "nix-key-agent service should have NIXKEY_OTEL_ENDPOINT env var"
