@@ -149,8 +149,13 @@ var testCmd = &cobra.Command{
 	Short: "Test connectivity to a paired device",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("test: not yet implemented")
-		return nil
+		controlSocket, _ := cmd.Flags().GetString("control-socket")
+		if controlSocket == "" {
+			controlSocket = defaultControlSocket()
+		}
+		ageKeyFile, _ := cmd.Flags().GetString("age-key-file")
+		timeout, _ := cmd.Flags().GetDuration("timeout")
+		return runTestDevice(controlSocket, args[0], ageKeyFile, timeout, os.Stdout)
 	},
 }
 
@@ -181,6 +186,9 @@ func init() {
 	logsCmd.Flags().BoolP("follow", "f", true, "Follow new log entries (tail -f)")
 	logsCmd.Flags().Bool("no-color", false, "Disable colored output")
 	rootCmd.AddCommand(logsCmd)
+	testCmd.Flags().String("control-socket", "", "Path to daemon control socket")
+	testCmd.Flags().String("age-key-file", "", "Path to age identity file for cert decryption")
+	testCmd.Flags().Duration("timeout", 0, "Timeout for Ping RPC (default: 5s)")
 	rootCmd.AddCommand(testCmd)
 }
 

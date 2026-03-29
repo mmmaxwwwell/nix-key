@@ -64,6 +64,20 @@ type StatusInfo struct {
 	CertWarnings []CertWarning `json:"certWarnings"`
 }
 
+// FullDeviceInfo is the wire format for a device with cert paths, used by get-device.
+type FullDeviceInfo struct {
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	TailscaleIP     string     `json:"tailscaleIp"`
+	ListenPort      int        `json:"listenPort"`
+	CertFingerprint string     `json:"certFingerprint"`
+	CertPath        string     `json:"certPath"`
+	ClientCertPath  string     `json:"clientCertPath"`
+	ClientKeyPath   string     `json:"clientKeyPath"`
+	LastSeen        *time.Time `json:"lastSeen,omitempty"`
+	Source          string     `json:"source"`
+}
+
 // ControlServerConfig holds configuration for the control socket server.
 type ControlServerConfig struct {
 	SocketPath  string
@@ -188,6 +202,8 @@ func (s *ControlServer) handleCommand(req Request) Response {
 		return s.handleGetStatus()
 	case "get-keys":
 		return s.handleGetKeys()
+	case "get-device":
+		return s.handleGetDevice(req)
 	default:
 		return Response{Status: "error", Error: fmt.Sprintf("unknown command: %s", req.Command)}
 	}
@@ -374,6 +390,30 @@ func parseCertExpiry(certPath string) (time.Time, error) {
 	}
 
 	return cert.NotAfter, nil
+}
+
+func (s *ControlServer) handleGetDevice(req Request) Response {
+	if req.DeviceID == "" {
+		return Response{Status: "error", Error: "deviceId is required"}
+	}
+
+	dev, ok := s.registry.Get(req.DeviceID)
+	if !ok {
+		return Response{Status: "error", Error: fmt.Sprintf("device %s not found", req.DeviceID)}
+	}
+
+	return Response{Status: "ok", Data: FullDeviceInfo{
+		ID:              dev.ID,
+		Name:            dev.Name,
+		TailscaleIP:     dev.TailscaleIP,
+		ListenPort:      dev.ListenPort,
+		CertFingerprint: dev.CertFingerprint,
+		CertPath:        dev.CertPath,
+		ClientCertPath:  dev.ClientCertPath,
+		ClientKeyPath:   dev.ClientKeyPath,
+		LastSeen:        dev.LastSeen,
+		Source:          string(dev.Source),
+	}}
 }
 
 func (s *ControlServer) handleGetKeys() Response {

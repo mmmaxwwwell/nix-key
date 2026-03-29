@@ -99,7 +99,7 @@
 - [x] T057 Implement `nix-key export <key-id>`: query daemon for key by SHA256 fingerprint (or unique prefix), print SSH public key format to stdout. Error if key not found or ambiguous prefix. [FR-074]
 - [x] T058 Implement `nix-key config`: read and pretty-print `~/.config/nix-key/config.json`. Mask sensitive paths (show "present" not full path). [FR-075]
 - [x] T059 Implement `nix-key logs`: tail systemd journal for user unit `nix-key-agent`. Parse JSON log entries, format human-readable with colors (level-colored prefix, timestamp, message, key fields). [FR-076]
-- [ ] T060 Implement `nix-key test <device>`: resolve device from registry, mTLS dial to phone, call Ping RPC, report success with round-trip latency. On failure: report specific error (unreachable, cert mismatch, timeout). [FR-077]
+- [x] T060 Implement `nix-key test <device>`: resolve device from registry, mTLS dial to phone, call Ping RPC, report success with round-trip latency. On failure: report specific error (unreachable, cert mismatch, timeout). [FR-077]
 - [ ] T061 Write CLI integration tests: start daemon with test fixtures, run each subcommand, verify output format and state changes. Test error cases: revoke nonexistent device, export unknown key, test unreachable device. [Story 5, SC-005]
 
 ## Phase 13: Android Emulator E2E Harness + Tests

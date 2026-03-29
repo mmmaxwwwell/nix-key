@@ -442,3 +442,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Jaeger query API at `localhost:16686/api/traces?service=<name>` returns traces with `processes` map containing `serviceName` fields. A distributed trace has both `nix-key` and `nix-key-phone` in the same trace's processes.
 - Phone spans reference host spans via `CHILD_OF` references in Jaeger's API format. The `references` array on each span contains `{refType: "CHILD_OF", spanID, traceID}`.
 - phonesim uses `-plain-listen` with system tailscale (not tsnet) in the E2E test. The OTEL exporter connects to Jaeger on the host node via the host's Tailscale IP (e.g., `100.64.x.x:4317`).
+
+## T060 — nix-key test CLI
+
+- The `test` command is split: daemon exposes `get-device` control command returning `FullDeviceInfo` (includes cert paths), CLI does the mTLS dial + Ping RPC. This keeps the daemon simple (no gRPC client imports) and the CLI fully controls the test flow.
+- `FullDeviceInfo` extends `DeviceInfo` with `CertPath`, `ClientCertPath`, `ClientKeyPath` fields. Exposing cert paths over the local control socket (Unix socket with 0600 perms) is acceptable since only the same user can connect.
+- Error classification uses string matching on the error message to distinguish: cert files not found (revoked), TLS/cert mismatch, timeout (DeadlineExceeded), and unreachable (Unavailable/connection refused).
+- `grpc.NewClient` does NOT immediately connect — the mTLS handshake happens on the first RPC call (`Ping`). So cert mismatch errors surface during `Ping`, not during `DialMTLS`.
+- The file is named `testcmd.go` (not `test.go`) to avoid confusion with Go test files.
