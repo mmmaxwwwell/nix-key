@@ -27,6 +27,7 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [ self.overlays.default ];
+          config.allowUnfree = true;
           config.android_sdk.accept_license = true;
         };
 

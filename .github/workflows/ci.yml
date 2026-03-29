@@ -246,7 +246,7 @@ jobs:
       # --- Tier 1: Always run ---
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: fs
           scan-ref: .
