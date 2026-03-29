@@ -208,6 +208,10 @@ func (s *PairingServer) handlePair(w http.ResponseWriter, r *http.Request) {
 	} else {
 		writeJSON(w, http.StatusForbidden, PairingResponse{Status: "denied"})
 	}
+
+	// Token is consumed (one-time use). Shut down the server so Serve() returns
+	// and RunPair can proceed with post-pairing processing.
+	go s.httpServer.Shutdown(context.Background())
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

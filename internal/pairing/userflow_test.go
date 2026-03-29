@@ -539,7 +539,12 @@ func TestIntegrationPairingTokenReplay(t *testing.T) {
 		t.Fatalf("expected 1 device after first pairing, got %d", len(devices))
 	}
 
+	// Wait briefly for the server to auto-shutdown after consuming the token.
+	time.Sleep(100 * time.Millisecond)
+
 	// Second request with same token (replay): should be REJECTED.
+	// The server shuts down after consuming the one-time token, so the replay
+	// attempt either gets a 401 or a connection refused. Both prevent reuse.
 	body2, _ := json.Marshal(PairingRequest{
 		PhoneName:   "Attacker Phone",
 		TailscaleIP: "100.64.0.99",
@@ -553,14 +558,13 @@ func TestIntegrationPairingTokenReplay(t *testing.T) {
 		"application/json",
 		bytes.NewReader(body2),
 	)
-	if err != nil {
-		t.Fatalf("replay POST: %v", err)
+	if err == nil {
+		defer resp2.Body.Close()
+		if resp2.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("replay request: expected 401 or connection refused, got %d", resp2.StatusCode)
+		}
 	}
-	defer resp2.Body.Close()
-
-	if resp2.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("replay request: expected 401, got %d", resp2.StatusCode)
-	}
+	// If err != nil, the server is already shut down — replay rejected via connection refusal.
 
 	// Verify: Still only 1 device (attacker not registered).
 	devices2, _ := daemon.LoadDevicesFromJSON(devicesPath)
