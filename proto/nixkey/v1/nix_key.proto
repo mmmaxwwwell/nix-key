@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package nixkey.v1;
+
+option go_package = "nixkey/v1;nixkeyv1";
+
+// NixKeyAgent is the gRPC service exposed by the phone for SSH key operations.
+service NixKeyAgent {
+  // ListKeys returns all SSH public keys available on the phone.
+  rpc ListKeys(ListKeysRequest) returns (ListKeysResponse);
+
+  // Sign signs data with the specified key after user confirmation.
+  rpc Sign(SignRequest) returns (SignResponse);
+
+  // Ping is a health check RPC used by `nix-key test`.
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message ListKeysRequest {}
+
+message ListKeysResponse {
+  repeated SSHKey keys = 1;
+}
+
+// SSHKey represents an SSH public key on the phone.
+message SSHKey {
+  bytes public_key_blob = 1;
+  string key_type = 2;
+  string display_name = 3;
+  string fingerprint = 4;
+}
+
+message SignRequest {
+  string key_fingerprint = 1;
+  bytes data = 2;
+  uint32 flags = 3;
+}
+
+message SignResponse {
+  bytes signature = 1;
+}
+
+message PingRequest {}
+
+message PingResponse {
+  int64 timestamp_ms = 1;
+}

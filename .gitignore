@@ -3,6 +3,10 @@ test-logs/
 logs/
 validate/
 BLOCKED.md
+DEFER-*.md
+specs/nix-key/attempts/
+specs/nix-key/benchark_prompt.md
+.claude/
 
 # Environment
 .env
@@ -31,6 +35,8 @@ credentials.json
 
 # Build
 /nix-key
+/phonesim
+/test-reporter
 dist/
 build/
 
