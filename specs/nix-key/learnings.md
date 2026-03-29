@@ -34,3 +34,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Must clone `skip2/go-qrcode` to `/tmp/go-qrcode` before running `go get` or `go mod tidy` due to the replace directive in go.mod.
 - Binary name `nix-key` added to `.gitignore`.
 
+## T020 — Device registry
+
+- Go 1.26.1 is now available in devShell PATH. No need for `GOROOT` workarounds — just use `GOTOOLCHAIN=local`.
+- The `internal/daemon/` package is new. The device registry is pure Go with no external dependencies beyond stdlib.
+- `LookupByKeyFingerprint` uses the device's cert fingerprint (the device identity), not SSH key fingerprint. SSH key→device mapping (via CachedKey) will be needed in T021.
+- Merge rule (FR-064, C-010): nix-declared wins for cert paths (if non-empty); runtime wins for lastSeen and tailscaleIp.
+- `SaveToJSON` only persists runtime-paired devices; nix-declared devices come from NixOS config.
+- `devices.json` written with `0600` perms, parent dir `0700`.
+
