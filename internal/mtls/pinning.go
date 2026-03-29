@@ -75,6 +75,7 @@ func PinnedTLSConfig(opts PinnedTLSOptions) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
+		NextProtos:   []string{"h2"}, // Required for gRPC ALPN negotiation
 	}
 
 	if opts.IsServer {

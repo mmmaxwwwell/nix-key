@@ -287,3 +287,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `age.Encrypt(writer, recipients...)` returns a `WriteCloser` — must call `Close()` to finalize the encrypted stream before reading the output buffer.
 - `age.Decrypt(reader, identities...)` returns a `Reader` for streaming decryption. Wrong identity produces an error at this call (not on subsequent reads).
 - `EncryptFile` writes to `path + ".age"` to avoid overwriting the original — T018 (mTLS dialer) will use `DecryptToMemory` to load keys without the plaintext touching disk.
+
+## T018 — mTLS dialer and listener
+
+- gRPC >= 1.67 enforces ALPN negotiation. `PinnedTLSConfig` must set `NextProtos: []string{"h2"}` for gRPC compatibility, otherwise `credentials: cannot check peer: missing selected ALPN property` error occurs.
+- `grpc.NewClient` (the replacement for deprecated `grpc.Dial`) does NOT immediately perform a handshake — errors only surface on the first RPC call. Tests for wrong fingerprints should attempt an actual RPC to trigger the failure.
+- `loadCertAndKey` detects age-encrypted keys by checking if `keyPath` ends in `.age` AND `ageIdentityPath` is non-empty. The cert file is always read as plaintext PEM (certs are not secret).
+- The test file uses `_test` package (`mtls_test`) to test the public API from an external perspective, including an inline `mockNixKeyAgent` that implements the gRPC service for integration testing.
