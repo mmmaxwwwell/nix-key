@@ -70,6 +70,7 @@ jobs:
             extra-platforms = aarch64-linux
 
       - uses: cachix/cachix-action@v15
+        continue-on-error: true
         with:
           name: nix-key
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -116,6 +117,7 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - uses: cachix/cachix-action@v15
+        continue-on-error: true
         with:
           name: nix-key
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -157,7 +159,7 @@ jobs:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
       - name: Trivy CycloneDX SBOM
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: fs
           scan-ref: .
