@@ -19,7 +19,7 @@ in
   name = "nix-key-pairing";
 
   nodes.host =
-    { config, lib, pkgs, ... }:
+    { config, lib, ... }:
     {
       imports = [ nixKeyModule ];
 
@@ -85,7 +85,7 @@ in
     };
 
   nodes.phone =
-    { config, lib, pkgs, ... }:
+    { config, lib, ... }:
     {
       # Tailscale client on phone
       services.tailscale.enable = true;
