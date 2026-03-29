@@ -278,3 +278,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Client uses `InsecureSkipVerify: true` to skip standard CA chain validation (self-signed certs have no CA chain). Fingerprint pinning in `VerifyPeerCertificate` provides the trust anchor instead.
 - `GenerateCert` with negative `Expiry` produces a cert where `NotAfter < NotBefore`, which is immediately invalid — useful for testing expired cert rejection.
 - TLS 1.3 (`MinVersion: tls.VersionTLS13`) is the minimum for nix-key — no need to support older TLS versions.
+
+## T017 — Age encryption
+
+- `filippo.io/age` v1.3.1 is the latest. It pulls in `filippo.io/hpke` as a transitive dependency.
+- `age.GenerateX25519Identity()` creates a new identity. The `String()` method returns the `AGE-SECRET-KEY-1...` encoding. The `Recipient()` method returns the public key for encryption.
+- `age.ParseIdentities(reader)` reads identity files (skips comment lines starting with `#`). Returns `[]age.Identity`.
+- `age.Encrypt(writer, recipients...)` returns a `WriteCloser` — must call `Close()` to finalize the encrypted stream before reading the output buffer.
+- `age.Decrypt(reader, identities...)` returns a `Reader` for streaming decryption. Wrong identity produces an error at this call (not on subsequent reads).
+- `EncryptFile` writes to `path + ".age"` to avoid overwriting the original — T018 (mTLS dialer) will use `DecryptToMemory` to load keys without the plaintext touching disk.
