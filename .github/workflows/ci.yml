@@ -222,6 +222,9 @@ jobs:
     runs-on: ubuntu-latest
     # Run on every push, PR, and when called as reusable workflow
     if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_call'
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -270,7 +273,7 @@ jobs:
       # --- Tier 1.5: Public repo extras ---
 
       - name: Snyk security scan
-        if: ${{ secrets.SNYK_TOKEN != '' }}
+        if: env.SNYK_TOKEN != ''
         uses: snyk/actions/golang@master
         continue-on-error: true
         env:
@@ -279,7 +282,7 @@ jobs:
           args: --severity-threshold=high
 
       - name: SonarCloud scan
-        if: ${{ secrets.SONAR_TOKEN != '' }}
+        if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarcloud-github-action@master
         continue-on-error: true
         env:
