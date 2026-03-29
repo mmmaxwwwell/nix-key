@@ -19,6 +19,7 @@ BLOCKED.md
 
 # Nix
 result
+result-*
 
 # Security
 *.pem
@@ -49,4 +50,5 @@ certs/
 
 # Coverage
 coverage/
+coverage.out
 htmlcov/
