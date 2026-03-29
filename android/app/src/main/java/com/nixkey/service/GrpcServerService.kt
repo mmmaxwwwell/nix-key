@@ -86,8 +86,15 @@ class GrpcServerService : Service() {
             val port = settingsRepository.listenPort
             val address = "$ip:$port"
 
+            // Pass OTEL endpoint if tracing is enabled (FR-088)
+            val otelEndpoint = if (settingsRepository.otelEnabled) {
+                settingsRepository.otelEndpoint.ifEmpty { null }
+            } else {
+                null
+            }
+
             // FR-014: bind only to Tailscale interface
-            goPhoneServer.start(address)
+            goPhoneServer.start(address, otelEndpoint)
             Timber.i("GrpcServerService: gRPC server started on %s", address)
             updateNotification("nix-key active")
         } catch (e: Exception) {

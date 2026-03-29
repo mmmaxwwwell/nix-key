@@ -195,9 +195,10 @@ class GoPhoneServer @Inject constructor(
      * Returns immediately; the server runs in a background thread.
      *
      * @param address The address to listen on
+     * @param otelEndpoint Optional OTEL collector endpoint for trace export
      * @throws IllegalStateException if the server is already running
      */
-    fun start(address: String) {
+    fun start(address: String, otelEndpoint: String? = null) {
         if (running.getAndSet(true)) {
             throw IllegalStateException("GoPhoneServer is already running")
         }
@@ -205,6 +206,10 @@ class GoPhoneServer @Inject constructor(
         val ks = keyStoreAdapter
         val conf = confirmerAdapter
         val ps = Phoneserver.newPhoneServer(ks, conf)
+        if (!otelEndpoint.isNullOrEmpty()) {
+            ps.setOTELEndpoint(otelEndpoint)
+            Timber.i("GoPhoneServer OTEL endpoint set to %s", otelEndpoint)
+        }
         phoneServer = ps
 
         serverThread = Thread({

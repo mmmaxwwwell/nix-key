@@ -411,3 +411,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `KeyInfo` needed a `PublicKey string` field (SSH authorized_keys format) added to support export. The field is `omitempty` for backward compat with existing `get-keys` responses that don't include it.
 - Export uses the existing `get-keys` control command and does prefix matching client-side, avoiding a new server command. The `findKeyByPrefix` function normalizes bare hashes by prepending `SHA256:`.
 - Exact fingerprint match returns immediately; prefix match collects candidates and errors on 0 (not found) or 2+ (ambiguous).
+
+## T052 — OTEL in pairing QR
+
+- Most of the OTEL pairing flow was already implemented across earlier tasks: `qr.go` has `OTELEndpoint` in `QRParams`, Android `PairingViewModel` has full OTEL confirmation flow (`CONFIRM_OTEL` phase), and `SettingsRepository`/`HostRepository` store OTEL config.
+- The missing integration point was `GoPhoneServer.start()` not calling `PhoneServer.SetOTELEndpoint()` before `startOnAddress()`. Added an optional `otelEndpoint` parameter with default `null`.
+- `GrpcServerService` reads OTEL from `SettingsRepository` (enabled flag + endpoint string) and passes to `GoPhoneServer.start()` — OTEL is only passed when both `otelEnabled` is true and endpoint is non-empty.
+- Android uses regular `SharedPreferences` for OTEL settings (per T030 learning: "not sensitive"), while per-host OTEL data is in `EncryptedSharedPreferences` via `HostRepository`.
