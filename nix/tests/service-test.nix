@@ -85,7 +85,7 @@ in
         # The config file is generated in the Nix store. Find it by searching
         # the store for the known filename. Use pipeline to avoid $() syntax.
         config_raw = machine.succeed(
-            "find /nix/store -maxdepth 1 -name 'nix-key-config.json' | head -1 | xargs cat"
+            "find /nix/store -maxdepth 1 -name '*nix-key-config.json' | head -1 | xargs cat"
         ).strip()
         config = json.loads(config_raw)
 
