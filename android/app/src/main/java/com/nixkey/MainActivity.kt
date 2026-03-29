@@ -1,8 +1,12 @@
 package com.nixkey
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.nixkey.bridge.GoPhoneServer
 import com.nixkey.keystore.AuthResult
 import com.nixkey.keystore.BiometricHelper
@@ -31,13 +35,20 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     @Inject
     lateinit var biometricHelper: BiometricHelper
 
+    private var deepLinkPayload by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        deepLinkPayload = extractPairPayload(intent)
         val needsAuth = !tailscaleManager.hasStoredAuthKey() && !tailscaleManager.isRunning()
         setContent {
             NixKeyTheme {
-                NixKeyAppUi(needsTailscaleAuth = needsAuth)
+                NixKeyAppUi(
+                    needsTailscaleAuth = needsAuth,
+                    deepLinkPayload = deepLinkPayload,
+                    onDeepLinkConsumed = { deepLinkPayload = null },
+                )
                 SignRequestDialog(
                     queue = signRequestQueue,
                     onApprove = { request ->
@@ -70,6 +81,13 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        extractPairPayload(intent)?.let { payload ->
+            deepLinkPayload = payload
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         GrpcServerService.startService(this)
@@ -78,5 +96,15 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onStop() {
         super.onStop()
         GrpcServerService.stopService(this)
+    }
+
+    companion object {
+        fun extractPairPayload(intent: Intent?): String? {
+            val uri = intent?.data ?: return null
+            if (uri.scheme == "nix-key" && uri.host == "pair") {
+                return uri.getQueryParameter("payload")
+            }
+            return null
+        }
     }
 }

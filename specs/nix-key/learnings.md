@@ -481,3 +481,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The boot wait loop uses a two-phase approach: first wait for the adb device to appear (`emulator-5554.*device` in `adb devices`), then poll `sys.boot_completed`. Both share the same 120s timeout budget.
 - `-wipe-data` on emulator start ensures a clean state for E2E tests (no leftover app data from previous runs).
 - `ANDROID_USER_HOME` env var controls where AVDs are stored (defaults to `$HOME/.android`). Useful for CI where `$HOME` may be non-standard.
+
+## T064 — Test-mode deep link for QR bypass
+
+- Debug-only intent filters go in `android/app/src/debug/AndroidManifest.xml` — Android's manifest merger includes them only in debug builds, so the release APK never registers the deep link handler. This is the cleanest approach for debug-only features.
+- Compose Navigation optional query parameters: define route as `"pairing?payload={payload}"` with `navArgument("payload") { nullable = true; defaultValue = null }`. Navigating to just `"pairing"` (without the query param) still matches the route and uses the default value.
+- `Uri.encode()` is needed when passing Base64 payloads through navigation route strings, since Base64 can contain `+`, `/`, and `=` characters that break URI parsing.
+- `LaunchedEffect(initialPayload)` in PairingScreen auto-feeds the payload to `viewModel.onQrScanned()` when non-null, bypassing the camera scanner entirely. The `state.phase == PairingPhase.SCANNING` guard prevents re-processing if the screen is recomposed.
+- `MainActivity.extractPairPayload()` is a companion object method (static) for testability — instrumented tests can call it directly without instantiating the activity.
+- `onNewIntent()` handles the case where the activity is already running when a deep link arrives. The `deepLinkPayload` uses `mutableStateOf` to trigger Compose recomposition when updated.

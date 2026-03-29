@@ -1,6 +1,8 @@
 package com.nixkey.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -24,13 +26,25 @@ object Routes {
 
     fun keyManagement(hostId: String) = "key_management/$hostId"
     fun keyDetail(keyId: String) = "key_detail/$keyId"
+    fun pairingWithPayload(payload: String) = "pairing?payload=${Uri.encode(payload)}"
 }
 
 @Composable
-fun NixKeyNavGraph(needsTailscaleAuth: Boolean = false) {
+fun NixKeyNavGraph(
+    needsTailscaleAuth: Boolean = false,
+    deepLinkPayload: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
 
     val startDestination = if (needsTailscaleAuth) Routes.TAILSCALE_AUTH else Routes.SERVER_LIST
+
+    LaunchedEffect(deepLinkPayload) {
+        if (deepLinkPayload != null) {
+            navController.navigate(Routes.pairingWithPayload(deepLinkPayload))
+            onDeepLinkConsumed()
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -52,12 +66,23 @@ fun NixKeyNavGraph(needsTailscaleAuth: Boolean = false) {
                 onNavigateToKeys = { hostId -> navController.navigate(Routes.keyManagement(hostId)) },
             )
         }
-        composable(Routes.PAIRING) {
+        composable(
+            route = "${Routes.PAIRING}?payload={payload}",
+            arguments = listOf(
+                navArgument("payload") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) { backStackEntry ->
+            val initialPayload = backStackEntry.arguments?.getString("payload")
             PairingScreen(
                 onBack = { navController.popBackStack() },
                 onPairingComplete = {
                     navController.popBackStack(Routes.SERVER_LIST, inclusive = false)
                 },
+                initialPayload = initialPayload,
             )
         }
         composable(

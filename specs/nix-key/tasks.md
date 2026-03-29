@@ -111,7 +111,7 @@
 - [x] T063 Create `nix/android-emulator.nix`: Nix expression for Android emulator setup using `androidenv.emulateApp` or `androidenv.androidPkgs`. Configure: system image (API 34, x86_64), AVD with 2GB RAM, swiftshader GPU for headless rendering (no host GPU required), KVM acceleration. Create helper script `start-emulator.sh` that boots emulator, waits for `adb shell getprop sys.boot_completed` (with 120s timeout + retry), and returns. Test: emulator boots in Nix sandbox. [E2E infra]
 
 ### 13c: Test-Mode Deep Link for QR Bypass
-- [ ] T064 Add test-mode intent handler to Android app: `nix-key://pair?payload=<base64-json>` deep link that bypasses ML Kit camera scanner and directly processes the QR payload. Only enabled when app is built with `BUILD_TYPE=debug` or a test flag. This is critical for emulator E2E — camera injection is unreliable. Write instrumented test: send intent via `adb am start`, verify pairing screen shows correct host info. [E2E infra, FR-022]
+- [x] T064 Add test-mode intent handler to Android app: `nix-key://pair?payload=<base64-json>` deep link that bypasses ML Kit camera scanner and directly processes the QR payload. Only enabled when app is built with `BUILD_TYPE=debug` or a test flag. This is critical for emulator E2E — camera injection is unreliable. Write instrumented test: send intent via `adb am start`, verify pairing screen shows correct host info. [E2E infra, FR-022]
 
 ### 13d: UI Automator Test Helper Library
 - [ ] T065 Create `android/app/src/androidTest/java/.../e2e/NixKeyE2EHelper.kt`: reusable UI Automator helper with methods:

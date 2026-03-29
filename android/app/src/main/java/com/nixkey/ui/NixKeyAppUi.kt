@@ -9,13 +9,21 @@ import com.nixkey.ui.navigation.NixKeyNavGraph
 import com.nixkey.ui.theme.NixKeyTheme
 
 @Composable
-fun NixKeyAppUi(needsTailscaleAuth: Boolean = false) {
+fun NixKeyAppUi(
+    needsTailscaleAuth: Boolean = false,
+    deepLinkPayload: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
+) {
     NixKeyTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
-            NixKeyNavGraph(needsTailscaleAuth = needsTailscaleAuth)
+            NixKeyNavGraph(
+                needsTailscaleAuth = needsTailscaleAuth,
+                deepLinkPayload = deepLinkPayload,
+                onDeepLinkConsumed = onDeepLinkConsumed,
+            )
         }
     }
 }

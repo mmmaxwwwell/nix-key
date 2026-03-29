@@ -59,9 +59,16 @@ import java.util.concurrent.Executors
 fun PairingScreen(
     onBack: () -> Unit,
     onPairingComplete: () -> Unit,
+    initialPayload: String? = null,
     viewModel: PairingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(initialPayload) {
+        if (initialPayload != null && state.phase == PairingPhase.SCANNING) {
+            viewModel.onQrScanned(initialPayload)
+        }
+    }
 
     LaunchedEffect(state.phase) {
         if (state.phase == PairingPhase.SUCCESS) {
