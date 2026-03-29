@@ -12,12 +12,25 @@
       nixpkgs,
       flake-utils,
     }:
-    flake-utils.lib.eachDefaultSystem (
+    {
+      # System-independent outputs
+      nixosModules.default = import ./nix/module.nix;
+
+      overlays.default = final: _prev: {
+        nix-key = final.callPackage ./nix/package.nix { };
+      };
+    }
+    // flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ self.overlays.default ];
+        };
       in
       {
+        packages.default = pkgs.nix-key;
+
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             # Go toolchain
@@ -53,6 +66,34 @@
             echo "  golangci-lint:  $(golangci-lint --version 2>&1 | head -1)"
           '';
         };
+      }
+      // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+        # NixOS VM tests (added by T043+)
+        checks =
+          let
+            # Helper to import a NixOS VM test with the nix-key module pre-loaded
+            callTest =
+              testPath:
+              nixpkgs.legacyPackages.${system}.nixosTest (
+                import testPath {
+                  inherit pkgs;
+                  nixKeyModule = self.nixosModules.default;
+                }
+              );
+            testDir = ./nix/tests;
+            hasTests = builtins.pathExists testDir;
+          in
+          nixpkgs.lib.optionalAttrs hasTests (
+            nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/service-test.nix")) {
+              service-test = callTest (testDir + "/service-test.nix");
+            }
+            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/pairing-test.nix")) {
+              pairing-test = callTest (testDir + "/pairing-test.nix");
+            }
+            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/signing-test.nix")) {
+              signing-test = callTest (testDir + "/signing-test.nix");
+            }
+          );
       }
     );
 }

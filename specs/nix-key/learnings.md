@@ -158,3 +158,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `environment.etc."xdg/environment.d/50-nix-key.conf"` places the file at `/etc/xdg/environment.d/50-nix-key.conf` — this is the system-wide XDG default directory, picked up by `systemd --user` for all users' login sessions.
 - `lib.getExe` requires the package to have `meta.mainProgram` set or a single output binary. T041 (package.nix) must ensure this.
 
+## T042 — Flake exports + default.nix
+
+- `nixosModules` and `overlays` are system-independent flake outputs — they go outside `eachDefaultSystem`. Merge with `//` operator.
+- `pkgs` should be constructed with `import nixpkgs { inherit system; overlays = [...]; }` (not `legacyPackages`) when applying the overlay, so `pkgs.nix-key` is available.
+- `checks` for NixOS VM tests are only meaningful on `x86_64-linux`; use `nixpkgs.lib.optionalAttrs` to gate them.
+- `builtins.pathExists` works at eval time to conditionally include test files that don't exist yet (e.g., `nix/tests/service-test.nix`).
+- `default.nix` provides non-flake import by returning `{ package, module, overlay }` attrset from `pkgs.callPackage`.
+
