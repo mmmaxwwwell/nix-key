@@ -32,6 +32,8 @@ class SignRequestQueue @Inject constructor() {
     /** Number of pending requests in the queue (including the one currently displayed). */
     val queueSize: StateFlow<Int> = _queueSize.asStateFlow()
 
+    private val lock = Any()
+
     /**
      * Enqueue a new sign request. If no request is currently displayed, it becomes
      * the current request immediately.
@@ -43,10 +45,12 @@ class SignRequestQueue @Inject constructor() {
             request.hostName,
             request.keyName,
         )
-        queue.add(request)
-        _queueSize.value = queue.size
-        if (_currentRequest.value == null) {
-            advanceQueue()
+        synchronized(lock) {
+            queue.add(request)
+            _queueSize.value = queue.size
+            if (_currentRequest.value == null) {
+                advanceQueue()
+            }
         }
     }
 
@@ -58,29 +62,33 @@ class SignRequestQueue @Inject constructor() {
      * @return The completed request with updated status, or null if no match
      */
     fun complete(requestId: String, status: SignRequestStatus): SignRequest? {
-        val current = _currentRequest.value
-        if (current == null || current.requestId != requestId) {
-            Timber.w("Attempted to complete non-current request: %s", requestId)
-            return null
+        synchronized(lock) {
+            val current = _currentRequest.value
+            if (current == null || current.requestId != requestId) {
+                Timber.w("Attempted to complete non-current request: %s", requestId)
+                return null
+            }
+            val completed = current.copy(status = status)
+            Timber.i(
+                "Sign request completed: id=%s status=%s",
+                requestId,
+                status,
+            )
+            advanceQueue()
+            return completed
         }
-        val completed = current.copy(status = status)
-        Timber.i(
-            "Sign request completed: id=%s status=%s",
-            requestId,
-            status,
-        )
-        advanceQueue()
-        return completed
     }
 
     /**
      * Remove all pending requests from the queue. Useful on disconnect or timeout.
      */
     fun clear() {
-        queue.clear()
-        _currentRequest.value = null
-        _queueSize.value = 0
-        Timber.i("Sign request queue cleared")
+        synchronized(lock) {
+            queue.clear()
+            _currentRequest.value = null
+            _queueSize.value = 0
+            Timber.i("Sign request queue cleared")
+        }
     }
 
     private fun advanceQueue() {
