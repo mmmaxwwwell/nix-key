@@ -59,6 +59,9 @@
           ];
 
           shellHook = ''
+            # Install gitleaks pre-commit hook
+            git config --local core.hooksPath .githooks
+
             echo "nix-key dev shell ready"
             echo "  Go:             $(go version)"
             echo "  protoc:         $(protoc --version)"

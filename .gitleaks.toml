@@ -1,0 +1,15 @@
+# Gitleaks config — extends the built-in default rules
+# https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  # Test fixtures contain deterministic test secrets (fixed seeds, not real)
+  '''test/fixtures/.*''',
+  # Go sum and lock files
+  '''go\.sum''',
+  '''flake\.lock''',
+]

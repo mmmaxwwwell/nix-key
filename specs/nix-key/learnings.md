@@ -230,3 +230,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `HttpsURLConnection` with `hostnameVerifier = { _, _ -> true }` and a trust-all SSL context is needed for connecting to the host's temporary self-signed HTTPS pairing server. The QR payload contains the cert for verification in production, but hostname verification is skipped since Tailscale IPs are used.
 - Set `readTimeout = 120_000` on the pairing HTTPS connection because the host holds the connection open until the user confirms the pairing on the CLI side.
 
+## T011 — Gitleaks pre-commit hook
+
+- Gitleaks 8.30.x changed CLI structure: `detect`/`protect` are replaced by `git`/`dir` subcommands. Use `gitleaks git --staged` for pre-commit scanning.
+- A `.gitleaks.toml` with only `[allowlist]` and no `[extend]` replaces the default config entirely — no rules are loaded, so nothing is detected. Must use `[extend]` with `useDefault = true` to inherit built-in rules while adding allowlist entries.
+- Gitleaks built-in rules have allowlists for common example values (e.g., `AKIAIOSFODNN7EXAMPLE` is auto-allowed). Use non-example patterns for testing.
+- `git config --local core.hooksPath .githooks` in the flake shellHook auto-activates hooks when entering the devshell.
+
