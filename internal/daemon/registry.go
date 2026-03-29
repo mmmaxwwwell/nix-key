@@ -71,6 +71,18 @@ func (r *Registry) Add(dev Device) {
 	r.byFP[dev.CertFingerprint] = dev.ID
 }
 
+// Get returns a device by ID.
+func (r *Registry) Get(id string) (Device, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	dev, ok := r.devices[id]
+	if !ok {
+		return Device{}, false
+	}
+	return *dev, true
+}
+
 // Remove removes a device from the registry by ID.
 func (r *Registry) Remove(id string) {
 	r.mu.Lock()
@@ -93,6 +105,18 @@ func (r *Registry) LookupByKeyFingerprint(certFingerprint string) (Device, bool)
 	}
 	dev := r.devices[id]
 	return *dev, true
+}
+
+// ListAll returns all devices in the registry.
+func (r *Registry) ListAll() []Device {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]Device, 0, len(r.devices))
+	for _, dev := range r.devices {
+		result = append(result, *dev)
+	}
+	return result
 }
 
 // ListReachable returns all devices that have a TailscaleIP and ListenPort

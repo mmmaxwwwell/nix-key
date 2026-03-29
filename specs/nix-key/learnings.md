@@ -318,6 +318,15 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Device ID is derived from the phone's server cert SHA256 fingerprint (same as `certFingerprint`). Cert directory uses first 16 chars of the fingerprint as subdirectory name.
 - All 31 pairing tests pass including FR-E11 (Tailscale interface unavailable), token replay, age encryption round-trip, and integration tests with real age CLI.
 
+## T026 — Control socket
+
+- Control socket uses line-delimited JSON protocol: client sends `{"command":"...","deviceId":"..."}\n`, server responds `{"status":"ok|error","data":...}\n`.
+- `ControlServer` needs a `ListAll()` method on the registry (added) to enumerate all devices regardless of reachability.
+- `register-device` reloads `devices.json` from disk and re-merges with nix-declared devices, preserving existing nix entries.
+- `revoke-device` rejects nix-declared devices with a helpful error directing users to NixOS config.
+- `ControlClient` is a simple helper used by both CLI commands and `notifyDaemon` in pairing. Replaced the ad-hoc socket write in `notifyDaemon` with `ControlClient.SendCommand`.
+- Socket permissions: `0600` on socket file, `0700` on parent directory.
+
 ## T045 — Phone simulator (phonesim)
 
 - `tsnet.Server` is from `tailscale.com/tsnet` — the Go-native Tailscale library. NOT to be confused with `libtailscale` which is the Android/gomobile binding.

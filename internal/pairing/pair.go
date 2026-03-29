@@ -453,19 +453,19 @@ func extractAgeRecipient(identityPath string) (string, error) {
 }
 
 // notifyDaemon sends a register-device command to the daemon's control socket.
-// This is a best-effort notification; the full protocol is implemented in T026.
 func notifyDaemon(socketPath string, dev daemon.Device) error {
-	conn, err := net.DialTimeout("unix", socketPath, 2*time.Second)
+	client := daemon.NewControlClient(socketPath)
+	resp, err := client.SendCommand(daemon.Request{
+		Command:  "register-device",
+		DeviceID: dev.ID,
+	})
 	if err != nil {
-		return fmt.Errorf("connect to control socket: %w", err)
+		return err
 	}
-	defer conn.Close()
-
-	// Simple JSON-line message (T026 defines the full protocol)
-	msg := fmt.Sprintf(`{"command":"register-device","deviceId":"%s"}`, dev.ID)
-	conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
-	_, err = fmt.Fprintf(conn, "%s\n", msg)
-	return err
+	if resp.Status != "ok" {
+		return fmt.Errorf("daemon: %s", resp.Error)
+	}
+	return nil
 }
 
 // isServerClosed checks if the error indicates the server was intentionally shut down.
