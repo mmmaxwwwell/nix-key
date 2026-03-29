@@ -26,3 +26,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Go 1.24.6 is available in nix store at `/nix/store/5gkj2kc7drgf6pclxcl4fyg8zlcaqqmd-go-1.24.6`. Use `GOROOT=.../share/go` and `GOTOOLCHAIN=local` to avoid auto-download of newer toolchain.
 - The `go.mod` was bumped to `go 1.25.0` by `golang.org/x/crypto` dependency from T019. Using `go 1.24.6` with `GOTOOLCHAIN=local` works for compilation.
 
+## T002 — Go module + CLI skeleton + Makefile
+
+- Go module was already initialized (from T001). The task's `go mod init` step was already done.
+- `cobra v1.10.2` added for CLI subcommand routing. Pulls in `pflag` and `mousetrap` as indirect deps.
+- Subcommands scaffolded: daemon, pair, devices, revoke, status, export, config, logs, test (all stub implementations).
+- Must clone `skip2/go-qrcode` to `/tmp/go-qrcode` before running `go get` or `go mod tidy` due to the replace directive in go.mod.
+- Binary name `nix-key` added to `.gitignore`.
+
