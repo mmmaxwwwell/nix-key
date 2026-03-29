@@ -136,3 +136,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `startForeground()` must be called in `onStartCommand()` before returning (Android enforces a ~10s deadline). Building the notification channel in `onCreate()` and calling `startForeground()` immediately in `onStartCommand()` satisfies this.
 - Hilt injection into Android `Service` classes requires `@AndroidEntryPoint` annotation, same as Activities.
 
+## T039 — NixOS module
+
+- The `nix/` directory does not exist initially; it must be created.
+- `nix-instantiate --parse` requires temp store dir workarounds in sandbox (same as T001 learning).
+- `configJson` is defined in the `let` block for use by T040 (systemd service) — it serializes all module options into the config.json format the Go daemon expects.
+- The `assertion` that jaeger.enable and otelEndpoint are mutually exclusive prevents conflicting config; T051 will set otelEndpoint automatically when jaeger is enabled.
+
