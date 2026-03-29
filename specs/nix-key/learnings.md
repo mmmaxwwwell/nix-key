@@ -450,3 +450,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Error classification uses string matching on the error message to distinguish: cert files not found (revoked), TLS/cert mismatch, timeout (DeadlineExceeded), and unreachable (Unavailable/connection refused).
 - `grpc.NewClient` does NOT immediately connect — the mTLS handshake happens on the first RPC call (`Ping`). So cert mismatch errors surface during `Ping`, not during `DialMTLS`.
 - The file is named `testcmd.go` (not `test.go`) to avoid confusion with Go test files.
+
+## T061 — CLI integration tests
+
+- Integration tests use `TestIntegration*` naming and skip with `testing.Short()` so `make test-unit` skips them.
+- A shared `startIntegrationDaemon` helper creates a `ControlServer` with `Registry`, temp socket, and configurable `KeyLister` — reusable across all integration test functions.
+- `runDevices` writes directly to `os.Stdout` (no `io.Writer` param), so integration tests for device listing use `parseDeviceInfos` + `formatDevicesTable` directly rather than calling `runDevices`.
+- The full workflow test (add→list→status→export→revoke→verify) validates cross-command state changes through a single daemon instance.
+- All 19 integration tests run in ~15ms total since they use in-process control sockets (no real network, no real gRPC).
