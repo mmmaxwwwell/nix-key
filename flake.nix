@@ -35,12 +35,20 @@
           inherit pkgs;
           lib = pkgs.lib;
         };
+
+        # Android emulator infrastructure (E2E testing)
+        androidEmulator = import ./nix/android-emulator.nix {
+          inherit pkgs;
+          lib = pkgs.lib;
+        };
       in
       {
         packages.default = pkgs.nix-key;
         packages.phonesim = pkgs.phonesim;
         packages.build-android-apk = androidApk.build-android-apk;
         packages.android-sdk = androidApk.androidSdk;
+        packages.start-emulator = androidEmulator.start-emulator;
+        packages.emulator-sdk = androidEmulator.emulatorSdk;
 
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
@@ -71,6 +79,9 @@
             # Android build tools
             androidApk.gomobile
             androidApk.build-android-apk
+
+            # Android emulator (E2E testing)
+            androidEmulator.start-emulator
           ];
 
           shellHook = ''

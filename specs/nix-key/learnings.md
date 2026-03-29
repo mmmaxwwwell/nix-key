@@ -469,3 +469,15 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - NDK version `26.1.10909125` (r26b) is compatible with gomobile and available in nixpkgs `androidenv`.
 - The `composeAndroidPackages` `extraLicenses` parameter accepts license name strings like `"android-sdk-license"` and `"android-sdk-preview-license"`.
 - CLAUDE.md states "Android app is the only non-Nix artifact" — the Nix expression provides build tooling, not a pure derivation for the APK itself.
+
+## T063 — Android emulator Nix infrastructure
+
+- `composeAndroidPackages` with `includeEmulator = true`, `includeSystemImages = true`, `systemImageTypes = [ "google_apis" ]`, and `abiVersions = [ "x86_64" ]` provides the emulator binary and system images in the SDK.
+- System images land at `$ANDROID_HOME/system-images/android-<API>/<type>/<abi>/` inside the composed SDK.
+- `avdmanager create avd` may not work in all environments (e.g., Nix sandbox without cmdline-tools). A manual fallback creating `config.ini` and the `.ini` pointer file works reliably.
+- The emulator `-gpu swiftshader_indirect` flag enables software GPU rendering without requiring host GPU access — essential for headless CI and Nix sandbox environments.
+- `-accel on` requires `/dev/kvm` to be writable; the script detects KVM availability and falls back to `-accel off` if unavailable.
+- `adb shell getprop sys.boot_completed` returns `"1"` (with possible trailing `\r`) when the Android system has finished booting. Must `tr -d '[:space:]'` before comparing.
+- The boot wait loop uses a two-phase approach: first wait for the adb device to appear (`emulator-5554.*device` in `adb devices`), then poll `sys.boot_completed`. Both share the same 120s timeout budget.
+- `-wipe-data` on emulator start ensures a clean state for E2E tests (no leftover app data from previous runs).
+- `ANDROID_USER_HOME` env var controls where AVDs are stored (defaults to `$HOME/.android`). Useful for CI where `$HOME` may be non-standard.
