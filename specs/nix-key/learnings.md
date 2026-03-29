@@ -43,3 +43,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `SaveToJSON` only persists runtime-paired devices; nix-declared devices come from NixOS config.
 - `devices.json` written with `0600` perms, parent dir `0700`.
 
+## T003 — Structured test reporter
+
+- Implemented as a standalone `cmd/test-reporter` that reads `go test -json` from stdin, rather than a test helper library. This keeps it decoupled from test code.
+- `go test -json` emits events with `Action` field: `run`, `output`, `pass`, `fail`, `skip`. Package-level events have no `Test` field.
+- Piping `go test -json ... 2>&1` is needed because some build errors go to stderr.
+- The reporter passes through raw JSON lines to stdout for real-time visibility, then writes structured output to `test-logs/<type>/<timestamp>/`.
+- `failures` field in summary.json initialized as `[]FailureSummary{}` to serialize as `[]` not `null`.
+

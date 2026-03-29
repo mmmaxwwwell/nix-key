@@ -11,10 +11,10 @@ dev:
 test: test-unit test-integration
 
 test-unit:
-	go test -race -count=1 -short ./...
+	go test -json -race -count=1 -short ./... 2>&1 | go run ./cmd/test-reporter --type unit
 
 test-integration:
-	go test -race -count=1 -run Integration ./...
+	go test -json -race -count=1 -run Integration ./... 2>&1 | go run ./cmd/test-reporter --type integration
 
 lint:
 	golangci-lint run ./...
