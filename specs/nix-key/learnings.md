@@ -245,6 +245,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - For the gRPC timeout test, after the client gets `DEADLINE_EXCEEDED`, the server-side `ConfirmerAdapter` is still blocking on its `CountDownLatch`. Must explicitly complete the pending request in the test's finally block to unblock the server for clean teardown.
 - Nesting `NixKeyTheme` (inner in `NixKeyAppUi`, outer in `MainActivity`) is harmless — Compose MaterialTheme contexts stack, with the innermost taking precedence.
 
+## T014 — gRPC integration test
+
+- The integration test file (`pkg/phoneserver/integration_test.go`) uses the `_test` package (`phoneserver_test`) and reuses mock types (`mockKeyStore`, `autoApproveConfirmer`, `denyConfirmer`) defined in `server_test.go`.
+- Tests are guarded with `testing.Short()` skip so `make test-unit` (which uses `-short`) skips them; `make test` runs them.
+- `startIntegrationServer` helper encapsulates the gRPC server+client lifecycle pattern: listen on `127.0.0.1:0`, register service, connect client, return client+cleanup.
+- Unknown key sign results in `codes.Internal` (propagated from the mock `KeyStore.Sign` returning `fmt.Errorf("key not found: %s")`). Denied confirmation returns `codes.PermissionDenied`.
+
 ## T012 — Protobuf + make proto
 
 - The proto file, generated Go code, and `make proto` Makefile target were already created during earlier tasks (likely T041/T042 when the Nix package needed `gen/` for compilation). Task was already complete on arrival.

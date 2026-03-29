@@ -25,7 +25,7 @@
 
 - [x] T012 Write `proto/nixkey/v1/nix_key.proto`: `NixKeyAgent` service with `ListKeys`, `Sign`, `Ping` RPCs. Message types: `SSHKey` (public_key_blob, key_type, display_name, fingerprint), `SignRequest` (key_fingerprint, data, flags), `SignResponse` (signature), `PingResponse` (timestamp_ms). Add `make proto` target to generate Go code. [FR-017, FR-019]
 - [x] T013 Implement `pkg/phoneserver/`: define `KeyStore` interface (`ListKeys() []SSHKey`, `Sign(fingerprint string, data []byte, flags uint32) ([]byte, error)`) and `Confirmer` interface (`RequestConfirmation(hostName, keyName, dataHash string) (bool, error)`). Implement gRPC server using these interfaces. Write tests with mock KeyStore (in-memory keys) and auto-approve Confirmer. Verify ListKeys, Sign, Ping RPCs. [FR-017, FR-018]
-- [ ] T014 Write gRPC integration test: start gRPC server in goroutine, connect gRPC client, exercise all three RPCs. Verify protobuf round-trip. Test error cases: Sign with unknown key → error, Sign when Confirmer denies → error. [FR-017]
+- [x] T014 Write gRPC integration test: start gRPC server in goroutine, connect gRPC client, exercise all three RPCs. Verify protobuf round-trip. Test error cases: Sign with unknown key → error, Sign when Confirmer denies → error. [FR-017]
 
 ## Phase 4: mTLS + Age Encryption
 
