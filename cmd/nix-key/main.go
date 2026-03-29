@@ -41,6 +41,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 	devicesPath, _ := cmd.Flags().GetString("devices-path")
 	certsDir, _ := cmd.Flags().GetString("certs-dir")
 	controlSocket, _ := cmd.Flags().GetString("control-socket")
+	pairInfoFile, _ := cmd.Flags().GetString("pair-info-file")
 
 	var expiry time.Duration
 	if expiryStr != "" {
@@ -63,6 +64,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 		DevicesPath:        devicesPath,
 		CertsDir:           certsDir,
 		ControlSocketPath:  controlSocket,
+		PairInfoFile:       pairInfoFile,
 	}
 
 	return pairing.RunPair(ctx, cfg)
@@ -143,6 +145,7 @@ func init() {
 	pairCmd.Flags().String("devices-path", "", "Path to devices.json")
 	pairCmd.Flags().String("certs-dir", "", "Directory for certificate storage")
 	pairCmd.Flags().String("control-socket", "", "Path to daemon control socket")
+	pairCmd.Flags().String("pair-info-file", "", "Write pairing info JSON to file (for E2E testing)")
 
 	rootCmd.AddCommand(daemonCmd)
 	rootCmd.AddCommand(pairCmd)

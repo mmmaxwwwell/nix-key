@@ -78,8 +78,8 @@
 ## Phase 10: End-to-End Tests with Headscale
 
 - [x] T045 Implement `test/phonesim/main.go`: full phone simulator binary using `pkg/phoneserver` + `tsnet` (Go Tailscale library — NOT libtailscale which is the Android/gomobile binding). In-memory key store (pre-loaded Ed25519 + ECDSA test keys). Auto-approve confirmer. Configurable via flags: Tailscale auth key, listen port, key list denial mode, sign delay (for timeout testing), sign denial mode. [T-E2E-00]
-- [ ] T046 Create `nix/phonesim.nix`: package phonesim as Nix derivation using `buildGoModule`. [T-E2E-00]
-- [ ] T047 Write `nix/tests/pairing-test.nix`: NixOS VM test: start headscale → create namespace + pre-auth keys → start host tailscaled (join headscale) → start phonesim tailscaled (join headscale) → verify both on Tailnet → run `nix-key pair` with auto-confirm helper → phonesim connects to pairing endpoint → verify device registered. [T-E2E-02, Story 2, SC-002]
+- [x] T046 Create `nix/phonesim.nix`: package phonesim as Nix derivation using `buildGoModule`. [T-E2E-00]
+- [x] T047 Write `nix/tests/pairing-test.nix`: NixOS VM test: start headscale → create namespace + pre-auth keys → start host tailscaled (join headscale) → start phonesim tailscaled (join headscale) → verify both on Tailnet → run `nix-key pair` with auto-confirm helper → phonesim connects to pairing endpoint → verify device registered. [T-E2E-02, Story 2, SC-002]
 - [ ] T048 Write `nix/tests/signing-test.nix`: NixOS VM test: headscale setup + pre-paired phonesim → `ssh-add -L` lists phonesim keys → SSH sign operation with phonesim auto-approve → verify success. Test timeout: phonesim with 60s delay, signTimeout=5s → verify SSH_AGENT_FAILURE. Test denial: phonesim in deny mode → verify failure. [T-E2E-01, Story 1, SC-001, SC-006]
 
 ## Phase 11: OpenTelemetry Distributed Tracing

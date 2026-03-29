@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -35,6 +36,11 @@ type PairConfig struct {
 	DevicesPath        string
 	CertsDir           string
 	ControlSocketPath  string
+
+	// PairInfoFile, if set, writes the QR payload JSON to this path
+	// before displaying the QR code. Used by E2E tests to extract
+	// the pairing token and port without decoding the terminal QR.
+	PairInfoFile string
 
 	// For testing: override the Tailscale interface resolution.
 	// Returns the Tailscale IP for the given interface name.
@@ -150,13 +156,26 @@ func RunPair(ctx context.Context, cfg PairConfig) error {
 	port := ln.Addr().(*net.TCPAddr).Port
 
 	// Step 5: Display QR code (FR-070)
-	qrStr, err := RenderQR(QRParams{
+	qrParams := QRParams{
 		Host:         tsIP,
 		Port:         port,
 		Cert:         server.ServerCertPEM(),
 		Token:        token,
 		OTELEndpoint: cfg.OTELEndpoint,
-	})
+	}
+
+	// Write pairing info to file for E2E test automation.
+	if cfg.PairInfoFile != "" {
+		infoJSON, err := json.Marshal(qrParams)
+		if err != nil {
+			return fmt.Errorf("marshal pair info: %w", err)
+		}
+		if err := os.WriteFile(cfg.PairInfoFile, infoJSON, 0600); err != nil {
+			return fmt.Errorf("write pair info file: %w", err)
+		}
+	}
+
+	qrStr, err := RenderQR(qrParams)
 	if err != nil {
 		return fmt.Errorf("render QR code: %w", err)
 	}

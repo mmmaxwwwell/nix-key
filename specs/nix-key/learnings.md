@@ -335,3 +335,14 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `tailscale.com` v1.96.5 pulls in many transitive deps (AWS SDK, wireguard-go, gvisor, etc.). The `vendorHash` in `nix/package.nix` will need updating after this change.
 - The `memKeyStore.Sign` returns SSH wire-format signatures (`ssh.Marshal(ssh.Signature{...})`) matching what the real Android phone would return through the gomobile bridge.
 - `denyListKeyStore` wraps the real store and returns empty on `ListKeys()` but still allows `Sign()` to work — this matches the phone's "deny key listing" feature (FR-054/FR-066) where listing is denied but signing still works if the host already knows the key fingerprint.
+
+## T047 — NixOS VM pairing test
+
+- The `nix-key pair` command generates a random one-time token embedded in the QR code. E2E tests can't easily decode a terminal-rendered QR. Added a `--pair-info-file` flag that writes the QR payload JSON (host, port, cert, token) to a file — the test reads this to get the token and port.
+- The pairing test uses two NixOS VM nodes: `host` (headscale + tailscaled + nix-key) and `phone` (tailscaled + curl for pairing POST). No phonesim binary needed for pairing itself — `curl` simulates the phone's HTTPS POST to `/pair`.
+- The phone's self-signed cert (for the `serverCert` field in the pairing request) is generated with `openssl` on the phone node. In production, this would be the phone's gRPC server cert from Keystore.
+- JSON payloads containing PEM certs must be written to a file first (`cat > file << 'EOF'`), then passed to curl with `-d @file` to avoid shell quoting issues with newlines and special characters.
+- `yes y | nix-key pair ...` provides auto-confirmation: `yes` feeds continuous `y\n` to stdin, the pair command's `promptConfirm` scanner reads the first line.
+- After successful pairing, the server shuts down, so the token replay test must handle both HTTP 401 (server still running) and connection failure (server shut down) as acceptable outcomes.
+- Headscale `preauthkeys create` outputs just the key string on stdout (when stderr is redirected to /dev/null). Use `--reusable` for test convenience.
+- The phone node resolves the headscale domain to `192.168.1.1` (the host's QEMU network IP) since headscale runs on the host node.
