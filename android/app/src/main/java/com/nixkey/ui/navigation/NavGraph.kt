@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nixkey.ui.screens.KeyDetailScreen
 import com.nixkey.ui.screens.KeyListScreen
+import com.nixkey.ui.screens.PairingScreen
 import com.nixkey.ui.screens.ServerListScreen
 import com.nixkey.ui.screens.SettingsScreen
 
@@ -48,7 +49,12 @@ fun NixKeyNavGraph() {
             )
         }
         composable(Routes.PAIRING) {
-            PlaceholderScreen("Pairing")
+            PairingScreen(
+                onBack = { navController.popBackStack() },
+                onPairingComplete = {
+                    navController.popBackStack(Routes.SERVER_LIST, inclusive = false)
+                },
+            )
         }
         composable(
             route = Routes.KEY_MANAGEMENT,

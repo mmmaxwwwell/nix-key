@@ -127,7 +127,7 @@ private fun HostCard(host: PairedHost, onClick: () -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = host.name,
+                    text = host.hostName,
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(

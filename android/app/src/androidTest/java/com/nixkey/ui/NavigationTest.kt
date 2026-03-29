@@ -94,7 +94,7 @@ class NavigationTest {
     @Test
     fun serverListScreen_hostRowCallsCallback() {
         val hosts = listOf(
-            PairedHost(id = "host1", name = "workstation", tailscaleIp = "100.64.0.1"),
+            PairedHost(id = "host1", hostName = "workstation", tailscaleIp = "100.64.0.1"),
         )
         val viewModel = mockk<ServerListViewModel>(relaxed = true)
         every { viewModel.hosts } returns MutableStateFlow(hosts)
@@ -118,7 +118,7 @@ class NavigationTest {
     @Test
     fun serverListScreen_showsHostDetails() {
         val hosts = listOf(
-            PairedHost(id = "host1", name = "workstation", tailscaleIp = "100.64.0.1"),
+            PairedHost(id = "host1", hostName = "workstation", tailscaleIp = "100.64.0.1"),
         )
         val viewModel = mockk<ServerListViewModel>(relaxed = true)
         every { viewModel.hosts } returns MutableStateFlow(hosts)

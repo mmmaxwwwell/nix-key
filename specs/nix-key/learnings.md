@@ -210,3 +210,16 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `os/signal.Notify` with a buffered channel (cap 1) ensures the signal is not lost if the goroutine hasn't entered the select yet.
 - `Run()` passes `context.Background()` to `Shutdown()` rather than the cancelled parent context, so the shutdown deadline starts fresh.
 
+## T036 — Android pairing screen
+
+- Renaming `PairedHost.name` to `PairedHost.hostName` aligns with the data model but requires updating all consumers: `ServerListScreen`, `NavigationTest`, and `HostRepository` storage keys.
+- `LocalLifecycleOwner` moved from `androidx.compose.ui.platform` to `androidx.lifecycle.compose` in lifecycle 2.8+. Use the new import to avoid deprecation.
+- The `lifecycle-runtime-compose` dependency is needed for `LocalLifecycleOwner` from `androidx.lifecycle.compose`.
+- ML Kit barcode scanning requires CameraX (`camera-core`, `camera-camera2`, `camera-lifecycle`, `camera-view`) to feed video frames for analysis.
+- `@ExperimentalGetImage` from `androidx.camera.core` is required when calling `imageProxy.image` (the `getImage()` method). Use `@androidx.annotation.OptIn(ExperimentalGetImage::class)` on the composable.
+- QR payload is Base64-encoded JSON: `{v:1, host, port, cert, token, otel?}`. Use `android.util.Base64.decode(rawValue, Base64.DEFAULT)` to decode.
+- `EncryptedSharedPreferences` stores each `PairedHost` field as a separate key-value pair prefixed with the host ID. This pattern supports multiple hosts (FR-030) while allowing individual field retrieval.
+- The host pairing endpoint path is `/pair` and expects a POST with JSON body `{phoneName, tailscaleIp, listenPort, serverCert, token}`. Response is `{hostName, hostClientCert, status}`.
+- `HttpsURLConnection` with `hostnameVerifier = { _, _ -> true }` and a trust-all SSL context is needed for connecting to the host's temporary self-signed HTTPS pairing server. The QR payload contains the cert for verification in production, but hostname verification is skipped since Tailscale IPs are used.
+- Set `readTimeout = 120_000` on the pairing HTTPS connection because the host holds the connection open until the user confirms the pairing on the CLI side.
+
