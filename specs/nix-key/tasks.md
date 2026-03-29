@@ -93,7 +93,7 @@
 
 ## Phase 12: CLI Polish
 
-- [ ] T054 Implement `nix-key devices`: query daemon via control socket, format as table (name, Tailscale IP, cert fingerprint, last seen, status). [FR-071]
+- [x] T054 Implement `nix-key devices`: query daemon via control socket, format as table (name, Tailscale IP, cert fingerprint, last seen, status). [FR-071]
 - [ ] T055 Implement `nix-key revoke <device>`: send revoke to daemon, daemon removes device from registry, deletes cert files. Confirm deletion on stdout. Reject if device is Nix-declared (print error directing user to remove from Nix config). Test that after revocation, the revoked device's cert is rejected on mTLS handshake attempt (FR-E09). [FR-072, FR-E09]
 - [ ] T056 Implement `nix-key status`: query daemon for: running state, socket path, connected devices count, total available keys, cert expiry warnings (within 30 days). [FR-073, FR-032]
 - [ ] T057 Implement `nix-key export <key-id>`: query daemon for key by SHA256 fingerprint (or unique prefix), print SSH public key format to stdout. Error if key not found or ambiguous prefix. [FR-074]

@@ -361,3 +361,8 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 ## phase6-pairing-flow-fix1 — Data race in pair test
 
 - `bytes.Buffer` is not goroutine-safe. When `RunPair()` runs in a goroutine writing to `cfg.Stdout` while the test reads `output.String()` in a polling loop, the race detector catches it. Fix: use a `sync.Mutex`-protected `safeBuffer` wrapper in the test.
+
+## T054 — nix-key devices CLI
+
+- T054 was already fully implemented during earlier phases (T002 scaffolded the cobra command, T026 added `ControlClient` and `list-devices` handler). The `cmd/nix-key/devices.go` and `cmd/nix-key/devices_test.go` files were created but untracked — just needed staging and committing.
+- The table uses SOURCE column (runtime-paired / nix-declared) rather than STATUS since the `DeviceInfo` wire format has no separate status field — source is the meaningful device attribute.
