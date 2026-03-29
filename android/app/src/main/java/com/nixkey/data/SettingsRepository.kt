@@ -38,11 +38,17 @@ class SettingsRepository @Inject constructor(
         get() = prefs.getString(KEY_OTEL_ENDPOINT, "") ?: ""
         set(value) = prefs.edit().putString(KEY_OTEL_ENDPOINT, value).apply()
 
+    var listenPort: Int
+        get() = prefs.getInt(KEY_LISTEN_PORT, DEFAULT_LISTEN_PORT)
+        set(value) = prefs.edit().putInt(KEY_LISTEN_PORT, value).apply()
+
     companion object {
+        const val DEFAULT_LISTEN_PORT = 29418
         private const val PREFS_FILE = "nixkey_settings"
         private const val KEY_ALLOW_KEY_LISTING = "allow_key_listing"
         private const val KEY_DEFAULT_POLICY = "default_confirmation_policy"
         private const val KEY_OTEL_ENABLED = "otel_enabled"
         private const val KEY_OTEL_ENDPOINT = "otel_endpoint"
+        private const val KEY_LISTEN_PORT = "listen_port"
     }
 }

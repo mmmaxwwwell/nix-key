@@ -128,3 +128,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `TailscaleManager` uses `AtomicBoolean` and `AtomicReference` for thread safety since Tailscale operations may be called from different threads (UI thread for start/stop, gRPC threads for IP lookup).
 - No new dependencies needed — `EncryptedSharedPreferences`, Timber, and Hilt are already in `build.gradle.kts` from prior tasks.
 
+## T035 — GrpcServerService
+
+- Android API 34+ requires `FOREGROUND_SERVICE_CONNECTED_DEVICE` permission and `foregroundServiceType="connectedDevice"` in the manifest for foreground services that communicate with external devices over the network.
+- The default gRPC listen port is `29418` (from data-model.md). The constant lives in `SettingsRepository.DEFAULT_LISTEN_PORT` to avoid circular coupling between the service and repository.
+- `MainActivity.onStart()`/`onStop()` map to the app being foregrounded/backgrounded. These lifecycle callbacks are used to start/stop the `GrpcServerService` via `startForegroundService()`.
+- `startForeground()` must be called in `onStartCommand()` before returning (Android enforces a ~10s deadline). Building the notification channel in `onCreate()` and calling `startForeground()` immediately in `onStartCommand()` satisfies this.
+- Hilt injection into Android `Service` classes requires `@AndroidEntryPoint` annotation, same as Activities.
+
