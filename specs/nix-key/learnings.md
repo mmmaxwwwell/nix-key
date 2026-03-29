@@ -518,3 +518,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `nix develop --command` runs a single command inside the devshell without entering an interactive shell — suitable for CI steps that need devshell tools.
 - Android CI needs `gomobile bind` to produce the AAR before Gradle can build, since `phoneserver.aar` is a `fileTree` dependency in `build.gradle.kts`.
 - `$GITHUB_STEP_SUMMARY` accepts markdown and renders in the Actions UI as a job summary — useful for structured pass/fail reporting without external tools.
+
+## T068 — CI summary script
+
+- `actions/download-artifact@v4` with `path: artifacts/` downloads all artifacts into subdirectories named after the artifact (e.g., `artifacts/test-host-logs/`). Use `continue-on-error: true` since artifacts may not exist if jobs were skipped.
+- The `ci-summary` job uses `needs: [lint, test-host, test-android, security]` with `if: always()` to run regardless of upstream job status. Job results are passed via `${{ needs.<job>.result }}` env vars.
+- Jobs without structured test output (lint, security) get a synthetic entry with `pass: 1` or `fail: 1` based on the GitHub Actions job result. Jobs with `summary.json` get real pass/fail/skip counts.
+- test-host uploads `test-logs/` with `if: always()` (not just on failure) so the summary job can collect `summary.json` even on success.
