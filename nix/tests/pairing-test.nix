@@ -47,8 +47,8 @@ in
             magic_dns = false;
           };
           # Disable TLS for test simplicity
-          tls_cert_path = "";
-          tls_key_path = "";
+          tls_cert_path = null;
+          tls_key_path = null;
         };
       };
 

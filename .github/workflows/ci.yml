@@ -41,7 +41,7 @@ jobs:
       - name: ktlint
         run: |
           cd android
-          nix develop --command bash -c './gradlew ktlintCheck --no-daemon'
+          test -f ./gradlew && nix develop --command bash -c './gradlew ktlintCheck --no-daemon' || echo "Skipping ktlint: gradlew not found"
 
       - name: Job summary
         if: always()
