@@ -170,6 +170,7 @@ func init() {
 	pairCmd.Flags().String("control-socket", "", "Path to daemon control socket")
 	pairCmd.Flags().String("pair-info-file", "", "Write pairing info JSON to file (for E2E testing)")
 
+	daemonCmd.Flags().String("config", "", "path to config file")
 	rootCmd.AddCommand(daemonCmd)
 	rootCmd.AddCommand(pairCmd)
 	devicesCmd.Flags().String("control-socket", "", "Path to daemon control socket")
