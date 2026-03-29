@@ -308,3 +308,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - To simulate mid-connection drop (FR-E08), force-close the gRPC listener from within the `Sign` handler. The client sees either a transport error or the `codes.Unavailable` status, both of which the SSH agent sanitizes to `SSH_AGENT_FAILURE`.
 - Test helpers like `testPhoneServer`, `testDialer`, `newTestECDSAKey`, `setupTestBackend`, and `startTestAgent` are defined in `backend_test.go` and `agent_test.go` (same `agent_test` package), so they're accessible from `userflow_test.go` without redeclaration.
 - The `containsStr` helper from `backend_test.go` is also reusable across test files in the same package.
+
+## T025 — nix-key pair CLI command
+
+- The full `RunPair` flow was implemented in `internal/pairing/pair.go` with a `PairConfig` struct that uses dependency injection for testability: `InterfaceResolver`, `ConfirmFunc`, `Encryptor`, `Stdout`, and `Stdin` are all injectable.
+- Age encryption uses the `age` CLI (not the Go library) for encrypting private keys. The recipient public key is extracted by parsing the identity file's comment lines.
+- The `ensureAgeIdentity` function uses `age-keygen -o` to generate an identity file if it doesn't exist. Note: `age-keygen -o` refuses to overwrite existing files, so the function checks existence first.
+- The `notifyDaemon` function sends a simple JSON-line message to the control socket. This is best-effort since the daemon might not be running; the full control socket protocol is implemented in T026.
+- Device ID is derived from the phone's server cert SHA256 fingerprint (same as `certFingerprint`). Cert directory uses first 16 chars of the fingerprint as subdirectory name.
+- All 31 pairing tests pass including FR-E11 (Tailscale interface unavailable), token replay, age encryption round-trip, and integration tests with real age CLI.

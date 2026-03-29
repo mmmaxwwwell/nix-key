@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"time"
 
+	"github.com/phaedrus-raznikov/nix-key/internal/pairing"
 	"github.com/spf13/cobra"
 )
 
@@ -25,10 +29,43 @@ var daemonCmd = &cobra.Command{
 var pairCmd = &cobra.Command{
 	Use:   "pair",
 	Short: "Pair with a new phone device",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("pair: not yet implemented")
-		return nil
-	},
+	RunE:  runPair,
+}
+
+func runPair(cmd *cobra.Command, args []string) error {
+	iface, _ := cmd.Flags().GetString("interface")
+	otel, _ := cmd.Flags().GetString("otel-endpoint")
+	hostname, _ := cmd.Flags().GetString("hostname")
+	expiryStr, _ := cmd.Flags().GetString("cert-expiry")
+	ageKey, _ := cmd.Flags().GetString("age-key-file")
+	devicesPath, _ := cmd.Flags().GetString("devices-path")
+	certsDir, _ := cmd.Flags().GetString("certs-dir")
+	controlSocket, _ := cmd.Flags().GetString("control-socket")
+
+	var expiry time.Duration
+	if expiryStr != "" {
+		var err error
+		expiry, err = time.ParseDuration(expiryStr)
+		if err != nil {
+			return fmt.Errorf("invalid cert-expiry %q: %w", expiryStr, err)
+		}
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	cfg := pairing.PairConfig{
+		TailscaleInterface: iface,
+		CertExpiry:         expiry,
+		OTELEndpoint:       otel,
+		AgeIdentityPath:    ageKey,
+		HostName:           hostname,
+		DevicesPath:        devicesPath,
+		CertsDir:           certsDir,
+		ControlSocketPath:  controlSocket,
+	}
+
+	return pairing.RunPair(ctx, cfg)
 }
 
 var devicesCmd = &cobra.Command{
@@ -98,6 +135,15 @@ var testCmd = &cobra.Command{
 }
 
 func init() {
+	pairCmd.Flags().String("interface", "", "Tailscale interface name (default: tailscale0)")
+	pairCmd.Flags().String("otel-endpoint", "", "OpenTelemetry collector endpoint to include in QR")
+	pairCmd.Flags().String("hostname", "", "Host name to advertise (default: system hostname)")
+	pairCmd.Flags().String("cert-expiry", "", "Certificate expiry duration (default: 8760h / 1 year)")
+	pairCmd.Flags().String("age-key-file", "", "Path to age identity file for cert encryption")
+	pairCmd.Flags().String("devices-path", "", "Path to devices.json")
+	pairCmd.Flags().String("certs-dir", "", "Directory for certificate storage")
+	pairCmd.Flags().String("control-socket", "", "Path to daemon control socket")
+
 	rootCmd.AddCommand(daemonCmd)
 	rootCmd.AddCommand(pairCmd)
 	rootCmd.AddCommand(devicesCmd)
