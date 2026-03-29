@@ -195,3 +195,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `pkgs.writeText` generates a store path like `/nix/store/<hash>-nix-key-config.json`. The test finds it with `find /nix/store -maxdepth 1 -name '...'`.
 - `environment.etc."xdg/environment.d/50-nix-key.conf"` places the file at `/etc/xdg/environment.d/50-nix-key.conf` — the system-wide XDG defaults directory.
 
+## T010 — Graceful shutdown
+
+- `sync.Once` ensures shutdown runs exactly once even if called concurrently or multiple times. The error from the first call is captured via a closure variable.
+- `sync.WaitGroup` is used for in-flight request tracking. `AddInFlight()`/`DoneInFlight()` are the public API; the drain phase does `inFlight.Wait()` in a goroutine with a deadline select.
+- The shutdown sequence is: stopFunc (stop accepting) -> drain in-flight (with deadline) -> hooks in reverse order. If draining times out, hooks are skipped and timeout error is returned.
+- `os/signal.Notify` with a buffered channel (cap 1) ensures the signal is not lost if the goroutine hasn't entered the select yet.
+- `Run()` passes `context.Background()` to `Shutdown()` rather than the cancelled parent context, so the shutdown deadline starts fresh.
+
