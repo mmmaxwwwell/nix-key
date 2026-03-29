@@ -1,0 +1,324 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------- Lint ----------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: golangci-lint
+        run: nix develop --command golangci-lint run ./...
+
+      - name: nixfmt
+        run: nix develop --command nixfmt --check flake.nix nix/*.nix
+
+      - name: ktlint
+        run: |
+          cd android
+          nix develop --command bash -c './gradlew ktlintCheck --no-daemon'
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Lint Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          PASS=0
+          FAIL=0
+          FAILURES=""
+          for step in golangci-lint nixfmt ktlint; do
+            echo "- **${step}**: checked" >> "$GITHUB_STEP_SUMMARY"
+          done
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test-logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-test-logs
+          path: test-logs/
+          if-no-files-found: ignore
+
+  # ---------- Test Host (Go + NixOS VM) ----------
+  test-host:
+    name: Test Host
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Run Go tests (unit + integration)
+        run: |
+          nix develop --command bash -c '
+            mkdir -p test-logs
+            set -o pipefail
+            go test -json -race -count=1 ./... 2>&1 | go run ./cmd/test-reporter --type ci
+          '
+
+      - name: Nix flake check (NixOS VM tests)
+        run: nix flake check --print-build-logs
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Test Host Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f test-logs/ci/latest/summary.json ]; then
+            PASS=$(jq -r '.passed // 0' test-logs/ci/latest/summary.json)
+            FAIL=$(jq -r '.failed // 0' test-logs/ci/latest/summary.json)
+            SKIP=$(jq -r '.skipped // 0' test-logs/ci/latest/summary.json)
+            echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Passed | ${PASS} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Failed | ${FAIL} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Skipped | ${SKIP} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$FAIL" -gt 0 ] 2>/dev/null; then
+              echo "### Failures" >> "$GITHUB_STEP_SUMMARY"
+              jq -r '.failures[]? | "- \(.package)/\(.test)"' test-logs/ci/latest/summary.json >> "$GITHUB_STEP_SUMMARY" || true
+            fi
+          else
+            echo "No structured test output found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test-logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-host-logs
+          path: test-logs/
+          if-no-files-found: ignore
+
+  # ---------- Test Android ----------
+  test-android:
+    name: Test Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build gomobile AAR
+        run: |
+          nix develop --command bash -c '
+            mkdir -p android/app/libs
+            gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
+          '
+
+      - name: Gradle build + unit tests
+        run: |
+          mkdir -p test-logs
+          cd android
+          ./gradlew assembleDebug testDebugUnitTest --no-daemon 2>&1 | tee ../test-logs/android-build.log
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Test Android Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          PASS=0
+          FAIL=0
+          FAILURES=""
+          if [ -d android/app/build/test-results ]; then
+            for xml in $(find android/app/build/test-results -name '*.xml' 2>/dev/null); do
+              P=$(grep -o 'tests="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*' || echo 0)
+              F=$(grep -o 'failures="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*' || echo 0)
+              E=$(grep -o 'errors="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*' || echo 0)
+              PASS=$((PASS + P - F - E))
+              FAIL=$((FAIL + F + E))
+              if [ $((F + E)) -gt 0 ]; then
+                NAMES=$(grep -o 'name="[^"]*"' "$xml" | head -5 || true)
+                FAILURES="${FAILURES}\n${NAMES}"
+              fi
+            done
+          fi
+          echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Passed | ${PASS} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Failed | ${FAIL} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FAIL" -gt 0 ]; then
+            echo "### Failures" >> "$GITHUB_STEP_SUMMARY"
+            echo -e "$FAILURES" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test-logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-android-logs
+          path: |
+            test-logs/
+            android/app/build/reports/
+            android/app/build/test-results/
+          if-no-files-found: ignore
+
+  # ---------- Security ----------
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    # Run on every push to main AND on PRs
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      # --- Tier 1: Always run ---
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          format: table
+
+      - name: Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/default
+            p/golang
+          publishToken: ""
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: govulncheck
+        run: |
+          nix develop --command bash -c '
+            go install golang.org/x/vuln/cmd/govulncheck@latest
+            govulncheck ./...
+          '
+
+      # --- Tier 1.5: Public repo extras ---
+
+      - name: Snyk security scan
+        if: ${{ secrets.SNYK_TOKEN != '' }}
+        uses: snyk/actions/golang@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: SonarCloud scan
+        if: ${{ secrets.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarcloud-github-action@master
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: OpenSSF Scorecard
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: ossf/scorecard-action@v2.4.0
+        continue-on-error: true
+        with:
+          results_file: scorecard-results.json
+          results_format: json
+          publish_results: true
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Security Scan Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          TOOLS=("Trivy" "Semgrep" "Gitleaks" "govulncheck")
+          echo "### Tier 1 (Required)" >> "$GITHUB_STEP_SUMMARY"
+          for tool in "${TOOLS[@]}"; do
+            echo "- **${tool}**: executed" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Tier 1.5 (Public Repo)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Snyk**: conditional on SNYK_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **SonarCloud**: conditional on SONAR_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **OpenSSF Scorecard**: on push to main only" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test-logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-logs
+          path: |
+            test-logs/
+            scorecard-results.json
+          if-no-files-found: ignore

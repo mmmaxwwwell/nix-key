@@ -509,3 +509,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `am instrument -w -e class ... -e method ... -e key value` invokes UI Automator helpers with parameters from the shell orchestrator. Fallback to `adb shell input text` for manual input if instrumentation fails.
 - Headscale config for E2E uses `database.type: sqlite` with a temp directory, and `dns.magic_dns: false` to avoid DNS complexity.
 - The test verifies both approval (sign succeeds) and denial (sign fails with SSH_AGENT_FAILURE) flows end-to-end.
+
+## T067 — CI workflow
+
+- `cachix/install-nix-action@v27` + `cachix/cachix-action@v15` is the standard pair for Nix CI with binary caching on GitHub Actions. Cache name and `CACHIX_AUTH_TOKEN` secret must be configured in repo settings.
+- GitHub Actions `if: secrets.X != ''` must be wrapped in `${{ }}` expression syntax, otherwise it's treated as a literal string comparison.
+- Tier 1.5 security tools (Snyk, SonarCloud, OpenSSF Scorecard) use `continue-on-error: true` so they don't block the pipeline when tokens aren't configured.
+- `nix develop --command` runs a single command inside the devshell without entering an interactive shell — suitable for CI steps that need devshell tools.
+- Android CI needs `gomobile bind` to produce the AAR before Gradle can build, since `phoneserver.aar` is a `fileTree` dependency in `build.gradle.kts`.
+- `$GITHUB_STEP_SUMMARY` accepts markdown and renders in the Actions UI as a job summary — useful for structured pass/fail reporting without external tools.
