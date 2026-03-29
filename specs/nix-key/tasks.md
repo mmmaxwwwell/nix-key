@@ -11,7 +11,7 @@
 - [x] T003 Create custom structured test reporter: `test-logs/<type>/<timestamp>/summary.json` with `{pass, fail, skip, duration, failures}`. Per-failure log files in `failures/<test-name>.log` with assertion details, stack trace, and context. Wire into `make test`. [Testing infra]
 - [x] T004 Create test fixtures in `test/fixtures/`: self-signed CA cert, test mTLS cert pairs (host client + phone server), test SSH Ed25519 and ECDSA keypairs, test age identity + encrypted file. All generated deterministically from fixed seeds for reproducibility. [Testing infra]
 - [x] T005 Configure code coverage: `go test -coverprofile=coverage.out -covermode=atomic ./...`. Add `coverage/` to `.gitignore`. Add `make cover` target that generates HTML report. [Testing infra]
-- [ ] T006 Create initial `CLAUDE.md` with: project overview, quick start (`nix develop`, `make test`), available Makefile targets, project structure, coding standards (Go conventions, error wrapping, structured logging). [DX]
+- [x] T006 Create initial `CLAUDE.md` with: project overview, quick start (`nix develop`, `make test`), available Makefile targets, project structure, coding standards (Go conventions, error wrapping, structured logging). [DX]
 
 ## Phase 2: Foundational Infrastructure
 
