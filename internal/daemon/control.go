@@ -240,6 +240,9 @@ func (s *ControlServer) handleRevokeDevice(req Request) Response {
 		return Response{Status: "error", Error: "cannot revoke nix-declared device; remove it from your NixOS configuration"}
 	}
 
+	// Delete cert files from disk.
+	deleteCertFiles(dev)
+
 	s.registry.Remove(req.DeviceID)
 
 	// Persist removal.
@@ -248,6 +251,26 @@ func (s *ControlServer) handleRevokeDevice(req Request) Response {
 	}
 
 	return Response{Status: "ok"}
+}
+
+// deleteCertFiles removes the device's cert files and their parent directory.
+// Errors are silently ignored (best-effort cleanup).
+func deleteCertFiles(dev Device) {
+	paths := []string{dev.CertPath, dev.ClientCertPath, dev.ClientKeyPath}
+	var parentDir string
+	for _, p := range paths {
+		if p == "" {
+			continue
+		}
+		os.Remove(p)
+		if parentDir == "" {
+			parentDir = filepath.Dir(p)
+		}
+	}
+	// Remove parent directory if empty (cert subdirectory).
+	if parentDir != "" {
+		os.Remove(parentDir) // fails silently if not empty
+	}
 }
 
 func (s *ControlServer) handleGetStatus() Response {

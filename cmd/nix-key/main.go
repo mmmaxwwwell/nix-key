@@ -74,8 +74,11 @@ var devicesCmd = &cobra.Command{
 	Use:   "devices",
 	Short: "List paired devices",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("devices: not yet implemented")
-		return nil
+		controlSocket, _ := cmd.Flags().GetString("control-socket")
+		if controlSocket == "" {
+			controlSocket = defaultControlSocket()
+		}
+		return runDevices(controlSocket)
 	},
 }
 
@@ -84,8 +87,11 @@ var revokeCmd = &cobra.Command{
 	Short: "Revoke a paired device",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("revoke: not yet implemented")
-		return nil
+		controlSocket, _ := cmd.Flags().GetString("control-socket")
+		if controlSocket == "" {
+			controlSocket = defaultControlSocket()
+		}
+		return runRevoke(controlSocket, args[0], os.Stdout)
 	},
 }
 
@@ -149,7 +155,9 @@ func init() {
 
 	rootCmd.AddCommand(daemonCmd)
 	rootCmd.AddCommand(pairCmd)
+	devicesCmd.Flags().String("control-socket", "", "Path to daemon control socket")
 	rootCmd.AddCommand(devicesCmd)
+	revokeCmd.Flags().String("control-socket", "", "Path to daemon control socket")
 	rootCmd.AddCommand(revokeCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(exportCmd)

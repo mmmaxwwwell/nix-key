@@ -374,3 +374,18 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - No-op tracer: when `GRPCBackendConfig.Tracer` is nil, `NewGRPCBackend` creates `noop.NewTracerProvider().Tracer("nix-key")` — all span operations become no-ops with zero allocation overhead.
 - `otelgrpc.NewClientHandler()` passed via `grpc.WithStatsHandler()` handles W3C traceparent injection into gRPC metadata automatically. The `DialMTLS` function accepts `extraOpts ...grpc.DialOption` to support this.
 - Child span parent-child verification: `SpanStub.Parent.SpanID()` gives the parent span ID; `SpanStub.SpanContext.TraceID()` must match across all spans in a trace.
+
+## T050 — OTEL phoneserver tracing
+
+- `otelgrpc` server/client handlers use `otel.GetTextMapPropagator()` for W3C traceparent injection/extraction. By default, the global propagator is a no-op. Must call `otel.SetTextMapPropagator(propagation.TraceContext{})` for trace context propagation to work in tests.
+- `NewServerWithTracing` accepts `trace.TracerProvider` (interface) rather than the concrete `*sdktrace.TracerProvider` — this allows the server to work with both real and test tracer providers.
+- The `otelgrpc.NewServerHandler()` creates an automatic span for each incoming gRPC method. Custom spans (e.g., `handle-sign-request`) created within the handler are children of this auto-created span via the context.
+- `PhoneServer.SetOTELEndpoint(string)` is gomobile-friendly (takes a plain string). The `initTracing` method converts this to a `*sdktrace.TracerProvider` internally.
+- The `Sign` method's context parameter (previously `_`) must be used to propagate the trace context from otelgrpc to custom child spans.
+
+## T055 — nix-key revoke CLI
+
+- The `revoke-device` control socket handler (T026) already existed but did not delete cert files from disk. T055 added `deleteCertFiles()` which removes CertPath, ClientCertPath, ClientKeyPath, and attempts to remove the parent directory if empty.
+- Cert file deletion is best-effort (errors silently ignored) since the files may already be absent or the paths may be empty (e.g., nix-declared devices with store-managed certs).
+- FR-E09 test: after revocation, `DialMTLS` fails with "no such file or directory" because cert files were deleted. This is the primary revocation enforcement mechanism — without cert files, no mTLS handshake can be established.
+- Cobra `var revokeCmd` must not reference `runRevokeCmd` which in turn references `revokeCmd` — this creates an initialization cycle. Inline flag access via `cmd.Flags().GetString()` in the `RunE` closure instead.
