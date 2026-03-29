@@ -1,0 +1,52 @@
+# Spec-kit / agent artifacts
+test-logs/
+logs/
+validate/
+BLOCKED.md
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Direnv
+.direnv/
+
+# Editor / OS
+.DS_Store
+*.swp
+*~
+
+# Nix
+result
+
+# Security
+*.pem
+*.key
+credentials.json
+
+# Build
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Android
+*.apk
+*.aab
+.gradle/
+local.properties
+
+# Dev certs
+certs/
+
+# Coverage
+coverage/
+htmlcov/
