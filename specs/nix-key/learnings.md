@@ -317,3 +317,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The `notifyDaemon` function sends a simple JSON-line message to the control socket. This is best-effort since the daemon might not be running; the full control socket protocol is implemented in T026.
 - Device ID is derived from the phone's server cert SHA256 fingerprint (same as `certFingerprint`). Cert directory uses first 16 chars of the fingerprint as subdirectory name.
 - All 31 pairing tests pass including FR-E11 (Tailscale interface unavailable), token replay, age encryption round-trip, and integration tests with real age CLI.
+
+## T045 — Phone simulator (phonesim)
+
+- `tsnet.Server` is from `tailscale.com/tsnet` — the Go-native Tailscale library. NOT to be confused with `libtailscale` which is the Android/gomobile binding.
+- `tsnet.Server{Ephemeral: true}` makes the node disappear from the tailnet when it disconnects — ideal for E2E test runs that shouldn't leave stale nodes.
+- The phonesim has a `-plain-listen` flag for non-Tailscale testing (e.g., unit tests, local dev). When set, it skips tsnet entirely and listens on plain TCP.
+- `tailscale.com` v1.96.5 pulls in many transitive deps (AWS SDK, wireguard-go, gvisor, etc.). The `vendorHash` in `nix/package.nix` will need updating after this change.
+- The `memKeyStore.Sign` returns SSH wire-format signatures (`ssh.Marshal(ssh.Signature{...})`) matching what the real Android phone would return through the gomobile bridge.
+- `denyListKeyStore` wraps the real store and returns empty on `ListKeys()` but still allows `Sign()` to work — this matches the phone's "deny key listing" feature (FR-054/FR-066) where listing is denied but signing still works if the host already knows the key fingerprint.
