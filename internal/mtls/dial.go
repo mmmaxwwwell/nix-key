@@ -14,8 +14,9 @@ import (
 // DialMTLS establishes a gRPC client connection using mTLS with cert pinning.
 // If ageIdentityPath is non-empty, the client key is age-decrypted into memory
 // before building the TLS config. The clientKeyPath should end in ".age" when
-// age encryption is used.
-func DialMTLS(addr, clientCertPath, clientKeyPath, peerFingerprint, ageIdentityPath string) (*grpc.ClientConn, error) {
+// age encryption is used. Additional gRPC dial options (e.g. otelgrpc interceptors)
+// can be passed via extraOpts.
+func DialMTLS(addr, clientCertPath, clientKeyPath, peerFingerprint, ageIdentityPath string, extraOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	certPEM, keyPEM, err := loadCertAndKey(clientCertPath, clientKeyPath, ageIdentityPath)
 	if err != nil {
 		return nil, fmt.Errorf("loading client cert/key: %w", err)
@@ -31,9 +32,12 @@ func DialMTLS(addr, clientCertPath, clientKeyPath, peerFingerprint, ageIdentityP
 		return nil, fmt.Errorf("building client TLS config: %w", err)
 	}
 
-	conn, err := grpc.NewClient(addr,
+	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
-	)
+	}
+	opts = append(opts, extraOpts...)
+
+	conn, err := grpc.NewClient(addr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dialing gRPC: %w", err)
 	}

@@ -366,3 +366,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 
 - T054 was already fully implemented during earlier phases (T002 scaffolded the cobra command, T026 added `ControlClient` and `list-devices` handler). The `cmd/nix-key/devices.go` and `cmd/nix-key/devices_test.go` files were created but untracked — just needed staging and committing.
 - The table uses SOURCE column (runtime-paired / nix-declared) rather than STATUS since the `DeviceInfo` wire format has no separate status field — source is the meaningful device attribute.
+
+## T049 — OTEL host daemon tracing
+
+- `tracetest.NewInMemoryExporter()` with `sdktrace.WithSyncer(exporter)` (not `WithBatcher`) ensures spans are immediately available for assertion without flush delays.
+- `InitWithExporter` is a test-only constructor on the tracing `Provider` that accepts a `sdktrace.SpanExporter` — avoids needing a real OTLP endpoint in tests.
+- No-op tracer: when `GRPCBackendConfig.Tracer` is nil, `NewGRPCBackend` creates `noop.NewTracerProvider().Tracer("nix-key")` — all span operations become no-ops with zero allocation overhead.
+- `otelgrpc.NewClientHandler()` passed via `grpc.WithStatsHandler()` handles W3C traceparent injection into gRPC metadata automatically. The `DialMTLS` function accepts `extraOpts ...grpc.DialOption` to support this.
+- Child span parent-child verification: `SpanStub.Parent.SpanID()` gives the parent span ID; `SpanStub.SpanContext.TraceID()` must match across all spans in a trace.
