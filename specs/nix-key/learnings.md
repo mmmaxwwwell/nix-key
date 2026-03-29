@@ -237,3 +237,8 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Gitleaks built-in rules have allowlists for common example values (e.g., `AKIAIOSFODNN7EXAMPLE` is auto-allowed). Use non-example patterns for testing.
 - `git config --local core.hooksPath .githooks` in the flake shellHook auto-activates hooks when entering the devshell.
 
+## T012 — Protobuf + make proto
+
+- The proto file, generated Go code, and `make proto` Makefile target were already created during earlier tasks (likely T041/T042 when the Nix package needed `gen/` for compilation). Task was already complete on arrival.
+- `go_package` option uses `nixkey/v1;nixkeyv1` — the part after `;` sets the Go package name to `nixkeyv1` while the path is `nixkey/v1` (relative to `gen/` via `paths=source_relative`).
+
