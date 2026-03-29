@@ -171,7 +171,7 @@
 
 ### 14e: Branch Protection + Verification
 - [x] T071 Set up branch protection: main requires all CI + security + E2E green. develop requires lint + test-host + test-android green. Configure `release-please` to auto-create release PRs on develop→main merges. [CI/CD]
-- [ ] T072 Verify release pipeline end-to-end: push to develop → CI green → merge to main → `release-please` creates release PR → merge release PR → GitHub Release created with binaries + APK + SBOM. Verify artifacts downloadable and binary runs `nix-key --help`. [CI/CD, SC-009]
+- [x] T072 Verify release pipeline end-to-end: push to develop → CI green → merge to main → `release-please` creates release PR → merge release PR → GitHub Release created with binaries + APK + SBOM. Verify artifacts downloadable and binary runs `nix-key --help`. [CI/CD, SC-009]
 
 ## Post-Implementation
 

@@ -552,3 +552,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `gh api -X PUT repos/OWNER/REPO/branches/BRANCH/protection --input -` sets branch protection via the GitHub REST API. Requires admin access. `restrictions: null` means no push restrictions (required field, must be null for non-org repos).
 - CI workflow must trigger on `pull_request: branches: [develop, main]` (not just develop) so that release-please PRs targeting main get CI status checks. Similarly, E2E needs `pull_request: branches: [main]`.
 - release-please already handles develop→main flow automatically: push to main (from develop merge) triggers the release workflow, release-please creates/updates a release PR. Merging that PR triggers another push to main with `release_created: true`.
+
+## T072 — Release pipeline verification
+
+- The release pipeline has a two-phase trigger: first push to main runs release-please (which creates/updates a PR OR creates a release). Only when `release_created == 'true'` do the CI, E2E, build, and upload jobs run. This means merging a release-please PR triggers the actual build+release.
+- Config-only validation (no GitHub API needed) can verify 32 aspects of the pipeline: workflow triggers, job DAG, artifact configuration, branch protection alignment, permissions, and release-please setup.
+- `scripts/verify-release-pipeline.sh --live` adds GitHub API checks: release-please PR existence, workflow run status, release assets, and binary download+execution verification.
+- The `--config-only` mode is useful for CI pre-flight validation; `--live` mode is for post-deployment verification of SC-009.
