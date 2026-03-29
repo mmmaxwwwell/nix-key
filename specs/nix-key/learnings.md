@@ -577,3 +577,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The `nix-key daemon` command is still a stub, so the smoke test validates the build + CLI subcommands + in-process integration tests rather than a live daemon workflow. Full daemon E2E is covered by NixOS VM tests.
 - Cold-start vs warm-start timing for CLI commands (e.g., `nix-key status`) is sub-millisecond difference since there's no lazy initialization or caching — both runs are fast. The test validates that neither regresses significantly.
 - The `--android` flag gates APK build + emulator tests behind an opt-in since they require KVM and take minutes. Default smoke test is host-only and completes in seconds.
+
+## T075 — CI pipeline
+
+- `lewagon/wait-on-check-action@v1.3.4` does NOT poll for a check that hasn't been created yet — it fails immediately if the check name is not found. This causes a race condition when both CI and E2E workflows trigger on the same push event: the "CI Summary" check (which `needs:` four other jobs) doesn't exist in the GitHub Checks API until all its prerequisites complete.
+- Fix: use `workflow_run` trigger (`types: [completed]`) instead of polling. This guarantees E2E only starts after the CI workflow finishes. Must use `github.event.workflow_run.head_sha` for checkout since `workflow_run` events default to the repo's default branch HEAD.
+- `workflow_run` branch filter matches the branch that triggered the original workflow. For PRs, this is the head branch (not the base), so `branches: [develop, main]` won't match PR head branches from feature branches. This is acceptable if E2E on PRs is not required, or a hybrid approach is needed.

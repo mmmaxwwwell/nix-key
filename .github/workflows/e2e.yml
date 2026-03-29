@@ -1,10 +1,10 @@
 name: E2E
 
 on:
-  push:
-    branches: [develop]
-  pull_request:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [develop, main]
   workflow_call:
 
 permissions:
@@ -15,30 +15,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Gate: wait for CI workflow to succeed before running E2E
-  # Skip when called as a reusable workflow (caller ensures CI already passed)
-  ci-gate:
-    name: Wait for CI
-    if: github.event_name != 'workflow_call'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for CI workflow
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.sha }}
-          check-name: CI Summary
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 30
-
   # ---------- Android Emulator E2E ----------
+  # Runs after CI completes (via workflow_run) or when called as a reusable workflow
   e2e:
     name: Android Emulator E2E
-    needs: ci-gate
-    if: always() && (needs.ci-gate.result == 'success' || needs.ci-gate.result == 'skipped')
+    if: >-
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
+        with:
+          # workflow_run events point to default branch HEAD; use the triggering commit
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Enable KVM
         run: |
