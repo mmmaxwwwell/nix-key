@@ -294,3 +294,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `grpc.NewClient` (the replacement for deprecated `grpc.Dial`) does NOT immediately perform a handshake — errors only surface on the first RPC call. Tests for wrong fingerprints should attempt an actual RPC to trigger the failure.
 - `loadCertAndKey` detects age-encrypted keys by checking if `keyPath` ends in `.age` AND `ageIdentityPath` is non-empty. The cert file is always read as plaintext PEM (certs are not secret).
 - The test file uses `_test` package (`mtls_test`) to test the public API from an external perspective, including an inline `mockNixKeyAgent` that implements the gRPC service for integration testing.
+
+## T021 — Wire SSH agent to gRPC
+
+- The `GRPCBackend` uses a `Dialer` interface to abstract mTLS connection establishment. Production implementations bind to the Tailscale interface (FR-015); tests use plain gRPC with insecure credentials.
+- `Sign()` does a two-phase lookup: first checks the in-memory `keyCache` (SSH fingerprint → device), then auto-refreshes by calling `List()` if not found. This handles the case where the agent hasn't listed keys yet.
+- `ssh.Unmarshal(resp.GetSignature(), sig)` is tried first for SSH wire-format signatures; if it fails, the raw bytes are used with the key type as format — this handles both formats the phone might return.
+- Prior agent attempts left the test file with an unused `grpcKey` variable and unused `encoding/base64` import that needed cleanup before tests would compile.
