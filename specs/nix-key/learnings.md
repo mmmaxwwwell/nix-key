@@ -405,3 +405,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Jaeger all-in-one listens on 4317 (OTLP gRPC), 4318 (OTLP HTTP), and 16686 (query UI) by default — no extra flags needed.
 - OTLP HTTP endpoint (`localhost:4318/v1/traces`) accepts JSON-encoded trace payloads. Useful for VM tests since curl is simpler than a gRPC client.
 - Jaeger query API at `localhost:16686/api/traces?service=<name>` returns traces by service name — used in VM test to verify end-to-end trace ingestion.
+
+## T057 — nix-key export CLI
+
+- `KeyInfo` needed a `PublicKey string` field (SSH authorized_keys format) added to support export. The field is `omitempty` for backward compat with existing `get-keys` responses that don't include it.
+- Export uses the existing `get-keys` control command and does prefix matching client-side, avoiding a new server command. The `findKeyByPrefix` function normalizes bare hashes by prepending `SHA256:`.
+- Exact fingerprint match returns immediately; prefix match collects candidates and errors on 0 (not found) or 2+ (ambiguous).

@@ -43,6 +43,7 @@ type KeyInfo struct {
 	KeyType     string `json:"keyType"`
 	DisplayName string `json:"displayName"`
 	DeviceID    string `json:"deviceId"`
+	PublicKey   string `json:"publicKey,omitempty"` // SSH authorized_keys format
 }
 
 // CertWarning represents a certificate expiry warning for a device.

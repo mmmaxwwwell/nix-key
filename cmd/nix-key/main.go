@@ -110,10 +110,14 @@ var statusCmd = &cobra.Command{
 var exportCmd = &cobra.Command{
 	Use:   "export [key-id]",
 	Short: "Export an SSH public key",
+	Long:  "Export an SSH public key by SHA256 fingerprint or unique prefix. Prints the key in authorized_keys format to stdout.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("export: not yet implemented")
-		return nil
+		controlSocket, _ := cmd.Flags().GetString("control-socket")
+		if controlSocket == "" {
+			controlSocket = defaultControlSocket()
+		}
+		return runExport(controlSocket, args[0], os.Stdout)
 	},
 }
 
@@ -164,6 +168,7 @@ func init() {
 	rootCmd.AddCommand(revokeCmd)
 	statusCmd.Flags().String("control-socket", "", "Path to daemon control socket")
 	rootCmd.AddCommand(statusCmd)
+	exportCmd.Flags().String("control-socket", "", "Path to daemon control socket")
 	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(logsCmd)
