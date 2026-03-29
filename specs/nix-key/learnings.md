@@ -490,3 +490,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `LaunchedEffect(initialPayload)` in PairingScreen auto-feeds the payload to `viewModel.onQrScanned()` when non-null, bypassing the camera scanner entirely. The `state.phase == PairingPhase.SCANNING` guard prevents re-processing if the screen is recomposed.
 - `MainActivity.extractPairPayload()` is a companion object method (static) for testability — instrumented tests can call it directly without instantiating the activity.
 - `onNewIntent()` handles the case where the activity is already running when a deep link arrives. The `deepLinkPayload` uses `mutableStateOf` to trigger Compose recomposition when updated.
+
+## T065 — NixKeyE2EHelper (UI Automator)
+
+- `androidx.test.uiautomator:uiautomator:2.3.0` is the UI Automator library for system-level UI interaction. It works across process boundaries (unlike Compose test rules which are in-process only).
+- UI Automator uses `By.text(...)`, `By.desc(...)`, `By.res(pkg, id)`, and `By.clazz(...)` selectors. Compose UI elements render as Android Views, so text-based selectors (`By.text`) work for finding Compose `Text` composables.
+- `UiDevice.wait(Until.hasObject(selector), timeout)` returns `Boolean?` (nullable) — use `?: false` for safe boolean handling.
+- `UiDevice.wait(Until.findObject(selector), timeout)` returns `UiObject2?` — null means not found within timeout.
+- Retry logic wrapping each helper method (3 attempts with 1s delay) is essential for emulator E2E tests due to UI timing flakiness.
+- Compose `OutlinedTextField` renders as `android.widget.EditText` in the accessibility tree, so `By.clazz("android.widget.EditText")` finds Compose text fields.
+- The deep link intent for pairing must include `setPackage("com.nixkey")` and `FLAG_ACTIVITY_NEW_TASK` when sent from instrumentation context.

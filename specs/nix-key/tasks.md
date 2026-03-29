@@ -114,7 +114,7 @@
 - [x] T064 Add test-mode intent handler to Android app: `nix-key://pair?payload=<base64-json>` deep link that bypasses ML Kit camera scanner and directly processes the QR payload. Only enabled when app is built with `BUILD_TYPE=debug` or a test flag. This is critical for emulator E2E — camera injection is unreliable. Write instrumented test: send intent via `adb am start`, verify pairing screen shows correct host info. [E2E infra, FR-022]
 
 ### 13d: UI Automator Test Helper Library
-- [ ] T065 Create `android/app/src/androidTest/java/.../e2e/NixKeyE2EHelper.kt`: reusable UI Automator helper with methods:
+- [x] T065 Create `android/app/src/androidTest/java/.../e2e/NixKeyE2EHelper.kt`: reusable UI Automator helper with methods:
   - `waitForApp(timeout)` — wait for MainActivity to be visible
   - `navigateToKeys()` — navigate to key management screen
   - `createKey(name, type)` — tap FAB, fill form, submit, wait for key to appear in list

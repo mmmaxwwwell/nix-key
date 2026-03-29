@@ -18,6 +18,7 @@ junit = "4.13.2"
 mockk = "1.13.13"
 compose-testing = "1.7.6"
 runner = "1.6.2"
+uiautomator = "2.3.0"
 grpc = "1.68.2"
 protobuf = "4.29.3"
 protobuf-plugin = "0.9.4"
@@ -65,6 +66,7 @@ mockk = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "compose-testing" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose-testing" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
+androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 
 # ML Kit Barcode Scanning
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
