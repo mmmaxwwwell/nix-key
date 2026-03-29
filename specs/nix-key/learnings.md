@@ -346,3 +346,18 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - After successful pairing, the server shuts down, so the token replay test must handle both HTTP 401 (server still running) and connection failure (server shut down) as acceptable outcomes.
 - Headscale `preauthkeys create` outputs just the key string on stdout (when stderr is redirected to /dev/null). Use `--reusable` for test convenience.
 - The phone node resolves the headscale domain to `192.168.1.1` (the host's QEMU network IP) since headscale runs on the host node.
+
+## T048 — NixOS VM signing E2E test
+
+- The signing test uses phonesim in `-plain-listen` mode (plain TCP) rather than tsnet mode. The phone node joins the Tailnet via system `tailscaled`, and phonesim binds on `0.0.0.0:<port>`. Traffic arrives via the Tailscale overlay. This avoids the complexity of tsnet state management and IP instability across restarts.
+- phonesim's tsnet mode (`tsnet.Server`) does not have a `ControlURL` setting exposed as a CLI flag, so it can't connect to headscale directly. Using `-plain-listen` with system tailscale is the practical workaround for E2E tests.
+- "Pre-paired" state in E2E tests is simulated by manually writing `devices.json` with the phonesim's Tailscale IP and port, plus symlinking the Nix-generated `config.json`. No actual pairing flow is needed for signing tests.
+- For timeout testing, restart the daemon with `NIXKEY_SIGN_TIMEOUT=5` environment variable override (per T009 env var convention: `NIXKEY_` prefix + `SCREAMING_SNAKE_CASE`).
+- Between test scenarios (success/timeout/denial), stop phonesim with `pkill -f phonesim`, restart with different flags (`-sign-delay 60s` or `-deny-sign`). The phone's Tailscale IP stays stable since it's system tailscale, not ephemeral tsnet.
+- `ssh-keygen -Y sign -f <pubkey-file> -n <namespace>` triggers a sign operation through the SSH agent (via `SSH_AUTH_SOCK`). It reads stdin as the data to sign and writes the signature to stdout. Non-zero exit code indicates SSH_AGENT_FAILURE.
+- The `nix-key daemon` command is still a stub (prints "not yet implemented" and exits). The signing test is written in TDD style — it will pass once the daemon CLI is wired to the internal SSH agent, device registry, and gRPC backend packages.
+- The `flake.nix` already conditionally includes `signing-test.nix` in `checks` via `builtins.pathExists`, so no flake changes are needed when the test file is created.
+
+## phase6-pairing-flow-fix1 — Data race in pair test
+
+- `bytes.Buffer` is not goroutine-safe. When `RunPair()` runs in a goroutine writing to `cfg.Stdout` while the test reads `output.String()` in a polling loop, the race detector catches it. Fix: use a `sync.Mutex`-protected `safeBuffer` wrapper in the test.
