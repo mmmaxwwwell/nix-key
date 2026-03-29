@@ -172,3 +172,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `slog.LevelVar` allows setting the level dynamically and is the recommended way to pass a level to `HandlerOptions.Level`.
 - `WithModule` is just `logger.With("module", name)` — slog's `With` creates a new logger that includes the attrs in every subsequent log call without mutating the parent.
 
+## T008 — Error hierarchy
+
+- Go's `errors.As` walks the chain via `Unwrap()`. Embedding `NixKeyError` in subtypes means `errors.As(err, &nkErr)` needs a custom `As` method on each subtype to convert `**NixKeyError` target to the embedded field.
+- Sentinel errors (`ErrConnection`, `ErrTimeout`, etc.) combined with `Is(target error) bool` methods on each subtype allow `errors.Is(err, ErrConnection)` pattern matching without needing type assertions.
+- `CodeFrom(err)` uses an interface (`Code() string`) with `errors.As` to extract codes from anywhere in the error chain, including when wrapped by `fmt.Errorf("%w", ...)`.
+
