@@ -103,3 +103,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `BiometricManager` can be constructor-injected via Hilt for testability. Use `BiometricManager.from(context)` in a Hilt module to provide it.
 - Instrumented tests use `androidx.test.runner.AndroidJUnit4` (same as T029 learnings — `ext.junit` is not in the dependency list).
 
+## T032 — SignRequestDialog
+
+- `AlertDialog.onDismissRequest` should be a no-op for sign requests — users must explicitly Approve or Deny; dismissing by tapping outside would leave the request in an undefined state.
+- `SignRequestDialogContent` is separated from the queue-aware `SignRequestDialog` for testability — tests can render the dialog directly without needing a `SignRequestQueue`.
+- `ConcurrentLinkedQueue` is used for the backing store of `SignRequestQueue` for thread safety (gRPC calls may enqueue from background threads), with `StateFlow` for reactive Compose UI updates.
+- `queueSize` in the `SignRequestQueue` represents the number of requests *behind* the current one (i.e., remaining in the `ConcurrentLinkedQueue` after the current was polled out), not total enqueued.
+- `data class` with `ByteArray` field requires manual `equals`/`hashCode` override — default data class equality uses reference equality for arrays. For `SignRequest`, equality is based on `requestId` only.
+
