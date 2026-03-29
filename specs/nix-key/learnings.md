@@ -569,3 +569,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - When a workflow is called via `workflow_call`, the callee's `permissions:` block further restricts the caller's token — so setting `contents: read` on ci.yml is safe even when called from release.yml (which has `contents: write`).
 - Socket TOCTOU (remove → listen → chmod) is mitigated by the parent directory being 0700. The practical attack window is microseconds and requires same-UID access. Not worth fixing unless Go gains `net.ListenUnix` with mode flags.
 - Go does not provide reliable memory zeroing for heap-allocated byte slices (GC may copy data). Explicitly zeroing plaintext key bytes is defense-in-depth but not reliable. The key material is only held briefly during pairing.
+
+## T074 — Local smoke test
+
+- `nix build .#default --no-link --print-out-paths` outputs the store path without creating a `./result` symlink — cleaner for scripts that just need the binary path.
+- phonesim with `-plain-listen 127.0.0.1:0` picks a random available port and logs `listening on 127.0.0.1:<port>` to stderr — parse this to get the actual port for subsequent tests.
+- The `nix-key daemon` command is still a stub, so the smoke test validates the build + CLI subcommands + in-process integration tests rather than a live daemon workflow. Full daemon E2E is covered by NixOS VM tests.
+- Cold-start vs warm-start timing for CLI commands (e.g., `nix-key status`) is sub-millisecond difference since there's no lazy initialization or caching — both runs are fast. The test validates that neither regresses significantly.
+- The `--android` flag gates APK build + emulator tests behind an opt-in since they require KVM and take minutes. Default smoke test is host-only and completes in seconds.
