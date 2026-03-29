@@ -50,14 +50,16 @@ let
     };
   };
 
-  # Store-based config.json written from module options
-  configFile = pkgs.writeText "nix-key-config.json" (builtins.toJSON {
+  # Store-based config.json written from module options.
+  # socketPath and controlSocketPath are omitted when empty (default) — they
+  # are resolved at runtime from $XDG_RUNTIME_DIR in the preStart script
+  # and passed via environment variables.
+  configFile = pkgs.writeText "nix-key-config.json" (builtins.toJSON ({
     port = cfg.port;
     tailscaleInterface = cfg.tailscaleInterface;
     allowKeyListing = cfg.allowKeyListing;
     signTimeout = cfg.signTimeout;
     connectionTimeout = cfg.connectionTimeout;
-    socketPath = cfg.socketPath;
     logLevel = cfg.logLevel;
     otelEndpoint = cfg.tracing.otelEndpoint;
     jaegerEnable = cfg.tracing.jaeger.enable;
@@ -73,7 +75,13 @@ let
           if dev.clientKey != null then toString dev.clientKey else null;
       }
     ) cfg.devices;
-  });
+  }
+  // lib.optionalAttrs (cfg.socketPath != "") {
+    socketPath = cfg.socketPath;
+  }
+  // lib.optionalAttrs (cfg.controlSocketPath != "") {
+    controlSocketPath = cfg.controlSocketPath;
+  }));
 in
 {
   options.services.nix-key = {
@@ -123,8 +131,22 @@ in
 
     socketPath = lib.mkOption {
       type = lib.types.str;
-      default = "\${XDG_RUNTIME_DIR}/nix-key/agent.sock";
-      description = "Path to the Unix socket for the SSH agent protocol.";
+      default = "";
+      description = ''
+        Path to the Unix socket for the SSH agent protocol.
+        When empty (default), the daemon uses $XDG_RUNTIME_DIR/nix-key/agent.sock
+        which is resolved at runtime by the systemd preStart script.
+      '';
+    };
+
+    controlSocketPath = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        Path to the Unix socket for the daemon control protocol (status queries, revoke, etc.).
+        When empty (default), the daemon uses $XDG_RUNTIME_DIR/nix-key/control.sock
+        which is resolved at runtime by the systemd preStart script.
+      '';
     };
 
     logLevel = lib.mkOption {
@@ -229,28 +251,63 @@ in
         ConfigurationDirectoryMode = "0700";
         StateDirectory = "nix-key";
         StateDirectoryMode = "0700";
+        RuntimeDirectory = "nix-key";
+        RuntimeDirectoryMode = "0700";
+
+        # Pick up resolved socket paths written by preStart
+        EnvironmentFile = "-%t/nix-key/env";
       };
 
-      # Create certs subdirectory and symlink config.json before starting
-      preStart = ''
-        mkdir -p -m 0700 "$STATE_DIRECTORY/certs"
-        ln -sf ${configFile} "$CONFIGURATION_DIRECTORY/config.json"
-      '';
+      # Create certs subdirectory, symlink config.json, and resolve socket
+      # paths before starting the daemon. Socket paths are written to an
+      # EnvironmentFile so they can use $RUNTIME_DIRECTORY (set by systemd
+      # from RuntimeDirectory=nix-key). The - prefix on EnvironmentFile makes
+      # it optional (no error if missing on first boot).
+      preStart =
+        let
+          socketLine =
+            if cfg.socketPath != ""
+            then "NIXKEY_SOCKET_PATH=${cfg.socketPath}"
+            else "NIXKEY_SOCKET_PATH=$RUNTIME_DIRECTORY/agent.sock";
+          controlSocketLine =
+            if cfg.controlSocketPath != ""
+            then "NIXKEY_CONTROL_SOCKET_PATH=${cfg.controlSocketPath}"
+            else "NIXKEY_CONTROL_SOCKET_PATH=$RUNTIME_DIRECTORY/control.sock";
+        in
+        ''
+          mkdir -p -m 0700 "$STATE_DIRECTORY/certs"
+          ln -sf ${configFile} "$CONFIGURATION_DIRECTORY/config.json"
+          printf '%s\n' "${socketLine}" "${controlSocketLine}" > "$RUNTIME_DIRECTORY/env"
+        '';
 
       environment = {
         NIXKEY_LOG_LEVEL = cfg.logLevel;
+      }
+      // lib.optionalAttrs (cfg.socketPath != "") {
         NIXKEY_SOCKET_PATH = cfg.socketPath;
-      } // lib.optionalAttrs (cfg.tracing.otelEndpoint != null) {
+      }
+      // lib.optionalAttrs (cfg.controlSocketPath != "") {
+        NIXKEY_CONTROL_SOCKET_PATH = cfg.controlSocketPath;
+      }
+      // lib.optionalAttrs (cfg.tracing.otelEndpoint != null) {
         NIXKEY_OTEL_ENDPOINT = cfg.tracing.otelEndpoint;
       };
     };
 
     # Create /etc/xdg/environment.d/50-nix-key.conf so that
-    # SSH_AUTH_SOCK is available in all user login sessions
+    # SSH_AUTH_SOCK is available in all user login sessions.
+    # environment.d supports variable expansion, so ${XDG_RUNTIME_DIR} works.
     environment.etc."xdg/environment.d/50-nix-key.conf" = {
-      text = ''
-        SSH_AUTH_SOCK=${cfg.socketPath}
-      '';
+      text =
+        let
+          sock =
+            if cfg.socketPath != ""
+            then cfg.socketPath
+            else "\${XDG_RUNTIME_DIR}/nix-key/agent.sock";
+        in
+        ''
+          SSH_AUTH_SOCK=${sock}
+        '';
       mode = "0644";
     };
   };

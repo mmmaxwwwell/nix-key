@@ -5,6 +5,7 @@
 { pkgs, nixKeyModule }:
 let
   testSocketPath = "/run/user/1000/nix-key/agent.sock";
+  testControlSocketPath = "/run/user/1000/nix-key/control.sock";
   testPort = 29418;
   testSignTimeout = 15;
   testConnectionTimeout = 5;
@@ -31,6 +32,7 @@ in
         signTimeout = testSignTimeout;
         connectionTimeout = testConnectionTimeout;
         socketPath = testSocketPath;
+        controlSocketPath = testControlSocketPath;
         logLevel = testLogLevel;
         certExpiry = testCertExpiry;
         secrets.ageKeyFile = "/tmp/test-age-identity.txt";
