@@ -178,6 +178,15 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Sentinel errors (`ErrConnection`, `ErrTimeout`, etc.) combined with `Is(target error) bool` methods on each subtype allow `errors.Is(err, ErrConnection)` pattern matching without needing type assertions.
 - `CodeFrom(err)` uses an interface (`Code() string`) with `errors.As` to extract codes from anywhere in the error chain, including when wrapped by `fmt.Errorf("%w", ...)`.
 
+## T009 — Config module
+
+- Config struct uses `json:"fieldName"` tags with camelCase JSON keys matching the NixOS module's `config.json` output.
+- `json.Unmarshal` into a pre-populated struct (defaults) correctly overlays only the fields present in the JSON file, leaving defaults for absent fields.
+- `bool` fields in JSON unmarshal to `false` when absent from the file (Go zero value), which conflicts with `allowKeyListing` defaulting to `true`. Solved by setting the default before unmarshal — if the JSON file explicitly sets it to `false`, that's intentional; if absent, the default `true` from the pre-populated struct is preserved.
+- Optional nullable fields (`otelEndpoint`, `tailscaleAuthKeyFile`) use `*string` — `null` in JSON maps to Go `nil`, and env var overrides create a non-nil pointer.
+- `IsConfigError` helper added to `internal/errors/` for cleaner test assertions.
+- Env var naming convention: `NIXKEY_` prefix + `SCREAMING_SNAKE_CASE` (e.g., `NIXKEY_SIGN_TIMEOUT`, `NIXKEY_ALLOW_KEY_LISTING`).
+
 ## T043 — NixOS VM service test
 
 - In Nix `''...''` strings, `$(...)` (shell subshell syntax) causes parse errors — Nix treats `$` followed by `(` as an invalid token. Use `find ... | xargs cat` pipelines instead of `cat $(find ...)`.

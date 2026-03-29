@@ -168,6 +168,11 @@ func (e *ProtocolError) As(target interface{}) bool {
 	return false
 }
 
+// IsConfigError reports whether err or any error in its chain is a ConfigError.
+func IsConfigError(err error) bool {
+	return errors.Is(err, ErrConfig)
+}
+
 // CodeFrom extracts the error code from any error in the chain that
 // implements the Code() string method. Returns empty string if not found.
 func CodeFrom(err error) string {
