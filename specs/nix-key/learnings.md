@@ -263,3 +263,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The `KeyStore` interface uses a gomobile-friendly `KeyList` accessor pattern instead of returning `[]SSHKey` directly — gomobile cannot export Go slices of custom types.
 - `Sign` flags use `int32` (not `uint32`) because gomobile maps Go `int32` to Java `int`, while `uint32` has no direct Java equivalent.
 
+## T015 — Cert generation
+
+- `internal/mtls/` package is new; it will also house `age.go` (T017) and pinning (T016).
+- Self-signed certs use `IsCA: true` + `KeyUsageCertSign` so they can verify against themselves (required for mTLS where each side is its own CA).
+- `x509.MarshalPKCS8PrivateKey` works for both Ed25519 and ECDSA keys — produces a `PRIVATE KEY` PEM block (not algorithm-specific like `EC PRIVATE KEY`).
+- 128-bit random serial numbers via `crypto/rand.Int` satisfy RFC 5280 uniqueness requirements.
+- No new dependencies needed — all from Go stdlib (`crypto/*`, `encoding/pem`, `math/big`).

@@ -29,7 +29,7 @@
 
 ## Phase 4: mTLS + Age Encryption
 
-- [ ] T015 Implement cert generation (`internal/mtls/certs.go`): generate self-signed X.509 certs with Ed25519 or ECDSA-P256 keys. Configurable expiry (default 1 year). Output PEM-encoded cert + key. Write tests verifying cert validity, expiry, and key type. [FR-010, FR-032]
+- [x] T015 Implement cert generation (`internal/mtls/certs.go`): generate self-signed X.509 certs with Ed25519 or ECDSA-P256 keys. Configurable expiry (default 1 year). Output PEM-encoded cert + key. Write tests verifying cert validity, expiry, and key type. [FR-010, FR-032]
 - [ ] T016 Implement cert pinning (`internal/mtls/`): TLS config that verifies peer cert fingerprint (SHA256) against stored value, rejecting mismatches. Create `PinnedTLSConfig(peerFingerprint string)` for both client and server modes. Write tests: matching fingerprint → success, wrong fingerprint → reject, expired cert → reject. [FR-011]
 - [ ] T017 Implement age encryption (`internal/mtls/age.go`): `EncryptFile(path, identityPath string)`, `DecryptToMemory(path, identityPath string) ([]byte, error)`, `GenerateIdentity(path string)`. Using `filippo.io/age`. Write tests: generate identity, encrypt file, decrypt matches original, wrong identity → error. [FR-101, FR-102, FR-104]
 - [ ] T018 Implement mTLS dialer and listener: `DialMTLS(addr, clientCertPath, clientKeyPath, peerFingerprint, ageIdentityPath string) (*grpc.ClientConn, error)` and `ListenMTLS(addr, serverCertPath, serverKeyPath, peerFingerprint, ageIdentityPath string) (net.Listener, error)`. Age-decrypt keys into memory before TLS config. Integration test: establish mTLS connection between two goroutines, exchange gRPC messages. [FR-010, FR-011, FR-012]
