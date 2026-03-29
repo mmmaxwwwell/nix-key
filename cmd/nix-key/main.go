@@ -99,8 +99,11 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show daemon status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("status: not yet implemented")
-		return nil
+		controlSocket, _ := cmd.Flags().GetString("control-socket")
+		if controlSocket == "" {
+			controlSocket = defaultControlSocket()
+		}
+		return runStatusOrNotRunning(controlSocket)
 	},
 }
 
@@ -159,6 +162,7 @@ func init() {
 	rootCmd.AddCommand(devicesCmd)
 	revokeCmd.Flags().String("control-socket", "", "Path to daemon control socket")
 	rootCmd.AddCommand(revokeCmd)
+	statusCmd.Flags().String("control-socket", "", "Path to daemon control socket")
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(configCmd)

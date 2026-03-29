@@ -2,7 +2,9 @@ package daemon
 
 import (
 	"bufio"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"os"
@@ -43,12 +45,22 @@ type KeyInfo struct {
 	DeviceID    string `json:"deviceId"`
 }
 
+// CertWarning represents a certificate expiry warning for a device.
+type CertWarning struct {
+	DeviceID   string    `json:"deviceId"`
+	DeviceName string    `json:"deviceName"`
+	CertType   string    `json:"certType"` // "server" or "client"
+	ExpiresAt  time.Time `json:"expiresAt"`
+	DaysLeft   int       `json:"daysLeft"`
+}
+
 // StatusInfo is the wire format for the get-status response.
 type StatusInfo struct {
-	Running     bool   `json:"running"`
-	DeviceCount int    `json:"deviceCount"`
-	KeyCount    int    `json:"keyCount"`
-	SocketPath  string `json:"socketPath"`
+	Running      bool          `json:"running"`
+	DeviceCount  int           `json:"deviceCount"`
+	KeyCount     int           `json:"keyCount"`
+	SocketPath   string        `json:"socketPath"`
+	CertWarnings []CertWarning `json:"certWarnings"`
 }
 
 // ControlServerConfig holds configuration for the control socket server.
@@ -279,12 +291,88 @@ func (s *ControlServer) handleGetStatus() Response {
 	if s.keyLister != nil {
 		keyCount = len(s.keyLister())
 	}
+
+	warnings := collectCertWarnings(devices, time.Now(), 30)
+
 	return Response{Status: "ok", Data: StatusInfo{
-		Running:     true,
-		DeviceCount: len(devices),
-		KeyCount:    keyCount,
-		SocketPath:  s.socketPath,
+		Running:      true,
+		DeviceCount:  len(devices),
+		KeyCount:     keyCount,
+		SocketPath:   s.socketPath,
+		CertWarnings: warnings,
 	}}
+}
+
+// collectCertWarnings checks cert files for each device and returns warnings
+// for certs expiring within the given threshold in days.
+func collectCertWarnings(devices []Device, now time.Time, thresholdDays int) []CertWarning {
+	threshold := now.Add(time.Duration(thresholdDays) * 24 * time.Hour)
+	var warnings []CertWarning
+
+	for _, dev := range devices {
+		// Check server cert (phone cert).
+		if dev.CertPath != "" {
+			if expiry, err := parseCertExpiry(dev.CertPath); err == nil {
+				if expiry.Before(threshold) {
+					daysLeft := int(expiry.Sub(now).Hours() / 24)
+					if daysLeft < 0 {
+						daysLeft = 0
+					}
+					warnings = append(warnings, CertWarning{
+						DeviceID:   dev.ID,
+						DeviceName: dev.Name,
+						CertType:   "server",
+						ExpiresAt:  expiry,
+						DaysLeft:   daysLeft,
+					})
+				}
+			}
+		}
+
+		// Check client cert (host cert).
+		if dev.ClientCertPath != "" {
+			if expiry, err := parseCertExpiry(dev.ClientCertPath); err == nil {
+				if expiry.Before(threshold) {
+					daysLeft := int(expiry.Sub(now).Hours() / 24)
+					if daysLeft < 0 {
+						daysLeft = 0
+					}
+					warnings = append(warnings, CertWarning{
+						DeviceID:   dev.ID,
+						DeviceName: dev.Name,
+						CertType:   "client",
+						ExpiresAt:  expiry,
+						DaysLeft:   daysLeft,
+					})
+				}
+			}
+		}
+	}
+
+	if warnings == nil {
+		warnings = []CertWarning{}
+	}
+	return warnings
+}
+
+// parseCertExpiry reads a PEM certificate file and returns its NotAfter time.
+func parseCertExpiry(certPath string) (time.Time, error) {
+	data, err := os.ReadFile(certPath)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return time.Time{}, fmt.Errorf("no PEM block found in %s", certPath)
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return cert.NotAfter, nil
 }
 
 func (s *ControlServer) handleGetKeys() Response {

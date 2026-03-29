@@ -389,3 +389,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Cert file deletion is best-effort (errors silently ignored) since the files may already be absent or the paths may be empty (e.g., nix-declared devices with store-managed certs).
 - FR-E09 test: after revocation, `DialMTLS` fails with "no such file or directory" because cert files were deleted. This is the primary revocation enforcement mechanism — without cert files, no mTLS handshake can be established.
 - Cobra `var revokeCmd` must not reference `runRevokeCmd` which in turn references `revokeCmd` — this creates an initialization cycle. Inline flag access via `cmd.Flags().GetString()` in the `RunE` closure instead.
+
+## T056 — nix-key status CLI
+
+- `StatusInfo` already existed in `internal/daemon/control.go` (from T026) with basic fields. T056 added `CertWarnings []CertWarning` and the `collectCertWarnings` function to check PEM cert files for expiry.
+- `parseCertExpiry` reads the cert PEM file, decodes the first PEM block, parses the X.509 certificate, and returns `NotAfter`. Errors are silently skipped (cert file may not exist or be unreadable).
+- `runStatusOrNotRunning` provides graceful degradation: if the daemon isn't running (control socket unreachable), it prints "stopped" instead of returning an error. `runStatus` (used in tests) returns the error for testability.
+- The 30-day cert expiry threshold is hardcoded in `handleGetStatus` but `collectCertWarnings` accepts `thresholdDays` as a parameter for testability.
