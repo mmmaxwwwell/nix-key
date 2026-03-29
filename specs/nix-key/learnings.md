@@ -242,3 +242,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The proto file, generated Go code, and `make proto` Makefile target were already created during earlier tasks (likely T041/T042 when the Nix package needed `gen/` for compilation). Task was already complete on arrival.
 - `go_package` option uses `nixkey/v1;nixkeyv1` — the part after `;` sets the Go package name to `nixkeyv1` while the path is `nixkey/v1` (relative to `gen/` via `paths=source_relative`).
 
+## T013 — pkg/phoneserver gRPC server
+
+- Task was already fully implemented (likely done during T033 gomobile bridge work or earlier). All interfaces, server, bridge, and tests were in place and passing.
+- The `KeyStore` interface uses a gomobile-friendly `KeyList` accessor pattern instead of returning `[]SSHKey` directly — gomobile cannot export Go slices of custom types.
+- `Sign` flags use `int32` (not `uint32`) because gomobile maps Go `int32` to Java `int`, while `uint32` has no direct Java equivalent.
+
