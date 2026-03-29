@@ -425,3 +425,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `map[string]json.RawMessage` is used for parsing to handle heterogeneous value types (string, bool, int, null) without a struct. Note: Go maps don't preserve insertion order, so field display order is non-deterministic.
 - Sensitive fields (`ageKeyFile`, `tailscaleAuthKeyFile`) are defined in a `sensitiveFields` set, matching `Config.RedactedFields()` from `internal/config/`. Values show "present" or "missing" based on whether the string value is non-empty.
 - Nullable optional fields (like `otelEndpoint`) display "not set" when JSON value is `null`.
+
+## T059 — nix-key logs CLI
+
+- `journalctl --user -u nix-key-agent -o cat` outputs only the message field (our JSON log lines) without journal metadata, making JSON parsing straightforward.
+- `formatLogLine` handles non-JSON lines gracefully (e.g., `-- Journal begins at ...` header) by returning them as-is.
+- Extra JSON fields beyond `timestamp`, `level`, `msg` are sorted and displayed as `key=value` pairs for consistent output across runs.
+- `time.Parse(time.RFC3339Nano, ts)` is tried first to handle nanosecond timestamps, falling back to `time.RFC3339` for second-precision timestamps.

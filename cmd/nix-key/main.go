@@ -137,8 +137,10 @@ var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "Tail daemon logs in human-readable format",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("logs: not yet implemented")
-		return nil
+		lines, _ := cmd.Flags().GetInt("lines")
+		follow, _ := cmd.Flags().GetBool("follow")
+		noColor, _ := cmd.Flags().GetBool("no-color")
+		return runLogs(lines, follow, noColor)
 	},
 }
 
@@ -175,6 +177,9 @@ func init() {
 	rootCmd.AddCommand(exportCmd)
 	configCmd.Flags().String("config-file", "", "Path to config file (default: ~/.config/nix-key/config.json)")
 	rootCmd.AddCommand(configCmd)
+	logsCmd.Flags().IntP("lines", "n", 50, "Number of recent log lines to show")
+	logsCmd.Flags().BoolP("follow", "f", true, "Follow new log entries (tail -f)")
+	logsCmd.Flags().Bool("no-color", false, "Disable colored output")
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(testCmd)
 }
