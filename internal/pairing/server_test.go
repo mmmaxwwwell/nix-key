@@ -42,8 +42,8 @@ func TestPairingServerAcceptAndApprove(t *testing.T) {
 	addr := ln.Addr().String()
 
 	tlsLn := tls.NewListener(ln, srv.TLSConfig())
-	go srv.Serve(tlsLn)
-	defer srv.Shutdown(context.Background())
+	go func() { _ = srv.Serve(tlsLn) }()
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	// Simulate phone POST
 	client := &http.Client{
@@ -115,8 +115,8 @@ func TestPairingServerDenied(t *testing.T) {
 	addr := ln.Addr().String()
 
 	tlsLn := tls.NewListener(ln, srv.TLSConfig())
-	go srv.Serve(tlsLn)
-	defer srv.Shutdown(context.Background())
+	go func() { _ = srv.Serve(tlsLn) }()
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -177,8 +177,8 @@ func TestPairingServerInvalidToken(t *testing.T) {
 	addr := ln.Addr().String()
 
 	tlsLn := tls.NewListener(ln, srv.TLSConfig())
-	go srv.Serve(tlsLn)
-	defer srv.Shutdown(context.Background())
+	go func() { _ = srv.Serve(tlsLn) }()
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -230,8 +230,8 @@ func TestPairingServerTokenReplay(t *testing.T) {
 	addr := ln.Addr().String()
 
 	tlsLn := tls.NewListener(ln, srv.TLSConfig())
-	go srv.Serve(tlsLn)
-	defer srv.Shutdown(context.Background())
+	go func() { _ = srv.Serve(tlsLn) }()
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -303,8 +303,8 @@ func TestPairingServerTimeout(t *testing.T) {
 	addr := ln.Addr().String()
 
 	tlsLn := tls.NewListener(ln, srv.TLSConfig())
-	go srv.Serve(tlsLn)
-	defer srv.Shutdown(context.Background())
+	go func() { _ = srv.Serve(tlsLn) }()
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -357,8 +357,8 @@ func TestPairingServerMissingFields(t *testing.T) {
 	addr := ln.Addr().String()
 
 	tlsLn := tls.NewListener(ln, srv.TLSConfig())
-	go srv.Serve(tlsLn)
-	defer srv.Shutdown(context.Background())
+	go func() { _ = srv.Serve(tlsLn) }()
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -438,8 +438,8 @@ func TestPairingServerGetCompletedRequest(t *testing.T) {
 	addr := ln.Addr().String()
 
 	tlsLn := tls.NewListener(ln, srv.TLSConfig())
-	go srv.Serve(tlsLn)
-	defer srv.Shutdown(context.Background())
+	go func() { _ = srv.Serve(tlsLn) }()
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -491,8 +491,8 @@ func TestPairingServerWrongMethod(t *testing.T) {
 	addr := ln.Addr().String()
 
 	tlsLn := tls.NewListener(ln, srv.TLSConfig())
-	go srv.Serve(tlsLn)
-	defer srv.Shutdown(context.Background())
+	go func() { _ = srv.Serve(tlsLn) }()
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	client := &http.Client{
 		Transport: &http.Transport{

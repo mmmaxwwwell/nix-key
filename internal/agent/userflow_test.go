@@ -243,13 +243,13 @@ func TestIntegrationUserFlowMidConnectionDrop(t *testing.T) {
 
 	gs := grpc.NewServer()
 	nixkeyv1.RegisterNixKeyAgentServer(gs, dropServer)
-	go gs.Serve(lis)
+	go func() { _ = gs.Serve(lis) }()
 	t.Cleanup(func() { gs.Stop() })
 
 	// Set up registry and backend pointing to the dropping server.
 	host, portStr, _ := net.SplitHostPort(lis.Addr().String())
 	port := 0
-	fmt.Sscanf(portStr, "%d", &port)
+	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	registry := daemon.NewRegistry()
 	registry.Add(daemon.Device{
@@ -329,7 +329,7 @@ func TestIntegrationUserFlowMultiplePhones(t *testing.T) {
 
 	host1, portStr1, _ := net.SplitHostPort(addr1)
 	port1 := 0
-	fmt.Sscanf(portStr1, "%d", &port1)
+	_, _ = fmt.Sscanf(portStr1, "%d", &port1)
 	registry.Add(daemon.Device{
 		ID: "phone-1", Name: "Phone 1",
 		TailscaleIP: host1, ListenPort: port1,
@@ -339,7 +339,7 @@ func TestIntegrationUserFlowMultiplePhones(t *testing.T) {
 
 	host2, portStr2, _ := net.SplitHostPort(addr2)
 	port2 := 0
-	fmt.Sscanf(portStr2, "%d", &port2)
+	_, _ = fmt.Sscanf(portStr2, "%d", &port2)
 	registry.Add(daemon.Device{
 		ID: "phone-2", Name: "Phone 2",
 		TailscaleIP: host2, ListenPort: port2,

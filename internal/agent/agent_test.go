@@ -77,7 +77,7 @@ func startTestAgent(t *testing.T, backend agent.Backend) (sshagent.ExtendedAgent
 		t.Fatalf("new server: %v", err)
 	}
 
-	go srv.Serve()
+	go func() { _ = srv.Serve() }()
 
 	// Wait for socket to appear.
 	deadline := time.Now().Add(2 * time.Second)
@@ -90,14 +90,14 @@ func startTestAgent(t *testing.T, backend agent.Backend) (sshagent.ExtendedAgent
 
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
-		srv.Close()
+		_ = srv.Close()
 		t.Fatalf("dial agent socket: %v", err)
 	}
 
 	client := sshagent.NewClient(conn)
 	cleanup := func() {
-		conn.Close()
-		srv.Close()
+		_ = conn.Close()
+		_ = srv.Close()
 	}
 	return client, cleanup
 }
@@ -247,8 +247,8 @@ func TestMultipleConcurrentConnections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new server: %v", err)
 	}
-	go srv.Serve()
-	defer srv.Close()
+	go func() { _ = srv.Serve() }()
+	defer func() { _ = srv.Close() }()
 
 	// Wait for socket.
 	deadline := time.Now().Add(2 * time.Second)
@@ -331,7 +331,7 @@ func TestServerClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new server: %v", err)
 	}
-	go srv.Serve()
+	go func() { _ = srv.Serve() }()
 
 	// Wait for socket.
 	deadline := time.Now().Add(2 * time.Second)
@@ -342,7 +342,7 @@ func TestServerClose(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	srv.Close()
+	_ = srv.Close()
 
 	// After close, new connections should fail.
 	time.Sleep(50 * time.Millisecond)

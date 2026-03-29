@@ -36,11 +36,11 @@ func TestIntegrationPairingUserFlowApproved(t *testing.T) {
 	dir := t.TempDir()
 	devicesPath := filepath.Join(dir, "devices.json")
 	certsDir := filepath.Join(dir, "certs")
-	ageIdPath := filepath.Join(dir, "age-identity.txt")
+	ageIDPath := filepath.Join(dir, "age-identity.txt")
 	socketPath := filepath.Join(dir, "control.sock")
 
 	// Step 1: Generate age identity for encrypting keys.
-	if err := ensureAgeIdentity(ageIdPath); err != nil {
+	if err := ensureAgeIdentity(ageIDPath); err != nil {
 		t.Fatalf("create age identity: %v", err)
 	}
 
@@ -87,8 +87,8 @@ func TestIntegrationPairingUserFlowApproved(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	go pairSrv.Serve(ln)
-	defer pairSrv.Shutdown(context.Background())
+	go func() { _ = pairSrv.Serve(ln) }()
+	defer func() { _ = pairSrv.Shutdown(context.Background()) }()
 
 	port := ln.Addr().(*net.TCPAddr).Port
 
@@ -154,7 +154,7 @@ func TestIntegrationPairingUserFlowApproved(t *testing.T) {
 	pairCfg := PairConfig{
 		DevicesPath:       devicesPath,
 		CertsDir:          certsDir,
-		AgeIdentityPath:   ageIdPath,
+		AgeIdentityPath:   ageIDPath,
 		ControlSocketPath: socketPath,
 		Stdout:            &pairOutput,
 	}
@@ -224,7 +224,7 @@ func TestIntegrationPairingUserFlowApproved(t *testing.T) {
 	}
 
 	// Decrypt and verify round-trip.
-	cmd := osexec.Command("age", "-d", "-i", ageIdPath)
+	cmd := osexec.Command("age", "-d", "-i", ageIDPath)
 	cmd.Stdin = bytes.NewReader(encryptedKey)
 	decryptedKey, err := cmd.Output()
 	if err != nil {
@@ -326,8 +326,8 @@ func TestIntegrationPairingDenied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	go pairSrv.Serve(ln)
-	defer pairSrv.Shutdown(context.Background())
+	go func() { _ = pairSrv.Serve(ln) }()
+	defer func() { _ = pairSrv.Shutdown(context.Background()) }()
 
 	port := ln.Addr().(*net.TCPAddr).Port
 
@@ -403,7 +403,7 @@ func TestIntegrationPairingDenied(t *testing.T) {
 	}
 	listData, _ := json.Marshal(listResp.Data)
 	var deviceInfos []daemon.DeviceInfo
-	json.Unmarshal(listData, &deviceInfos)
+	_ = json.Unmarshal(listData, &deviceInfos)
 	if len(deviceInfos) != 0 {
 		t.Errorf("list-devices should return 0 devices after denial, got %d", len(deviceInfos))
 	}
@@ -424,10 +424,10 @@ func TestIntegrationPairingTokenReplay(t *testing.T) {
 	dir := t.TempDir()
 	devicesPath := filepath.Join(dir, "devices.json")
 	certsDir := filepath.Join(dir, "certs")
-	ageIdPath := filepath.Join(dir, "age-identity.txt")
+	ageIDPath := filepath.Join(dir, "age-identity.txt")
 	socketPath := filepath.Join(dir, "control.sock")
 
-	if err := ensureAgeIdentity(ageIdPath); err != nil {
+	if err := ensureAgeIdentity(ageIDPath); err != nil {
 		t.Fatalf("create age identity: %v", err)
 	}
 
@@ -473,8 +473,8 @@ func TestIntegrationPairingTokenReplay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	go pairSrv.Serve(ln)
-	defer pairSrv.Shutdown(context.Background())
+	go func() { _ = pairSrv.Serve(ln) }()
+	defer func() { _ = pairSrv.Shutdown(context.Background()) }()
 
 	port := ln.Addr().(*net.TCPAddr).Port
 
@@ -523,7 +523,7 @@ func TestIntegrationPairingTokenReplay(t *testing.T) {
 	pairCfg := PairConfig{
 		DevicesPath:       devicesPath,
 		CertsDir:          certsDir,
-		AgeIdentityPath:   ageIdPath,
+		AgeIdentityPath:   ageIDPath,
 		ControlSocketPath: socketPath,
 		Stdout:            &pairOutput,
 	}
@@ -584,7 +584,7 @@ func TestIntegrationPairingTokenReplay(t *testing.T) {
 	}
 	listData, _ := json.Marshal(listResp.Data)
 	var deviceInfos []daemon.DeviceInfo
-	json.Unmarshal(listData, &deviceInfos)
+	_ = json.Unmarshal(listData, &deviceInfos)
 	if len(deviceInfos) != 1 {
 		t.Fatalf("daemon should have 1 device after replay, got %d", len(deviceInfos))
 	}

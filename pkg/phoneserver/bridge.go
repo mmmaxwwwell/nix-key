@@ -92,7 +92,7 @@ func (ps *PhoneServer) Stop() {
 	defer ps.mu.Unlock()
 	ps.server.Stop()
 	if ps.tp != nil {
-		ps.tp.Shutdown(context.Background())
+		_ = ps.tp.Shutdown(context.Background())
 		ps.tp = nil
 	}
 	ps.lis = nil

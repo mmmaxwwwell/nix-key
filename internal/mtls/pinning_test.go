@@ -281,7 +281,7 @@ func doTLSHandshake(t *testing.T, serverConfig, clientConfig *tls.Config) error 
 		defer conn.Close()
 
 		tlsConn := conn.(*tls.Conn)
-		tlsConn.SetDeadline(time.Now().Add(5 * time.Second))
+		_ = tlsConn.SetDeadline(time.Now().Add(5 * time.Second))
 		if err := tlsConn.Handshake(); err != nil {
 			errCh <- fmt.Errorf("server handshake: %w", err)
 			return
@@ -298,7 +298,7 @@ func doTLSHandshake(t *testing.T, serverConfig, clientConfig *tls.Config) error 
 	}
 	defer conn.Close()
 
-	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 	if err := conn.Handshake(); err != nil {
 		<-errCh
 		return fmt.Errorf("client handshake: %w", err)

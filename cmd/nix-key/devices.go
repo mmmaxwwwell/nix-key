@@ -99,5 +99,5 @@ func formatDevicesTable(w io.Writer, devices []daemon.DeviceInfo) {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
 			d.Name, ip, fp, lastSeen, d.Source)
 	}
-	tw.Flush()
+	_ = tw.Flush()
 }

@@ -51,7 +51,7 @@ func startOTELTestServer(t *testing.T, ks phoneserver.KeyStore, conf phoneserver
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
 
 	cleanup := func() {
-		conn.Close()
+		_ = conn.Close()
 		gs.GracefulStop()
 	}
 
@@ -63,7 +63,7 @@ func startOTELTestServer(t *testing.T, ks phoneserver.KeyStore, conf phoneserver
 func TestOTELSignSpans(t *testing.T) {
 	exporter := tracetest.NewInMemoryExporter()
 	tp := trace.NewTracerProvider(trace.WithSyncer(exporter))
-	defer tp.Shutdown(context.Background())
+	defer func() { _ = tp.Shutdown(context.Background()) }()
 
 	ks := &mockKeyStore{keys: testKeys()}
 	client, cleanup := startOTELTestServer(t, ks, &autoApproveConfirmer{}, tp)
@@ -145,7 +145,7 @@ func TestOTELSignSpans(t *testing.T) {
 func TestOTELSignSpansWithDenial(t *testing.T) {
 	exporter := tracetest.NewInMemoryExporter()
 	tp := trace.NewTracerProvider(trace.WithSyncer(exporter))
-	defer tp.Shutdown(context.Background())
+	defer func() { _ = tp.Shutdown(context.Background()) }()
 
 	ks := &mockKeyStore{keys: testKeys()}
 	client, cleanup := startOTELTestServer(t, ks, &denyConfirmer{}, tp)

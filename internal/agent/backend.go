@@ -1,5 +1,5 @@
-// backend.go implements the agent.Backend interface by forwarding
-// key listing and signing operations to paired phone devices over gRPC.
+// Package agent implements the SSH agent protocol handler, including a Backend
+// that forwards key listing and signing operations to paired phones over gRPC.
 package agent
 
 import (

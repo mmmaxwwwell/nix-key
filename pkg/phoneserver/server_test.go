@@ -95,7 +95,7 @@ func startTestServer(t *testing.T, ks phoneserver.KeyStore, conf phoneserver.Con
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
 
 	cleanup := func() {
-		conn.Close()
+		_ = conn.Close()
 		gs.GracefulStop()
 	}
 
@@ -272,7 +272,7 @@ func TestPhoneServerBridge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

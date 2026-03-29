@@ -135,7 +135,7 @@ func main() {
 			tsServer.Dir = stateDir
 		}
 
-		defer tsServer.Close()
+		defer func() { _ = tsServer.Close() }()
 
 		lis, err = tsServer.Listen("tcp", fmt.Sprintf(":%d", listenPort))
 		if err != nil {
@@ -165,7 +165,7 @@ func main() {
 	}
 
 	if tp != nil {
-		tp.Shutdown(context.Background())
+		_ = tp.Shutdown(context.Background())
 	}
 }
 

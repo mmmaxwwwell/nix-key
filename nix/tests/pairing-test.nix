@@ -41,7 +41,11 @@ in
           ip_prefixes = [
             "100.64.0.0/10"
           ];
-          dns.base_domain = "test.ts";
+          dns = {
+            base_domain = "test.ts";
+            nameservers.global = [ "127.0.0.1" ];
+            magic_dns = false;
+          };
           # Disable TLS for test simplicity
           tls_cert_path = "";
           tls_key_path = "";

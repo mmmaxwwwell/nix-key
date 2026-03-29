@@ -64,7 +64,7 @@ func TestListenMTLS_And_DialMTLS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialMTLS: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 }
 
 func TestListenMTLS_And_DialMTLS_WithAge(t *testing.T) {
@@ -135,7 +135,7 @@ func TestListenMTLS_And_DialMTLS_WithAge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialMTLS with age: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 }
 
 func TestDialMTLS_WrongFingerprint(t *testing.T) {
@@ -157,7 +157,7 @@ func TestDialMTLS_WrongFingerprint(t *testing.T) {
 		// grpc.NewClient may not fail immediately; that's OK
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// The handshake failure should manifest when making an actual RPC
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
@@ -212,7 +212,7 @@ func TestIntegrationMTLSGRPC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DialMTLS: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

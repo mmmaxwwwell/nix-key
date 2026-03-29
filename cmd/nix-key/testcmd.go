@@ -53,7 +53,7 @@ func runTestDevice(controlSocket, deviceID, ageIdentityPath string, timeout time
 	if err != nil {
 		return classifyDialError(err, dev.Name)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Step 4: Call Ping RPC.
 	grpcClient := nixkeyv1.NewNixKeyAgentClient(conn)

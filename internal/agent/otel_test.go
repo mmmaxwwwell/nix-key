@@ -41,7 +41,7 @@ func (d *otelTestDialer) DialDevice(ctx context.Context, dev daemon.Device) (nix
 	}
 
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
-	cleanup := func() { conn.Close() }
+	cleanup := func() { _ = conn.Close() }
 	return client, cleanup, nil
 }
 
@@ -55,7 +55,7 @@ func TestIntegrationOTELSignRequestSpans(t *testing.T) {
 	// Set up in-memory span exporter as mock collector.
 	exporter := tracetest.NewInMemoryExporter()
 	tp := trace.NewTracerProvider(trace.WithSyncer(exporter))
-	defer tp.Shutdown(context.Background())
+	defer func() { _ = tp.Shutdown(context.Background()) }()
 
 	tracer := tp.Tracer("nix-key-test")
 
@@ -70,7 +70,7 @@ func TestIntegrationOTELSignRequestSpans(t *testing.T) {
 
 	host, portStr, _ := net.SplitHostPort(addr)
 	port := 0
-	fmt.Sscanf(portStr, "%d", &port)
+	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	registry := daemon.NewRegistry()
 	registry.Add(daemon.Device{
@@ -252,7 +252,7 @@ func TestIntegrationOTELSignErrorSpans(t *testing.T) {
 
 	exporter := tracetest.NewInMemoryExporter()
 	tp := trace.NewTracerProvider(trace.WithSyncer(exporter))
-	defer tp.Shutdown(context.Background())
+	defer func() { _ = tp.Shutdown(context.Background()) }()
 
 	tracer := tp.Tracer("nix-key-test")
 
@@ -267,7 +267,7 @@ func TestIntegrationOTELSignErrorSpans(t *testing.T) {
 
 	host, portStr, _ := net.SplitHostPort(addr)
 	port := 0
-	fmt.Sscanf(portStr, "%d", &port)
+	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	registry := daemon.NewRegistry()
 	registry.Add(daemon.Device{
@@ -289,7 +289,7 @@ func TestIntegrationOTELSignErrorSpans(t *testing.T) {
 	})
 
 	// List to populate cache.
-	backend.List()
+	_, _ = backend.List()
 	exporter.Reset()
 
 	pub, err := ssh.ParsePublicKey(grpcKey.GetPublicKeyBlob())

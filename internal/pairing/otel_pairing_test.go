@@ -55,8 +55,8 @@ func TestIntegrationPairingWithOTELConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	go pairSrv.Serve(ln)
-	defer pairSrv.Shutdown(context.Background())
+	go func() { _ = pairSrv.Serve(ln) }()
+	defer func() { _ = pairSrv.Shutdown(context.Background()) }()
 
 	port := ln.Addr().(*net.TCPAddr).Port
 
@@ -190,8 +190,8 @@ func TestIntegrationPairingWithoutOTEL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	go pairSrv.Serve(ln)
-	defer pairSrv.Shutdown(context.Background())
+	go func() { _ = pairSrv.Serve(ln) }()
+	defer func() { _ = pairSrv.Shutdown(context.Background()) }()
 
 	port := ln.Addr().(*net.TCPAddr).Port
 
@@ -291,7 +291,7 @@ func TestPairInfoFileIncludesOTEL(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	go RunPair(ctx, cfg)
+	go func() { _ = RunPair(ctx, cfg) }()
 
 	// Wait for pair info file to be written
 	var infoData []byte

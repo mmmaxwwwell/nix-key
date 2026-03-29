@@ -506,7 +506,7 @@ func TestIntegrationRevokedCertRejectedOnMTLS(t *testing.T) {
 
 	gs := grpc.NewServer()
 	nixkeyv1.RegisterNixKeyAgentServer(gs, &mockPhoneServer{})
-	go gs.Serve(lis)
+	go func() { _ = gs.Serve(lis) }()
 	defer gs.GracefulStop()
 
 	// Step 1: Verify mTLS works before revocation.
@@ -522,7 +522,7 @@ func TestIntegrationRevokedCertRejectedOnMTLS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pre-revoke Ping should succeed: %v", err)
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	// Register device in daemon registry.
 	reg.Add(daemon.Device{

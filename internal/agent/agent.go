@@ -134,7 +134,7 @@ func (s *Server) Serve() error {
 			defer s.wg.Done()
 			defer conn.Close()
 			a := &sshAgent{backend: s.backend}
-			sshagent.ServeAgent(a, conn)
+			_ = sshagent.ServeAgent(a, conn)
 		}()
 	}
 }

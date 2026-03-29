@@ -309,10 +309,10 @@ func TestProcessPairingResult(t *testing.T) {
 	dir := t.TempDir()
 	devicesPath := filepath.Join(dir, "devices.json")
 	certsDir := filepath.Join(dir, "certs")
-	ageIdPath := filepath.Join(dir, "age-identity.txt")
+	ageIDPath := filepath.Join(dir, "age-identity.txt")
 
-	os.MkdirAll(filepath.Dir(ageIdPath), 0700)
-	os.WriteFile(ageIdPath, []byte("# public key: age1fake\nAGE-SECRET-KEY-1FAKE\n"), 0600)
+	_ = os.MkdirAll(filepath.Dir(ageIDPath), 0700)
+	_ = os.WriteFile(ageIDPath, []byte("# public key: age1fake\nAGE-SECRET-KEY-1FAKE\n"), 0600)
 
 	// Generate certs
 	phoneCertPEM, _, err := generateClientCertPair(time.Hour)
@@ -328,7 +328,7 @@ func TestProcessPairingResult(t *testing.T) {
 	cfg := PairConfig{
 		DevicesPath:     devicesPath,
 		CertsDir:        certsDir,
-		AgeIdentityPath: ageIdPath,
+		AgeIdentityPath: ageIDPath,
 		Stdout:          &output,
 		Encryptor: func(plaintext []byte, identityPath string) ([]byte, error) {
 			return append([]byte("ENCRYPTED:"), plaintext...), nil
@@ -408,9 +408,9 @@ func TestPairIntegrationWithRealAge(t *testing.T) {
 	dir := t.TempDir()
 	devicesPath := filepath.Join(dir, "devices.json")
 	certsDir := filepath.Join(dir, "certs")
-	ageIdPath := filepath.Join(dir, "age-identity.txt")
+	ageIDPath := filepath.Join(dir, "age-identity.txt")
 
-	if err := ensureAgeIdentity(ageIdPath); err != nil {
+	if err := ensureAgeIdentity(ageIDPath); err != nil {
 		t.Fatal(err)
 	}
 
@@ -427,7 +427,7 @@ func TestPairIntegrationWithRealAge(t *testing.T) {
 	cfg := PairConfig{
 		DevicesPath:     devicesPath,
 		CertsDir:        certsDir,
-		AgeIdentityPath: ageIdPath,
+		AgeIdentityPath: ageIDPath,
 		Stdout:          &output,
 	}
 	cfg.setDefaults()
@@ -452,7 +452,7 @@ func TestPairIntegrationWithRealAge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := osexec.Command("age", "-d", "-i", ageIdPath)
+	cmd := osexec.Command("age", "-d", "-i", ageIDPath)
 	cmd.Stdin = bytes.NewReader(encryptedKey)
 	decrypted, err := cmd.Output()
 	if err != nil {
@@ -490,7 +490,7 @@ func TestPairServerStartsAndOutputs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	go RunPair(ctx, cfg)
+	go func() { _ = RunPair(ctx, cfg) }()
 
 	// Wait for output
 	for i := 0; i < 50; i++ {

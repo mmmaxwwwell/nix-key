@@ -58,7 +58,7 @@ func TestIntegrationGRPCRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -238,7 +238,7 @@ func startIntegrationServer(t *testing.T, ks phoneserver.KeyStore, conf phoneser
 
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
 	cleanup := func() {
-		conn.Close()
+		_ = conn.Close()
 		gs.GracefulStop()
 	}
 	return client, cleanup

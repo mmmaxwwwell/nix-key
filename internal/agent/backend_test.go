@@ -78,7 +78,7 @@ func startTestPhoneServer(t *testing.T, srv nixkeyv1.NixKeyAgentServer) (string,
 
 	gs := grpc.NewServer()
 	nixkeyv1.RegisterNixKeyAgentServer(gs, srv)
-	go gs.Serve(lis)
+	go func() { _ = gs.Serve(lis) }()
 
 	return lis.Addr().String(), func() {
 		gs.GracefulStop()
@@ -104,7 +104,7 @@ func (d *testDialer) DialDevice(ctx context.Context, dev daemon.Device) (nixkeyv
 	}
 
 	client := nixkeyv1.NewNixKeyAgentClient(conn)
-	cleanup := func() { conn.Close() }
+	cleanup := func() { _ = conn.Close() }
 	return client, cleanup, nil
 }
 
@@ -150,7 +150,7 @@ func setupTestBackend(t *testing.T, phone *testPhoneServer, opts ...func(*agent.
 	// Parse host:port.
 	host, portStr, _ := net.SplitHostPort(addr)
 	port := 0
-	fmt.Sscanf(portStr, "%d", &port)
+	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	// Create a device in the registry.
 	registry := daemon.NewRegistry()
@@ -323,7 +323,7 @@ func TestIntegrationGRPCBackendSignDenied(t *testing.T) {
 	backend, _ := setupTestBackend(t, phone)
 
 	// List to populate cache.
-	backend.List()
+	_, _ = backend.List()
 
 	pub, err := ssh.ParsePublicKey(grpcKey.GetPublicKeyBlob())
 	if err != nil {
@@ -353,7 +353,7 @@ func TestIntegrationGRPCBackendSignTimeout(t *testing.T) {
 	})
 
 	// List to populate cache.
-	backend.List()
+	_, _ = backend.List()
 
 	pub, err := ssh.ParsePublicKey(grpcKey.GetPublicKeyBlob())
 	if err != nil {
@@ -462,7 +462,7 @@ func TestIntegrationGRPCBackendConcurrentSignRequests(t *testing.T) {
 	backend, _ := setupTestBackend(t, phone)
 
 	// Populate cache.
-	backend.List()
+	_, _ = backend.List()
 
 	pub, err := ssh.ParsePublicKey(grpcKey.GetPublicKeyBlob())
 	if err != nil {
@@ -531,7 +531,7 @@ func TestIntegrationGRPCBackendMultipleDevices(t *testing.T) {
 
 	host1, portStr1, _ := net.SplitHostPort(addr1)
 	port1 := 0
-	fmt.Sscanf(portStr1, "%d", &port1)
+	_, _ = fmt.Sscanf(portStr1, "%d", &port1)
 	registry.Add(daemon.Device{
 		ID: "device-1", Name: "Phone 1",
 		TailscaleIP: host1, ListenPort: port1,
@@ -540,7 +540,7 @@ func TestIntegrationGRPCBackendMultipleDevices(t *testing.T) {
 
 	host2, portStr2, _ := net.SplitHostPort(addr2)
 	port2 := 0
-	fmt.Sscanf(portStr2, "%d", &port2)
+	_, _ = fmt.Sscanf(portStr2, "%d", &port2)
 	registry.Add(daemon.Device{
 		ID: "device-2", Name: "Phone 2",
 		TailscaleIP: host2, ListenPort: port2,
@@ -581,7 +581,7 @@ func TestIntegrationGRPCBackendUnreachableDeviceSkipped(t *testing.T) {
 
 	host, portStr, _ := net.SplitHostPort(addr)
 	port := 0
-	fmt.Sscanf(portStr, "%d", &port)
+	_, _ = fmt.Sscanf(portStr, "%d", &port)
 	registry.Add(daemon.Device{
 		ID: "reachable", Name: "Reachable Phone",
 		TailscaleIP: host, ListenPort: port,
@@ -638,7 +638,7 @@ func TestIntegrationGRPCBackendLastSeenUpdated(t *testing.T) {
 	}
 
 	// List and sign.
-	backend.List()
+	_, _ = backend.List()
 	pub, _ := ssh.ParsePublicKey(grpcKey.GetPublicKeyBlob())
 	_, err := backend.Sign(pub, []byte("test"), 0)
 	if err != nil {

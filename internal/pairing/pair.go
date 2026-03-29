@@ -1,3 +1,4 @@
+// Package pairing implements the QR-based device pairing flow over mTLS.
 package pairing
 
 import (
@@ -201,7 +202,7 @@ func RunPair(ctx context.Context, cfg PairConfig) error {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		server.Shutdown(shutdownCtx)
+		_ = server.Shutdown(shutdownCtx)
 		return ctx.Err()
 	case err := <-serverErr:
 		// Server stopped - check if pairing was completed
