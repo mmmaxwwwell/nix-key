@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [develop, main]
   push:
-    branches: [main]
+    branches: [develop, main]
   workflow_call:
 
 permissions:
@@ -220,8 +220,8 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
-    # Run on every push to main AND on PRs
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    # Run on every push, PR, and when called as reusable workflow
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_call'
     steps:
       - uses: actions/checkout@v4
         with:
