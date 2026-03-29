@@ -78,3 +78,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `TraceContext` uses a `ThreadLocal` for OTEL trace ID propagation. The `withTraceId` helper ensures cleanup even on exceptions.
 - ktlint is configured via the `org.jlleitschuh.gradle.ktlint` Gradle plugin (v12.x), not as a standalone tool.
 
+## T029 — KeyManager
+
+- Android Keystore does not support Ed25519 natively. The dual strategy is: ECDSA-P256 in hardware (Keystore), Ed25519 in software (BouncyCastle) wrapped by a Keystore-backed AES-256-GCM key.
+- `setIsStrongBoxBacked(true)` is a builder setter that doesn't throw; the actual failure happens at `generateKeyPair()` time on devices without StrongBox. Need two-phase try/catch: try with StrongBox, on failure retry without.
+- Ed25519 private key wrapping format: `[4-byte IV length][IV][AES-GCM ciphertext]`. GCM tag length is 128 bits (standard).
+- SSH public key blob encoding: ECDSA uses `ecdsa-sha2-nistp256` + `nistp256` + uncompressed EC point (0x04 || x || y, each coordinate 32 bytes fixed-length). Ed25519 uses `ssh-ed25519` + 32-byte raw public key.
+- `BouncyCastle Ed25519PrivateKeyParameters.encoded` returns the 32-byte seed, which is what `Ed25519PrivateKeyParameters(bytes, 0)` expects back.
+- Instrumented tests use `androidx.test.runner.AndroidJUnit4` (not `ext.junit`) since that's what's available via the `androidx-test-runner` dependency.
+- `EncryptedSharedPreferences` requires a `MasterKey` with `AES256_GCM` scheme. The prefs file name (`nixkey_keys`) is shared between key metadata and Ed25519 key material storage.
+
