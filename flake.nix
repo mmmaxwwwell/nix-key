@@ -18,6 +18,7 @@
 
       overlays.default = final: _prev: {
         nix-key = final.callPackage ./nix/package.nix { };
+        phonesim = final.callPackage ./nix/phonesim.nix { };
       };
     }
     // flake-utils.lib.eachDefaultSystem (
@@ -30,6 +31,7 @@
       in
       {
         packages.default = pkgs.nix-key;
+        packages.phonesim = pkgs.phonesim;
 
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
@@ -95,6 +97,9 @@
             }
             // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/signing-test.nix")) {
               signing-test = callTest (testDir + "/signing-test.nix");
+            }
+            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/jaeger-test.nix")) {
+              jaeger-test = callTest (testDir + "/jaeger-test.nix");
             }
           );
       }

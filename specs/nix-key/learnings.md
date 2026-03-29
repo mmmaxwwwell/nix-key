@@ -396,3 +396,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `parseCertExpiry` reads the cert PEM file, decodes the first PEM block, parses the X.509 certificate, and returns `NotAfter`. Errors are silently skipped (cert file may not exist or be unreadable).
 - `runStatusOrNotRunning` provides graceful degradation: if the daemon isn't running (control socket unreachable), it prints "stopped" instead of returning an error. `runStatus` (used in tests) returns the error for testability.
 - The 30-day cert expiry threshold is hardcoded in `handleGetStatus` but `collectCertWarnings` accepts `thresholdDays` as a parameter for testability.
+
+## T051 — Jaeger NixOS option
+
+- `effectiveOtelEndpoint` in the module's `let` block resolves jaeger.enable → `"localhost:4317"` vs manual `otelEndpoint`. This is used in both `configFile` and the service `environment` block to avoid duplication.
+- Jaeger all-in-one is a system service (`systemd.services`), not a user service, because it serves all users' tracing needs.
+- `DynamicUser = true` in the Jaeger service config creates an ephemeral system user, avoiding the need for a dedicated user declaration.
+- Jaeger all-in-one listens on 4317 (OTLP gRPC), 4318 (OTLP HTTP), and 16686 (query UI) by default — no extra flags needed.
+- OTLP HTTP endpoint (`localhost:4318/v1/traces`) accepts JSON-encoded trace payloads. Useful for VM tests since curl is simpler than a gRPC client.
+- Jaeger query API at `localhost:16686/api/traces?service=<name>` returns traces by service name — used in VM test to verify end-to-end trace ingestion.

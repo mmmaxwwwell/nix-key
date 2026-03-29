@@ -7,6 +7,11 @@
 let
   cfg = config.services.nix-key;
 
+  # When jaeger.enable is true, otelEndpoint is automatically set to localhost:4317.
+  # The assertion ensures manual otelEndpoint is null when jaeger is enabled.
+  effectiveOtelEndpoint =
+    if cfg.tracing.jaeger.enable then "localhost:4317" else cfg.tracing.otelEndpoint;
+
   deviceSubmodule = lib.types.submodule {
     options = {
       name = lib.mkOption {
@@ -54,34 +59,39 @@ let
   # socketPath and controlSocketPath are omitted when empty (default) — they
   # are resolved at runtime from $XDG_RUNTIME_DIR in the preStart script
   # and passed via environment variables.
-  configFile = pkgs.writeText "nix-key-config.json" (builtins.toJSON ({
-    port = cfg.port;
-    tailscaleInterface = cfg.tailscaleInterface;
-    allowKeyListing = cfg.allowKeyListing;
-    signTimeout = cfg.signTimeout;
-    connectionTimeout = cfg.connectionTimeout;
-    logLevel = cfg.logLevel;
-    otelEndpoint = cfg.tracing.otelEndpoint;
-    jaegerEnable = cfg.tracing.jaeger.enable;
-    ageKeyFile = cfg.secrets.ageKeyFile;
-    tailscaleAuthKeyFile = cfg.tailscale.authKeyFile;
-    certExpiry = cfg.certExpiry;
-    devices = lib.mapAttrs (
-      _name: dev: {
-        inherit (dev) name tailscaleIp port certFingerprint;
-        clientCertPath =
-          if dev.clientCert != null then toString dev.clientCert else null;
-        clientKeyPath =
-          if dev.clientKey != null then toString dev.clientKey else null;
+  configFile = pkgs.writeText "nix-key-config.json" (
+    builtins.toJSON (
+      {
+        port = cfg.port;
+        tailscaleInterface = cfg.tailscaleInterface;
+        allowKeyListing = cfg.allowKeyListing;
+        signTimeout = cfg.signTimeout;
+        connectionTimeout = cfg.connectionTimeout;
+        logLevel = cfg.logLevel;
+        otelEndpoint = effectiveOtelEndpoint;
+        jaegerEnable = cfg.tracing.jaeger.enable;
+        ageKeyFile = cfg.secrets.ageKeyFile;
+        tailscaleAuthKeyFile = cfg.tailscale.authKeyFile;
+        certExpiry = cfg.certExpiry;
+        devices = lib.mapAttrs (_name: dev: {
+          inherit (dev)
+            name
+            tailscaleIp
+            port
+            certFingerprint
+            ;
+          clientCertPath = if dev.clientCert != null then toString dev.clientCert else null;
+          clientKeyPath = if dev.clientKey != null then toString dev.clientKey else null;
+        }) cfg.devices;
       }
-    ) cfg.devices;
-  }
-  // lib.optionalAttrs (cfg.socketPath != "") {
-    socketPath = cfg.socketPath;
-  }
-  // lib.optionalAttrs (cfg.controlSocketPath != "") {
-    controlSocketPath = cfg.controlSocketPath;
-  }));
+      // lib.optionalAttrs (cfg.socketPath != "") {
+        socketPath = cfg.socketPath;
+      }
+      // lib.optionalAttrs (cfg.controlSocketPath != "") {
+        controlSocketPath = cfg.controlSocketPath;
+      }
+    )
+  );
 in
 {
   options.services.nix-key = {
@@ -266,13 +276,15 @@ in
       preStart =
         let
           socketLine =
-            if cfg.socketPath != ""
-            then "NIXKEY_SOCKET_PATH=${cfg.socketPath}"
-            else "NIXKEY_SOCKET_PATH=$RUNTIME_DIRECTORY/agent.sock";
+            if cfg.socketPath != "" then
+              "NIXKEY_SOCKET_PATH=${cfg.socketPath}"
+            else
+              "NIXKEY_SOCKET_PATH=$RUNTIME_DIRECTORY/agent.sock";
           controlSocketLine =
-            if cfg.controlSocketPath != ""
-            then "NIXKEY_CONTROL_SOCKET_PATH=${cfg.controlSocketPath}"
-            else "NIXKEY_CONTROL_SOCKET_PATH=$RUNTIME_DIRECTORY/control.sock";
+            if cfg.controlSocketPath != "" then
+              "NIXKEY_CONTROL_SOCKET_PATH=${cfg.controlSocketPath}"
+            else
+              "NIXKEY_CONTROL_SOCKET_PATH=$RUNTIME_DIRECTORY/control.sock";
         in
         ''
           mkdir -p -m 0700 "$STATE_DIRECTORY/certs"
@@ -289,8 +301,8 @@ in
       // lib.optionalAttrs (cfg.controlSocketPath != "") {
         NIXKEY_CONTROL_SOCKET_PATH = cfg.controlSocketPath;
       }
-      // lib.optionalAttrs (cfg.tracing.otelEndpoint != null) {
-        NIXKEY_OTEL_ENDPOINT = cfg.tracing.otelEndpoint;
+      // lib.optionalAttrs (effectiveOtelEndpoint != null) {
+        NIXKEY_OTEL_ENDPOINT = effectiveOtelEndpoint;
       };
     };
 
@@ -300,15 +312,30 @@ in
     environment.etc."xdg/environment.d/50-nix-key.conf" = {
       text =
         let
-          sock =
-            if cfg.socketPath != ""
-            then cfg.socketPath
-            else "\${XDG_RUNTIME_DIR}/nix-key/agent.sock";
+          sock = if cfg.socketPath != "" then cfg.socketPath else "\${XDG_RUNTIME_DIR}/nix-key/agent.sock";
         in
         ''
           SSH_AUTH_SOCK=${sock}
         '';
       mode = "0644";
+    };
+
+    # Jaeger all-in-one service for local trace collection (FR-068).
+    # Runs as a system service listening on OTLP gRPC (4317) and HTTP query (16686).
+    systemd.services.jaeger-all-in-one = lib.mkIf cfg.tracing.jaeger.enable {
+      description = "Jaeger all-in-one tracing backend for nix-key";
+      after = [ "network.target" ];
+      wantedBy = [ "multi-user.target" ];
+
+      serviceConfig = {
+        ExecStart = "${pkgs.jaeger-all-in-one}/bin/jaeger-all-in-one";
+        Restart = "on-failure";
+        RestartSec = 5;
+        DynamicUser = true;
+        # Jaeger stores traces in memory by default (sufficient for dev/debug).
+        # Limit memory usage to avoid runaway growth.
+        MemoryMax = "512M";
+      };
     };
   };
 }
