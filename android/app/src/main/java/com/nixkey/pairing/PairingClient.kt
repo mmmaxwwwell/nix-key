@@ -3,15 +3,18 @@ package com.nixkey.pairing
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.BufferedReader
+import java.io.ByteArrayInputStream
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.URL
+import java.security.KeyStore
+import java.security.SecureRandom
+import java.security.cert.CertificateFactory
 import javax.inject.Inject
 import javax.inject.Singleton
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
+import javax.net.ssl.TrustManagerFactory
 
 data class PairingResponse(
     val hostName: String,
@@ -44,8 +47,8 @@ class PairingClient @Inject constructor() {
 
         Timber.d("Pairing POST to %s", url)
 
-        // Trust the host's self-signed cert from the QR payload
-        val sslContext = createTrustAllSslContext()
+        // Pin to the host's self-signed cert from the QR payload
+        val sslContext = createPinnedSslContext(serverCertPem)
 
         val connection = url.openConnection() as HttpsURLConnection
         connection.sslSocketFactory = sslContext.socketFactory
@@ -89,27 +92,18 @@ class PairingClient @Inject constructor() {
         }
     }
 
-    private fun createTrustAllSslContext(): SSLContext {
-        val trustAllCerts = arrayOf<TrustManager>(
-            object : X509TrustManager {
-                override fun checkClientTrusted(
-                    chain: Array<java.security.cert.X509Certificate>,
-                    authType: String,
-                ) {
-                }
-
-                override fun checkServerTrusted(
-                    chain: Array<java.security.cert.X509Certificate>,
-                    authType: String,
-                ) {
-                }
-
-                override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
-            },
-        )
-
+    private fun createPinnedSslContext(certPem: String): SSLContext {
+        val cf = CertificateFactory.getInstance("X.509")
+        val cert = cf.generateCertificate(ByteArrayInputStream(certPem.toByteArray()))
+        val ks = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+            load(null, null)
+            setCertificateEntry("host-pairing", cert)
+        }
+        val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply {
+            init(ks)
+        }
         return SSLContext.getInstance("TLS").apply {
-            init(null, trustAllCerts, java.security.SecureRandom())
+            init(null, tmf.trustManagers, SecureRandom())
         }
     }
 }
