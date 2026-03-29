@@ -210,6 +210,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `os/signal.Notify` with a buffered channel (cap 1) ensures the signal is not lost if the goroutine hasn't entered the select yet.
 - `Run()` passes `context.Background()` to `Shutdown()` rather than the cancelled parent context, so the shutdown deadline starts fresh.
 
+## T037 — TailscaleAuthScreen
+
+- `TailscaleAuthScreen` uses a `TailscaleAuthContent` extraction pattern (same as `SignRequestDialogContent`) so UI tests can render the composable directly without needing Hilt or a ViewModel — just pass the state and callbacks.
+- NavGraph conditional start destination is determined once in `MainActivity.onCreate()` via `TailscaleManager.hasStoredAuthKey()` and passed as a `needsTailscaleAuth: Boolean` parameter. This avoids recomposition issues if the auth state changes during navigation.
+- On auth success, `popUpTo(Routes.TAILSCALE_AUTH) { inclusive = true }` removes the auth screen from the back stack so pressing back from `ServerListScreen` doesn't return to it.
+- Auth key persistence is already handled by `TailscaleManager.storeAuthKey()` (uses `EncryptedSharedPreferences` with file `nixkey_tailscale`), so the ViewModel just needs to call `tailscaleManager.start(key)` which stores the key on success.
+
 ## T036 — Android pairing screen
 
 - Renaming `PairedHost.name` to `PairedHost.hostName` aligns with the data model but requires updating all consumers: `ServerListScreen`, `NavigationTest`, and `HostRepository` storage keys.

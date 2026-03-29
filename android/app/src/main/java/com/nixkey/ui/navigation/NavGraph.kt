@@ -1,11 +1,6 @@
 package com.nixkey.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -16,6 +11,7 @@ import com.nixkey.ui.screens.KeyListScreen
 import com.nixkey.ui.screens.PairingScreen
 import com.nixkey.ui.screens.ServerListScreen
 import com.nixkey.ui.screens.SettingsScreen
+import com.nixkey.ui.screens.TailscaleAuthScreen
 
 object Routes {
     const val TAILSCALE_AUTH = "tailscale_auth"
@@ -31,15 +27,23 @@ object Routes {
 }
 
 @Composable
-fun NixKeyNavGraph() {
+fun NixKeyNavGraph(needsTailscaleAuth: Boolean = false) {
     val navController = rememberNavController()
+
+    val startDestination = if (needsTailscaleAuth) Routes.TAILSCALE_AUTH else Routes.SERVER_LIST
 
     NavHost(
         navController = navController,
-        startDestination = Routes.SERVER_LIST,
+        startDestination = startDestination,
     ) {
         composable(Routes.TAILSCALE_AUTH) {
-            PlaceholderScreen("Tailscale Auth")
+            TailscaleAuthScreen(
+                onAuthSuccess = {
+                    navController.navigate(Routes.SERVER_LIST) {
+                        popUpTo(Routes.TAILSCALE_AUTH) { inclusive = true }
+                    }
+                },
+            )
         }
         composable(Routes.SERVER_LIST) {
             ServerListScreen(
@@ -88,15 +92,5 @@ fun NixKeyNavGraph() {
                 onBack = { navController.popBackStack() },
             )
         }
-    }
-}
-
-@Composable
-private fun PlaceholderScreen(name: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = name)
     }
 }

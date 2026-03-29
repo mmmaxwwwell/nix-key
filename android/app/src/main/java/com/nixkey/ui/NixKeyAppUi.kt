@@ -9,13 +9,13 @@ import com.nixkey.ui.navigation.NixKeyNavGraph
 import com.nixkey.ui.theme.NixKeyTheme
 
 @Composable
-fun NixKeyAppUi() {
+fun NixKeyAppUi(needsTailscaleAuth: Boolean = false) {
     NixKeyTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
-            NixKeyNavGraph()
+            NixKeyNavGraph(needsTailscaleAuth = needsTailscaleAuth)
         }
     }
 }
