@@ -96,3 +96,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - App settings (allow key listing, default policy, OTEL) use regular `SharedPreferences` since they are not sensitive. Key material and host certs use `EncryptedSharedPreferences`.
 - `KeyManager.updateKey()` and `KeyManager.getKey()` were added to support the editable display name (FR-048) and confirmation policy editing in KeyDetailScreen.
 
+## T031 — BiometricHelper
+
+- `BiometricPrompt.PromptInfo.Builder.setNegativeButtonText()` is required when DEVICE_CREDENTIAL is NOT in the allowed authenticators, and must NOT be called when DEVICE_CREDENTIAL IS included (throws `IllegalArgumentException`).
+- `onAuthenticationFailed()` is called for individual failed biometric attempts (wrong fingerprint) but is NOT terminal — BiometricPrompt keeps the dialog open for retry. Only `onAuthenticationError()` and `onAuthenticationSucceeded()` are terminal callbacks.
+- `BiometricManager` can be constructor-injected via Hilt for testability. Use `BiometricManager.from(context)` in a Hilt module to provide it.
+- Instrumented tests use `androidx.test.runner.AndroidJUnit4` (same as T029 learnings — `ext.junit` is not in the dependency list).
+
