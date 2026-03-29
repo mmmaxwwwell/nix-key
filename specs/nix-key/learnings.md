@@ -67,3 +67,14 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - ChaCha20 with a zero nonce makes an excellent deterministic CSPRNG when keyed with a domain-separated SHA-256 hash of a seed string.
 - X.509 certs with Ed25519 work fine for mTLS testing; `tls.LoadX509KeyPair` requires PKCS8 format for Ed25519 private keys (use `x509.MarshalPKCS8PrivateKey`).
 
+## T028 — Android project setup
+
+- Android project is not Nix-built (per CLAUDE.md: "Android app is the only non-Nix artifact"). No `flake.nix` changes needed.
+- Gradle version catalog (`gradle/libs.versions.toml`) is the modern way to manage dependencies in Kotlin DSL projects.
+- `settings.gradle.kts` uses `dependencyResolution` block (Gradle 8.x+) instead of the deprecated `dependencyResolutionManagement`.
+- KSP (`com.google.devtools.ksp`) is used for Hilt annotation processing instead of KAPT (KAPT is deprecated for Kotlin 2.x).
+- BouncyCastle artifacts for Android: use `bcprov-jdk18on` and `bcpkix-jdk18on` (the `-jdk18on` suffix is the current naming convention).
+- `JsonTree` outputs to logcat via `Log.println()` with tag `nix-key` — this allows structured JSON output while keeping a consistent tag for log filtering.
+- `TraceContext` uses a `ThreadLocal` for OTEL trace ID propagation. The `withTraceId` helper ensures cleanup even on exceptions.
+- ktlint is configured via the `org.jlleitschuh.gradle.ktlint` Gradle plugin (v12.x), not as a standalone tool.
+
