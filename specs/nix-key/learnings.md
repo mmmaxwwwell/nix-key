@@ -270,3 +270,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `x509.MarshalPKCS8PrivateKey` works for both Ed25519 and ECDSA keys — produces a `PRIVATE KEY` PEM block (not algorithm-specific like `EC PRIVATE KEY`).
 - 128-bit random serial numbers via `crypto/rand.Int` satisfy RFC 5280 uniqueness requirements.
 - No new dependencies needed — all from Go stdlib (`crypto/*`, `encoding/pem`, `math/big`).
+
+## T016 — Cert pinning
+
+- `tls.Config.VerifyPeerCertificate` callback receives raw DER certs — compute SHA256 on `rawCerts[0]` directly (no need to parse to `x509.Certificate` for fingerprinting, but parsing is needed for expiry checks).
+- For self-signed mTLS, server uses `ClientAuth: tls.RequireAnyClientCert` (not `RequireAndVerifyClientCert`, which would try CA verification). Custom verification is done in `VerifyPeerCertificate`.
+- Client uses `InsecureSkipVerify: true` to skip standard CA chain validation (self-signed certs have no CA chain). Fingerprint pinning in `VerifyPeerCertificate` provides the trust anchor instead.
+- `GenerateCert` with negative `Expiry` produces a cert where `NotAfter < NotBefore`, which is immediately invalid — useful for testing expired cert rejection.
+- TLS 1.3 (`MinVersion: tls.VersionTLS13`) is the minimum for nix-key — no need to support older TLS versions.
