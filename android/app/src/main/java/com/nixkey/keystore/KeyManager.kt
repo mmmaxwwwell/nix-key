@@ -80,6 +80,17 @@ class KeyManager @Inject constructor(
         }
     }
 
+    fun updateKey(alias: String, displayName: String, policy: ConfirmationPolicy) {
+        val info = loadKeyInfo(alias)
+            ?: throw IllegalArgumentException("Key not found: $alias")
+
+        val updated = info.copy(displayName = displayName, confirmationPolicy = policy)
+        saveKeyInfo(updated)
+        Timber.i("Updated key alias=%s name=%s policy=%s", alias, displayName, policy)
+    }
+
+    fun getKey(alias: String): SshKeyInfo? = loadKeyInfo(alias)
+
     fun deleteKey(alias: String) {
         val info = loadKeyInfo(alias)
             ?: throw IllegalArgumentException("Key not found: $alias")

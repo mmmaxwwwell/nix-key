@@ -6,9 +6,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.nixkey.ui.screens.KeyDetailScreen
+import com.nixkey.ui.screens.KeyListScreen
+import com.nixkey.ui.screens.ServerListScreen
+import com.nixkey.ui.screens.SettingsScreen
 
 object Routes {
     const val TAILSCALE_AUTH = "tailscale_auth"
@@ -35,22 +41,46 @@ fun NixKeyNavGraph() {
             PlaceholderScreen("Tailscale Auth")
         }
         composable(Routes.SERVER_LIST) {
-            PlaceholderScreen("Server List")
+            ServerListScreen(
+                onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
+                onNavigateToScanQr = { navController.navigate(Routes.PAIRING) },
+                onNavigateToKeys = { hostId -> navController.navigate(Routes.keyManagement(hostId)) },
+            )
         }
         composable(Routes.PAIRING) {
             PlaceholderScreen("Pairing")
         }
-        composable(Routes.KEY_MANAGEMENT) {
-            PlaceholderScreen("Key Management")
+        composable(
+            route = Routes.KEY_MANAGEMENT,
+            arguments = listOf(navArgument("hostId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val hostId = backStackEntry.arguments?.getString("hostId") ?: ""
+            KeyListScreen(
+                hostId = hostId,
+                onBack = { navController.popBackStack() },
+                onNavigateToKeyDetail = { keyAlias ->
+                    navController.navigate(Routes.keyDetail(keyAlias))
+                },
+                onNavigateToCreateKey = { navController.navigate(Routes.KEY_DETAIL_NEW) },
+            )
         }
-        composable(Routes.KEY_DETAIL) {
-            PlaceholderScreen("Key Detail")
+        composable(
+            route = Routes.KEY_DETAIL,
+            arguments = listOf(navArgument("keyId") { type = NavType.StringType }),
+        ) {
+            KeyDetailScreen(
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.KEY_DETAIL_NEW) {
-            PlaceholderScreen("Create Key")
+            KeyDetailScreen(
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.SETTINGS) {
-            PlaceholderScreen("Settings")
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

@@ -88,3 +88,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Instrumented tests use `androidx.test.runner.AndroidJUnit4` (not `ext.junit`) since that's what's available via the `androidx-test-runner` dependency.
 - `EncryptedSharedPreferences` requires a `MasterKey` with `AES256_GCM` scheme. The prefs file name (`nixkey_keys`) is shared between key metadata and Ed25519 key material storage.
 
+## T030 — Compose UI screens
+
+- Compose UI tests with mocked ViewModels don't need Hilt testing infrastructure (`@HiltAndroidTest`, `HiltAndroidRule`). Only tests that go through the full NavGraph (which calls `hiltViewModel()`) need Hilt. Mocking the ViewModel and passing it directly avoids this complexity.
+- `mockk-android` must be added as `androidTestImplementation` (not just `testImplementation`) for use in instrumented tests.
+- `ExposedDropdownMenuBox` with `menuAnchor(MenuAnchorType.PrimaryNotEditable)` requires Material3 1.3.0+ (available in BOM 2024.12.01).
+- App settings (allow key listing, default policy, OTEL) use regular `SharedPreferences` since they are not sensitive. Key material and host certs use `EncryptedSharedPreferences`.
+- `KeyManager.updateKey()` and `KeyManager.getKey()` were added to support the editable display name (FR-048) and confirmation policy editing in KeyDetailScreen.
+

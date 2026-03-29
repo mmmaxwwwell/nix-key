@@ -100,5 +100,6 @@ dependencies {
     // Android Instrumented Testing
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.mockk)
     debugImplementation(libs.compose.ui.test.manifest)
 }
