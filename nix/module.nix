@@ -36,9 +36,6 @@ let
           http:
             endpoint: 127.0.0.1:4318
 
-    processors:
-      batch:
-
     exporters:
       jaeger_storage_exporter:
         trace_storage: memstore
@@ -48,7 +45,6 @@ let
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [batch]
           exporters: [jaeger_storage_exporter]
   '';
 
