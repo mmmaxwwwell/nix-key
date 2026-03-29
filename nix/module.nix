@@ -190,7 +190,6 @@ in
 
         package = lib.mkOption {
           type = lib.types.package;
-          default = pkgs.jaeger;
           description = "The Jaeger package to use.";
         };
       };

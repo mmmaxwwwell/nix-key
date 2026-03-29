@@ -42,6 +42,7 @@ in
         socketPath = agentSocketPath;
         secrets.ageKeyFile = "/tmp/test-age-identity.txt";
         tracing.jaeger.enable = true;
+        tracing.jaeger.package = pkgs.jaeger;
       };
 
       # Headscale server on this node

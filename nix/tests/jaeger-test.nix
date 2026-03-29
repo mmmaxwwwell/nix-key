@@ -14,6 +14,7 @@
         enable = true;
         package = pkgs.nix-key;
         tracing.jaeger.enable = true;
+        tracing.jaeger.package = pkgs.jaeger;
       };
 
       # Regular user for the user service
