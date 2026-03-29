@@ -26,6 +26,9 @@ result-*
 *.key
 credentials.json
 
+# Allow test fixture certs (not real secrets)
+!test/fixtures/*.pem
+
 # Build
 /nix-key
 dist/

@@ -51,3 +51,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The reporter passes through raw JSON lines to stdout for real-time visibility, then writes structured output to `test-logs/<type>/<timestamp>/`.
 - `failures` field in summary.json initialized as `[]FailureSummary{}` to serialize as `[]` not `null`.
 
+## T004 — Test fixtures
+
+- Go's `ecdsa.GenerateKey` and ECDSA signing use `crypto/internal/randutil.MaybeReadByte` which does a non-deterministic `select` on two closed channel cases. This makes ECDSA key generation and signing non-deterministic even with a fixed `io.Reader`. Workaround: use Ed25519 for X.509 certs (deterministic signing), and construct ECDSA keys manually from raw scalar bytes (bypassing `GenerateKey`).
+- Ed25519 key generation (`ed25519.GenerateKey(rng)`) reads exactly 32 bytes and is fully deterministic with a fixed reader.
+- `ssh.MarshalPrivateKey` reads from `crypto/rand.Reader` for OpenSSH format check bytes. Override the global `rand.Reader` for deterministic marshaling.
+- `age-keygen` does not support seeding — age identity is generated fresh each run. The full fixture set (identity + encrypted file) must be generated together and committed.
+- `age-keygen -o` refuses to overwrite existing files; must `os.Remove` the target first.
+- ChaCha20 with a zero nonce makes an excellent deterministic CSPRNG when keyed with a domain-separated SHA-256 hash of a seed string.
+- X.509 certs with Ed25519 work fine for mTLS testing; `tls.LoadX509KeyPair` requires PKCS8 format for Ed25519 private keys (use `x509.MarshalPKCS8PrivateKey`).
+
