@@ -107,7 +107,7 @@ func (s *PairingServer) SetConfirmCallback(cb ConfirmCallback) {
 func (s *PairingServer) TLSConfig() *tls.Config {
 	return &tls.Config{
 		Certificates: []tls.Certificate{s.tlsCert},
-		MinVersion:   tls.VersionTLS12,
+		MinVersion:   tls.VersionTLS13,
 	}
 }
 

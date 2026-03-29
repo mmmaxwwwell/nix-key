@@ -559,3 +559,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Config-only validation (no GitHub API needed) can verify 32 aspects of the pipeline: workflow triggers, job DAG, artifact configuration, branch protection alignment, permissions, and release-please setup.
 - `scripts/verify-release-pipeline.sh --live` adds GitHub API checks: release-please PR existence, workflow run status, release assets, and binary download+execution verification.
 - The `--config-only` mode is useful for CI pre-flight validation; `--live` mode is for post-deployment verification of SC-009.
+
+## T073 — Security code review
+
+- Pairing server (`internal/pairing/server.go`) used `tls.VersionTLS12` as MinVersion while all other TLS configs used `tls.VersionTLS13`. This was likely an oversight from the initial pairing implementation — the pairing server predated the mTLS pinning code.
+- gRPC error messages in `pkg/phoneserver/server.go` were leaking internal error details (e.g., `"list keys: %v"` formatting the underlying error). Changed to generic messages since the SSH agent already sanitizes errors (FR-097), but direct gRPC clients would see the details.
+- `KeyList.Get(i)` can return nil if a nil `*Key` was added via `Add(nil)`. Even though the loop bounds prevent out-of-range access, nil keys in the slice are possible. Added nil guards as defensive programming.
+- CI workflows (ci.yml, e2e.yml) lacked `permissions:` blocks, defaulting to broader-than-needed permissions. Added `contents: read` as minimum. Release workflow already had explicit permissions.
+- When a workflow is called via `workflow_call`, the callee's `permissions:` block further restricts the caller's token — so setting `contents: read` on ci.yml is safe even when called from release.yml (which has `contents: write`).
+- Socket TOCTOU (remove → listen → chmod) is mitigated by the parent directory being 0700. The practical attack window is microseconds and requires same-UID access. Not worth fixing unless Go gains `net.ListenUnix` with mode flags.
+- Go does not provide reliable memory zeroing for heap-allocated byte slices (GC may copy data). Explicitly zeroing plaintext key bytes is defense-in-depth but not reliable. The key material is only held briefly during pairing.

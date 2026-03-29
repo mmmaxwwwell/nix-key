@@ -175,7 +175,7 @@
 
 ## Post-Implementation
 
-- [ ] T073 REVIEW: Code review of all implementation. Security focus: mTLS correctness, cert pinning, age encryption, no plaintext secrets, input validation on all gRPC messages, no secret material in CI logs/artifacts. Write REVIEW-TODO.md with findings. Fix all critical/high findings. [Code review]
+- [x] T073 REVIEW: Code review of all implementation. Security focus: mTLS correctness, cert pinning, age encryption, no plaintext secrets, input validation on all gRPC messages, no secret material in CI logs/artifacts. Write REVIEW-TODO.md with findings. Fix all critical/high findings. [Code review]
 - [ ] T074 Local smoke test: build Go binary via `nix build`, install APK on emulator. Walk through: service starts → pair phone → create key → ssh-add -L → SSH sign succeeds → revoke device. Cold-start test: delete all state, verify first-run works. Warm-start test: verify second run is faster. [Smoke test]
 - [ ] T075 CI/CD validation: push to develop, monitor CI with `gh run list`. On failure: download `ci-summary.json` artifact, diagnose, fix, push. Iterate (cap: 15 attempts). Once green: create PR to main. Verify `release-please` creates release PR. Merge. Verify GitHub Release with artifacts. [CI validation]
 - [ ] T076 Update `CLAUDE.md` with final project structure, all available commands, test instructions, architecture overview, CI/CD debugging instructions (how to read `ci-summary.json`, where to find test-logs artifacts). Update `UI_FLOW.md` to reflect final implementation. [Documentation]

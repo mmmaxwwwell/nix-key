@@ -52,12 +52,15 @@ func NewServerWithTracing(ks KeyStore, conf Confirmer, tp trace.TracerProvider) 
 func (s *Server) ListKeys(_ context.Context, _ *nixkeyv1.ListKeysRequest) (*nixkeyv1.ListKeysResponse, error) {
 	kl, err := s.ks.ListKeys()
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "list keys: %v", err)
+		return nil, status.Error(codes.Internal, "failed to list keys")
 	}
 
 	resp := &nixkeyv1.ListKeysResponse{}
 	for i := 0; i < kl.Len(); i++ {
 		k := kl.Get(i)
+		if k == nil {
+			continue
+		}
 		resp.Keys = append(resp.Keys, &nixkeyv1.SSHKey{
 			PublicKeyBlob: k.PublicKeyBlob,
 			KeyType:       k.KeyType,
@@ -92,6 +95,9 @@ func (s *Server) Sign(ctx context.Context, req *nixkeyv1.SignRequest) (*nixkeyv1
 	if err == nil {
 		for i := 0; i < kl.Len(); i++ {
 			k := kl.Get(i)
+			if k == nil {
+				continue
+			}
 			if k.Fingerprint == req.GetKeyFingerprint() {
 				keyName = k.DisplayName
 				break
@@ -110,7 +116,7 @@ func (s *Server) Sign(ctx context.Context, req *nixkeyv1.SignRequest) (*nixkeyv1
 	promptSpan.End()
 
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "confirmation: %v", err)
+		return nil, status.Error(codes.Internal, "confirmation failed")
 	}
 
 	// Record user response.
@@ -131,7 +137,7 @@ func (s *Server) Sign(ctx context.Context, req *nixkeyv1.SignRequest) (*nixkeyv1
 	if err != nil {
 		signSpan.RecordError(err)
 		signSpan.End()
-		return nil, status.Errorf(codes.Internal, "sign: %v", err)
+		return nil, status.Error(codes.Internal, "signing failed")
 	}
 	signSpan.End()
 
