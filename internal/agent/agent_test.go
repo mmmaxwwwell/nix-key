@@ -65,7 +65,11 @@ func newTestKey(t *testing.T) (*sshagent.Key, ssh.Signer) {
 
 func startTestAgent(t *testing.T, backend agent.Backend) (sshagent.ExtendedAgent, func()) {
 	t.Helper()
-	socketDir := t.TempDir()
+	socketDir, err := os.MkdirTemp("/tmp", "nk")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(socketDir) })
 	socketPath := filepath.Join(socketDir, "agent.sock")
 
 	srv, err := agent.NewServer(backend, socketPath)
@@ -232,7 +236,11 @@ func TestMultipleConcurrentConnections(t *testing.T) {
 		},
 	}
 
-	socketDir := t.TempDir()
+	socketDir, err := os.MkdirTemp("/tmp", "nk")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(socketDir) })
 	socketPath := filepath.Join(socketDir, "agent.sock")
 
 	srv, err := agent.NewServer(backend, socketPath)
@@ -312,7 +320,11 @@ func TestUnsupportedOperations(t *testing.T) {
 
 func TestServerClose(t *testing.T) {
 	backend := &mockBackend{keys: []*sshagent.Key{}}
-	socketDir := t.TempDir()
+	socketDir, err := os.MkdirTemp("/tmp", "nk")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(socketDir) })
 	socketPath := filepath.Join(socketDir, "agent.sock")
 
 	srv, err := agent.NewServer(backend, socketPath)

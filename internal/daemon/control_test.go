@@ -54,7 +54,11 @@ func sendCommand(t *testing.T, socketPath string, req daemon.Request) daemon.Res
 func startTestControlServer(t *testing.T) (*daemon.Registry, string) {
 	t.Helper()
 
-	dir := t.TempDir()
+	dir, err := os.MkdirTemp("/tmp", "nk")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
 	socketPath := filepath.Join(dir, "control.sock")
 	devicesPath := filepath.Join(dir, "devices.json")
 
@@ -431,7 +435,11 @@ func TestIntegrationRevokedCertRejectedOnMTLS(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	dir := t.TempDir()
+	dir, err := os.MkdirTemp("/tmp", "nk")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
 	socketPath := filepath.Join(dir, "control.sock")
 	devicesPath := filepath.Join(dir, "devices.json")
 

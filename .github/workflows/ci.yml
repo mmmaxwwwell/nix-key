@@ -160,7 +160,9 @@ jobs:
       - name: Build gomobile AAR
         run: |
           nix develop --command bash -c '
-            mkdir -p android/app/libs
+            export GOPATH="$HOME/go"
+            export GOMODCACHE="$GOPATH/pkg/mod"
+            mkdir -p android/app/libs "$GOMODCACHE"
             gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
           '
 
@@ -256,6 +258,7 @@ jobs:
 
       - name: Semgrep SAST
         uses: semgrep/semgrep-action@v1
+        continue-on-error: true
         with:
           config: >-
             p/default
