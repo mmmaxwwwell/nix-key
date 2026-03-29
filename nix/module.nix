@@ -12,6 +12,46 @@ let
   effectiveOtelEndpoint =
     if cfg.tracing.jaeger.enable then "localhost:4317" else cfg.tracing.otelEndpoint;
 
+  # Jaeger v2 requires an explicit config file to set up the in-memory storage
+  # pipeline correctly. Without it, the default exporter pipeline fails with
+  # "traces export: context deadline exceeded".
+  jaegerConfig = pkgs.writeText "jaeger-config.yaml" ''
+    extensions:
+      jaeger_storage:
+        backends:
+          memstore:
+            memory:
+              max_traces: 10000
+      jaeger_query:
+        storage:
+          traces: memstore
+        ui:
+          config_file: ""
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 127.0.0.1:4317
+          http:
+            endpoint: 127.0.0.1:4318
+
+    processors:
+      batch:
+
+    exporters:
+      jaeger_storage_exporter:
+        trace_storage: memstore
+
+    service:
+      extensions: [jaeger_storage, jaeger_query]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [jaeger_storage_exporter]
+  '';
+
   deviceSubmodule = lib.types.submodule {
     options = {
       name = lib.mkOption {
@@ -333,7 +373,7 @@ in
       wantedBy = [ "multi-user.target" ];
 
       serviceConfig = {
-        ExecStart = "${cfg.tracing.jaeger.package}/bin/jaeger";
+        ExecStart = "${cfg.tracing.jaeger.package}/bin/jaeger --config ${jaegerConfig}";
         Restart = "on-failure";
         RestartSec = 5;
         DynamicUser = true;
