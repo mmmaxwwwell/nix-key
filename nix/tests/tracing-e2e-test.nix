@@ -28,7 +28,7 @@ in
   name = "nix-key-tracing-e2e";
 
   nodes.host =
-    { config, lib, pkgs, ... }:
+    { config, lib, ... }:
     {
       imports = [ nixKeyModule ];
 
@@ -54,9 +54,13 @@ in
           ip_prefixes = [
             "100.64.0.0/10"
           ];
-          dns.base_domain = "test.ts";
-          tls_cert_path = "";
-          tls_key_path = "";
+          dns = {
+            base_domain = "test.ts";
+            nameservers.global = [ "127.0.0.1" ];
+            magic_dns = false;
+          };
+          tls_cert_path = null;
+          tls_key_path = null;
         };
       };
 
@@ -90,7 +94,7 @@ in
     };
 
   nodes.phone =
-    { config, lib, pkgs, ... }:
+    { config, lib, ... }:
     {
       services.tailscale.enable = true;
 
