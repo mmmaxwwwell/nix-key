@@ -170,7 +170,7 @@
 - [x] T070 Create `.github/workflows/release.yml`: on push to main. Full CI + security + E2E. Build: `nix build` (Go binary for x86_64-linux + aarch64-linux), Gradle `assembleRelease` (APK). SBOM: Trivy CycloneDX. Version: use `release-please` with conventional commits for automated semantic versioning (configure `.release-please-manifest.json` + `release-please-config.json`). Create GitHub Release with binary + APK + SBOM attached. [CI/CD]
 
 ### 14e: Branch Protection + Verification
-- [ ] T071 Set up branch protection: main requires all CI + security + E2E green. develop requires lint + test-host + test-android green. Configure `release-please` to auto-create release PRs on develop→main merges. [CI/CD]
+- [x] T071 Set up branch protection: main requires all CI + security + E2E green. develop requires lint + test-host + test-android green. Configure `release-please` to auto-create release PRs on develop→main merges. [CI/CD]
 - [ ] T072 Verify release pipeline end-to-end: push to develop → CI green → merge to main → `release-please` creates release PR → merge release PR → GitHub Release created with binaries + APK + SBOM. Verify artifacts downloadable and binary runs `nix-key --help`. [CI/CD, SC-009]
 
 ## Post-Implementation

@@ -545,3 +545,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Trivy CycloneDX SBOM: use `format: cyclonedx` and `output: <filename>` in the `aquasecurity/trivy-action`.
 - `gh release upload` with `--clobber` re-uploads if the asset already exists — safe for idempotent retry.
 - The `upload-assets` job doesn't need `actions/checkout` since it only downloads artifacts and uses `gh` CLI (pre-installed on runners).
+
+## T071 — Branch protection + verification
+
+- GitHub branch protection status check names must match the `name:` field of the workflow job (not the job key). E.g., job key `test-host` with `name: Test Host` → the status check is "Test Host".
+- `gh api -X PUT repos/OWNER/REPO/branches/BRANCH/protection --input -` sets branch protection via the GitHub REST API. Requires admin access. `restrictions: null` means no push restrictions (required field, must be null for non-org repos).
+- CI workflow must trigger on `pull_request: branches: [develop, main]` (not just develop) so that release-please PRs targeting main get CI status checks. Similarly, E2E needs `pull_request: branches: [main]`.
+- release-please already handles develop→main flow automatically: push to main (from develop merge) triggers the release workflow, release-please creates/updates a release PR. Merging that PR triggers another push to main with `release_created: true`.
