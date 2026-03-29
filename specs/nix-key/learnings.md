@@ -533,3 +533,15 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - GitHub Actions retry pattern: use `continue-on-error: true` on each attempt step with an `id`, then conditionally run the next attempt with `if: steps.attemptN.outcome == 'failure'`. The final attempt omits `continue-on-error` so overall job status reflects the result.
 - The E2E test script's `--retry=1` flag disables internal retries since the workflow handles retry logic externally with 60s cooldowns between attempts.
 - Emulator logcat is captured via `adb logcat -d` (dump mode) after each failed attempt and as a final capture, providing diagnostic data for flaky emulator issues.
+
+## T070 — Release pipeline
+
+- `googleapis/release-please-action@v4` uses `config-file` and `manifest-file` parameters. The manifest (`.release-please-manifest.json`) tracks current version per package; config (`release-please-config.json`) specifies release-type and options.
+- For a Go project, `release-type: "go"` in release-please-config.json handles version bumps appropriately.
+- `.release-please-manifest.json` starts with `{ ".": "0.0.0" }` for the initial version — release-please will bump from there based on conventional commits.
+- When reusing CI/E2E workflows from a release workflow via `workflow_call`, the existing `ci-gate` in E2E (which waits for CI check on the same SHA) must be skipped — use `if: github.event_name != 'workflow_call'` on the gate job and `if: always() && (needs.ci-gate.result == 'success' || needs.ci-gate.result == 'skipped')` on the downstream job.
+- `concurrency.cancel-in-progress: false` is correct for release workflows — you don't want a new push to cancel an in-progress release.
+- aarch64-linux cross-compilation on ubuntu-latest requires QEMU user-static (`qemu-user-static`, `binfmt-support`) plus `extra-platforms = aarch64-linux` in Nix config.
+- Trivy CycloneDX SBOM: use `format: cyclonedx` and `output: <filename>` in the `aquasecurity/trivy-action`.
+- `gh release upload` with `--clobber` re-uploads if the asset already exists — safe for idempotent retry.
+- The `upload-assets` job doesn't need `actions/checkout` since it only downloads artifacts and uses `gh` CLI (pre-installed on runners).

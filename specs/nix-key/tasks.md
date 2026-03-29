@@ -167,7 +167,7 @@
 - [x] T069 Create `.github/workflows/e2e.yml`: on push to develop (after CI passes). Android emulator E2E on KVM-enabled runner (`ubuntu-latest` with KVM). Retry wrapper: 3 attempts with 60s cooldown between attempts (emulator flakiness). Upload `test-logs/` + emulator logcat as artifacts on failure. Timeout: 15 minutes per attempt. [CI/CD]
 
 ### 14d: Release Pipeline
-- [ ] T070 Create `.github/workflows/release.yml`: on push to main. Full CI + security + E2E. Build: `nix build` (Go binary for x86_64-linux + aarch64-linux), Gradle `assembleRelease` (APK). SBOM: Trivy CycloneDX. Version: use `release-please` with conventional commits for automated semantic versioning (configure `.release-please-manifest.json` + `release-please-config.json`). Create GitHub Release with binary + APK + SBOM attached. [CI/CD]
+- [x] T070 Create `.github/workflows/release.yml`: on push to main. Full CI + security + E2E. Build: `nix build` (Go binary for x86_64-linux + aarch64-linux), Gradle `assembleRelease` (APK). SBOM: Trivy CycloneDX. Version: use `release-please` with conventional commits for automated semantic versioning (configure `.release-please-manifest.json` + `release-please-config.json`). Create GitHub Release with binary + APK + SBOM attached. [CI/CD]
 
 ### 14e: Branch Protection + Verification
 - [ ] T071 Set up branch protection: main requires all CI + security + E2E green. develop requires lint + test-host + test-android green. Configure `release-please` to auto-create release PRs on develop→main merges. [CI/CD]

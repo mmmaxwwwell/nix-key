@@ -3,6 +3,7 @@ name: E2E
 on:
   push:
     branches: [develop]
+  workflow_call:
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -10,8 +11,10 @@ concurrency:
 
 jobs:
   # Gate: wait for CI workflow to succeed before running E2E
+  # Skip when called as a reusable workflow (caller ensures CI already passed)
   ci-gate:
     name: Wait for CI
+    if: github.event_name != 'workflow_call'
     runs-on: ubuntu-latest
     steps:
       - name: Wait for CI workflow
@@ -26,6 +29,7 @@ jobs:
   e2e:
     name: Android Emulator E2E
     needs: ci-gate
+    if: always() && (needs.ci-gate.result == 'success' || needs.ci-gate.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
