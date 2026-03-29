@@ -146,6 +146,14 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 ## T040 — systemd user service
 
 - `systemd.tmpfiles.rules` are system-level; `%h` resolves to root's home, NOT the invoking user. For user service directories, use `ConfigurationDirectory` and `StateDirectory` in `serviceConfig` instead — systemd sets `$CONFIGURATION_DIRECTORY` and `$STATE_DIRECTORY` env vars pointing to the created paths.
+
+## T041 — Nix package derivation
+
+- `lib.fileset.toSource` is the clean way to specify which source paths go into the derivation — avoids pulling in `.git`, `android/`, `test/`, etc.
+- `vendorHash` can be computed locally with `go mod vendor && nix-hash --type sha256 --sri vendor/` when nix-build is unavailable in the sandbox.
+- The `gen/` directory (generated proto stubs) must be included in the fileset since `pkg/phoneserver/` imports from `gen/nixkey/v1/`.
+- `go mod tidy` promoted `google.golang.org/grpc` and `google.golang.org/protobuf` from indirect to direct deps because `pkg/phoneserver/` directly imports them.
+- `go.sum` was missing the `h1:` hash for `skip2/go-qrcode` (only had `.mod` hash); `go mod tidy` fixed this.
 - `preStart` in NixOS becomes an `ExecStartPre` wrapper script. Systemd specifiers (`%h`, `%S`) are NOT expanded inside shell script content — use `$HOME`, `$STATE_DIRECTORY`, `$CONFIGURATION_DIRECTORY` env vars instead.
 - `environment.etc."xdg/environment.d/50-nix-key.conf"` places the file at `/etc/xdg/environment.d/50-nix-key.conf` — this is the system-wide XDG default directory, picked up by `systemd --user` for all users' login sessions.
 - `lib.getExe` requires the package to have `meta.mainProgram` set or a single output binary. T041 (package.nix) must ensure this.
