@@ -126,7 +126,7 @@
   Each method includes retry logic (3 attempts) for UI flakiness. Write a self-test that exercises each helper against the app on a local emulator. [E2E infra]
 
 ### 13e: Android Emulator E2E Test
-- [ ] T066 Write Android emulator E2E test as `test/e2e/android_e2e_test.sh` (shell orchestrator). **Architecture: side-by-side, NOT nested.** GitHub Actions runners support KVM but NOT nested KVM (the runner is already a VM). The Android emulator and NixOS VM must run side-by-side on the same host, both using KVM directly — never an emulator inside a NixOS VM. The test orchestrator coordinates both via `adb` (emulator) and `ssh`/CLI (NixOS VM or native host processes).
+- [x] T066 Write Android emulator E2E test as `test/e2e/android_e2e_test.sh` (shell orchestrator). **Architecture: side-by-side, NOT nested.** GitHub Actions runners support KVM but NOT nested KVM (the runner is already a VM). The Android emulator and NixOS VM must run side-by-side on the same host, both using KVM directly — never an emulator inside a NixOS VM. The test orchestrator coordinates both via `adb` (emulator) and `ssh`/CLI (NixOS VM or native host processes).
 
   Test layout on CI runner:
   ```

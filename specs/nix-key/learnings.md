@@ -500,3 +500,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Retry logic wrapping each helper method (3 attempts with 1s delay) is essential for emulator E2E tests due to UI timing flakiness.
 - Compose `OutlinedTextField` renders as `android.widget.EditText` in the accessibility tree, so `By.clazz("android.widget.EditText")` finds Compose text fields.
 - The deep link intent for pairing must include `setPackage("com.nixkey")` and `FLAG_ACTIVITY_NEW_TASK` when sent from instrumentation context.
+
+## T066 — Android emulator E2E test orchestrator
+
+- The E2E test runs side-by-side on the CI runner (NOT nested): headscale, tailscaled, nix-key daemon, and Android emulator all use KVM directly on the same host.
+- `nix-key pair --pair-info-file` writes the QR payload JSON to a file, which the test script base64-encodes and passes to the emulator via `adb am start -d "nix-key://pair?payload=<b64>"` deep link.
+- The retry wrapper re-invokes the script itself with `__RUN_TEST=1` env var under `timeout`, avoiding issues with `bash -c "$(declare -f)"` losing shell variable state.
+- `am instrument -w -e class ... -e method ... -e key value` invokes UI Automator helpers with parameters from the shell orchestrator. Fallback to `adb shell input text` for manual input if instrumentation fails.
+- Headscale config for E2E uses `database.type: sqlite` with a temp directory, and `dns.magic_dns: false` to avoid DNS complexity.
+- The test verifies both approval (sign succeeds) and denial (sign fails with SSH_AGENT_FAILURE) flows end-to-end.
