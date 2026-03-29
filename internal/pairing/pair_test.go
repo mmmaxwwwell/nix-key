@@ -13,11 +13,30 @@ import (
 	osexec "os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/phaedrus-raznikov/nix-key/internal/daemon"
 )
+
+// safeBuffer is a goroutine-safe wrapper around bytes.Buffer.
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (sb *safeBuffer) Write(p []byte) (int, error) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	return sb.buf.Write(p)
+}
+
+func (sb *safeBuffer) String() string {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	return sb.buf.String()
+}
 
 // TestPairTailscaleUnavailable verifies FR-E11: nix-key pair fails cleanly
 // when the Tailscale interface is not available.
@@ -451,7 +470,7 @@ func TestPairServerStartsAndOutputs(t *testing.T) {
 		t.Skip("integration test")
 	}
 
-	var output bytes.Buffer
+	var output safeBuffer
 
 	cfg := PairConfig{
 		TailscaleInterface: "loopback",
