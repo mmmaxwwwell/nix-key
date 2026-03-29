@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -19,7 +20,15 @@ import (
 	"time"
 
 	"github.com/phaedrus-raznikov/nix-key/pkg/phoneserver"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"golang.org/x/crypto/ssh"
+	"google.golang.org/grpc"
 	"tailscale.com/tsnet"
 )
 
@@ -33,6 +42,7 @@ func main() {
 		hostname     string
 		stateDir     string
 		plainListen  string
+		otelEndpoint string
 	)
 
 	flag.StringVar(&tsAuthKey, "ts-auth-key", "", "Tailscale auth key (required unless -plain-listen is set)")
@@ -43,6 +53,7 @@ func main() {
 	flag.StringVar(&hostname, "hostname", "phonesim", "Tailscale hostname")
 	flag.StringVar(&stateDir, "state-dir", "", "tsnet state directory (default: auto-managed temp dir)")
 	flag.StringVar(&plainListen, "plain-listen", "", "if set, listen on this TCP address instead of Tailscale (e.g., 127.0.0.1:0)")
+	flag.StringVar(&otelEndpoint, "otel-endpoint", "", "OTLP gRPC endpoint for trace export (e.g., localhost:4317)")
 	flag.Parse()
 
 	// Generate in-memory test keys.
@@ -63,7 +74,40 @@ func main() {
 		store = &denyListKeyStore{inner: ks}
 	}
 
-	srv := phoneserver.NewServer(store, conf)
+	// Initialize OTEL tracing if configured.
+	var (
+		srv        *phoneserver.Server
+		serverOpts []grpc.ServerOption
+		tp         *sdktrace.TracerProvider
+	)
+	if otelEndpoint != "" {
+		otel.SetTextMapPropagator(propagation.TraceContext{})
+		ctx := context.Background()
+		exp, otelErr := otlptracegrpc.New(ctx,
+			otlptracegrpc.WithEndpoint(otelEndpoint),
+			otlptracegrpc.WithInsecure(),
+		)
+		if otelErr != nil {
+			log.Fatalf("failed to create OTLP exporter: %v", otelErr)
+		}
+		res, resErr := resource.New(ctx,
+			resource.WithAttributes(semconv.ServiceName("nix-key-phone")),
+		)
+		if resErr != nil {
+			log.Fatalf("failed to create OTEL resource: %v", resErr)
+		}
+		tp = sdktrace.NewTracerProvider(
+			sdktrace.WithBatcher(exp),
+			sdktrace.WithResource(res),
+		)
+		srv = phoneserver.NewServerWithTracing(store, conf, tp)
+		serverOpts = append(serverOpts, grpc.StatsHandler(otelgrpc.NewServerHandler(
+			otelgrpc.WithTracerProvider(tp),
+		)))
+		log.Printf("phonesim: OTEL tracing enabled, exporting to %s", otelEndpoint)
+	} else {
+		srv = phoneserver.NewServer(store, conf)
+	}
 
 	var lis net.Listener
 
@@ -103,7 +147,7 @@ func main() {
 	// Start serving in a goroutine so we can handle signals.
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- srv.Start(lis)
+		errCh <- srv.StartWithOpts(lis, serverOpts...)
 	}()
 
 	// Wait for signal or server error.
@@ -118,6 +162,10 @@ func main() {
 		if err != nil {
 			log.Fatalf("phonesim: server error: %v", err)
 		}
+	}
+
+	if tp != nil {
+		tp.Shutdown(context.Background())
 	}
 }
 

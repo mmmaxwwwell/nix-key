@@ -101,6 +101,9 @@
             // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/jaeger-test.nix")) {
               jaeger-test = callTest (testDir + "/jaeger-test.nix");
             }
+            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/tracing-e2e-test.nix")) {
+              tracing-e2e-test = callTest (testDir + "/tracing-e2e-test.nix");
+            }
           );
       }
     );

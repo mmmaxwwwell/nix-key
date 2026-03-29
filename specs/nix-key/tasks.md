@@ -89,7 +89,7 @@
 - [x] T050 Add OTEL to phoneserver: extract traceparent from gRPC metadata via `otelgrpc` interceptor. Create child spans: `handle-sign-request`, `show-prompt`, `user-response`, `keystore-sign`. OTLP exporter configurable. Write test: gRPC call with traceparent header → verify child spans created with correct parent. [FR-081, FR-084, FR-085]
 - [x] T051 Add Jaeger NixOS option: `services.nix-key.tracing.jaeger.enable` adds `services.jaeger-all-in-one` (or equivalent) and sets `otelEndpoint` to localhost:4317. Write VM test verifying Jaeger starts and accepts traces. [FR-068]
 - [x] T052 Add OTEL to pairing QR: when `otelEndpoint` is configured, include it in QR payload. Phone prompts "Enable tracing?" during pairing. Store OTEL endpoint in EncryptedSharedPreferences. Phone exports traces when enabled. Write integration test: pairing with OTEL config → verify phone stores endpoint. [FR-087, FR-088, FR-023]
-- [ ] T053 Write distributed trace E2E test: NixOS VM with OTEL collector (or Jaeger) + headscale + daemon + phonesim (with OTEL). Perform sign request. Query collector API. Verify: trace exists, host spans present, phone spans present, phone spans are children of host spans via traceparent. [T-E2E-03, Story 7, SC-008]
+- [x] T053 Write distributed trace E2E test: NixOS VM with OTEL collector (or Jaeger) + headscale + daemon + phonesim (with OTEL). Perform sign request. Query collector API. Verify: trace exists, host spans present, phone spans present, phone spans are children of host spans via traceparent. [T-E2E-03, Story 7, SC-008]
 
 ## Phase 12: CLI Polish
 

@@ -432,3 +432,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `formatLogLine` handles non-JSON lines gracefully (e.g., `-- Journal begins at ...` header) by returning them as-is.
 - Extra JSON fields beyond `timestamp`, `level`, `msg` are sorted and displayed as `key=value` pairs for consistent output across runs.
 - `time.Parse(time.RFC3339Nano, ts)` is tried first to handle nanosecond timestamps, falling back to `time.RFC3339` for second-precision timestamps.
+
+## T053 — Distributed trace E2E test
+
+- phonesim did not have OTEL support. Added `-otel-endpoint` flag that initializes `sdktrace.TracerProvider` with OTLP gRPC exporter, `NewServerWithTracing`, and `otelgrpc.NewServerHandler` stats handler — same pattern as `PhoneServer.StartOnAddress` in `bridge.go`.
+- `otel.SetTextMapPropagator(propagation.TraceContext{})` must be called in phonesim for W3C traceparent extraction from incoming gRPC metadata to work (default global propagator is no-op).
+- Adding OTEL imports to phonesim does NOT change `go.mod`/`go.sum` or the Nix `vendorHash` because those packages were already dependencies of `pkg/phoneserver`.
+- In Nix `''...''` strings, Python `{}` (e.g., `set()` or dict literals) triggers Nix interpolation parse errors. Avoid Python `{}` in f-strings inside Nix test scripts, or simplify the assertion message.
+- Jaeger query API at `localhost:16686/api/traces?service=<name>` returns traces with `processes` map containing `serviceName` fields. A distributed trace has both `nix-key` and `nix-key-phone` in the same trace's processes.
+- Phone spans reference host spans via `CHILD_OF` references in Jaeger's API format. The `references` array on each span contains `{refType: "CHILD_OF", spanID, traceID}`.
+- phonesim uses `-plain-listen` with system tailscale (not tsnet) in the E2E test. The OTEL exporter connects to Jaeger on the host node via the host's Tailscale IP (e.g., `100.64.x.x:4317`).
