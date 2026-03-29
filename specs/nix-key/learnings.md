@@ -525,3 +525,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The `ci-summary` job uses `needs: [lint, test-host, test-android, security]` with `if: always()` to run regardless of upstream job status. Job results are passed via `${{ needs.<job>.result }}` env vars.
 - Jobs without structured test output (lint, security) get a synthetic entry with `pass: 1` or `fail: 1` based on the GitHub Actions job result. Jobs with `summary.json` get real pass/fail/skip counts.
 - test-host uploads `test-logs/` with `if: always()` (not just on failure) so the summary job can collect `summary.json` even on success.
+
+## T069 — E2E workflow
+
+- `ubuntu-latest` GitHub Actions runners have KVM available but need a udev rule to make `/dev/kvm` writable: `echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules` followed by `udevadm control --reload-rules && udevadm trigger`.
+- `lewagon/wait-on-check-action@v1.3.4` gates E2E on CI completion by waiting for a specific check name (e.g., "CI Summary") on the same SHA. Requires `GITHUB_TOKEN`.
+- GitHub Actions retry pattern: use `continue-on-error: true` on each attempt step with an `id`, then conditionally run the next attempt with `if: steps.attemptN.outcome == 'failure'`. The final attempt omits `continue-on-error` so overall job status reflects the result.
+- The E2E test script's `--retry=1` flag disables internal retries since the workflow handles retry logic externally with 60s cooldowns between attempts.
+- Emulator logcat is captured via `adb logcat -d` (dump mode) after each failed attempt and as a final capture, providing diagnostic data for flaky emulator issues.

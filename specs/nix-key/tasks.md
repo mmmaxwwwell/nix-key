@@ -164,7 +164,7 @@
 - [x] T068 Create `scripts/ci-summary.sh`: script that runs after all test jobs, collects `test-logs/summary.json` from each job, and produces `ci-summary.json` with: `{jobs: [{name, pass, fail, skip, duration, failures}], overall: "pass"|"fail", artifactUrls: {}}`. Upload as workflow artifact. This is the structured entry point for fix-validate agents to diagnose CI failures without parsing raw logs. [CI/CD debugging]
 
 ### 14c: E2E Workflow with Retry
-- [ ] T069 Create `.github/workflows/e2e.yml`: on push to develop (after CI passes). Android emulator E2E on KVM-enabled runner (`ubuntu-latest` with KVM). Retry wrapper: 3 attempts with 60s cooldown between attempts (emulator flakiness). Upload `test-logs/` + emulator logcat as artifacts on failure. Timeout: 15 minutes per attempt. [CI/CD]
+- [x] T069 Create `.github/workflows/e2e.yml`: on push to develop (after CI passes). Android emulator E2E on KVM-enabled runner (`ubuntu-latest` with KVM). Retry wrapper: 3 attempts with 60s cooldown between attempts (emulator flakiness). Upload `test-logs/` + emulator logcat as artifacts on failure. Timeout: 15 minutes per attempt. [CI/CD]
 
 ### 14d: Release Pipeline
 - [ ] T070 Create `.github/workflows/release.yml`: on push to main. Full CI + security + E2E. Build: `nix build` (Go binary for x86_64-linux + aarch64-linux), Gradle `assembleRelease` (APK). SBOM: Trivy CycloneDX. Version: use `release-please` with conventional commits for automated semantic versioning (configure `.release-please-manifest.json` + `release-please-config.json`). Create GitHub Release with binary + APK + SBOM attached. [CI/CD]
