@@ -187,6 +187,12 @@ in
           default = false;
           description = "Whether to run a local Jaeger instance and configure the daemon to export traces to it.";
         };
+
+        package = lib.mkOption {
+          type = lib.types.package;
+          default = pkgs.jaeger;
+          description = "The Jaeger package to use.";
+        };
       };
     };
 
@@ -328,7 +334,7 @@ in
       wantedBy = [ "multi-user.target" ];
 
       serviceConfig = {
-        ExecStart = "${pkgs.jaeger-all-in-one}/bin/jaeger-all-in-one";
+        ExecStart = "${cfg.tracing.jaeger.package}/bin/jaeger";
         Restart = "on-failure";
         RestartSec = 5;
         DynamicUser = true;

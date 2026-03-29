@@ -19,6 +19,7 @@
       overlays.default = final: _prev: {
         nix-key = final.callPackage ./nix/package.nix { };
         phonesim = final.callPackage ./nix/phonesim.nix { };
+        jaeger = final.callPackage ./nix/jaeger.nix { };
       };
     }
     // flake-utils.lib.eachDefaultSystem (
