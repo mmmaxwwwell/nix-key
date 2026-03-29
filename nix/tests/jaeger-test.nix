@@ -30,8 +30,8 @@
         "f /var/lib/systemd/linger/testuser - - - -"
       ];
 
-      # curl is needed for trace submission test
-      environment.systemPackages = [ pkgs.curl ];
+      # curl is needed for trace submission test, jq for polling Jaeger query API
+      environment.systemPackages = [ pkgs.curl pkgs.jq ];
     };
 
   testScript = ''
@@ -124,15 +124,16 @@
             f"Expected HTTP 200 from OTLP endpoint, got {http_code}: {result}"
 
     with subtest("Jaeger query API returns the submitted trace"):
-        # Query Jaeger for the test service's traces
-        import time
-        time.sleep(2)  # Allow Jaeger to index the trace
+        # Poll until Jaeger indexes the trace (up to 30s) — fixed sleep was
+        # insufficient in resource-constrained CI VMs
+        machine.wait_until_succeeds(
+            "curl -s 'http://localhost:16686/api/traces?service=nix-key-test&limit=1' | jq -e '.data | length > 0'",
+            timeout=30,
+        )
         query_result = machine.succeed(
             "curl -s 'http://localhost:16686/api/traces?service=nix-key-test&limit=1'"
         ).strip()
         query_data = json.loads(query_result)
-        assert len(query_data.get("data", [])) > 0, \
-            f"Expected at least one trace from Jaeger query, got: {query_result[:200]}"
         trace = query_data["data"][0]
         spans = trace.get("spans", [])
         assert any(s["operationName"] == "test-span" for s in spans), \
