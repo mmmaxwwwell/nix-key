@@ -51,6 +51,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The reporter passes through raw JSON lines to stdout for real-time visibility, then writes structured output to `test-logs/<type>/<timestamp>/`.
 - `failures` field in summary.json initialized as `[]FailureSummary{}` to serialize as `[]` not `null`.
 
+## T005 — Code coverage
+
+- `.gitignore` already had `coverage/`, `coverage.out`, and `htmlcov/` entries from initial setup, so no changes needed there.
+- `go tool cover -html=coverage.out -o coverage/index.html` generates the HTML report without opening a browser (unlike bare `-html` which tries to open one).
+- The `clean` Makefile target already had `rm -rf coverage/`.
+
 ## T004 — Test fixtures
 
 - Go's `ecdsa.GenerateKey` and ECDSA signing use `crypto/internal/randutil.MaybeReadByte` which does a non-deterministic `select` on two closed channel cases. This makes ECDSA key generation and signing non-deterministic even with a fixed `io.Reader`. Workaround: use Ed25519 for X.509 certs (deterministic signing), and construct ECDSA keys manually from raw scalar bytes (bypassing `GenerateKey`).
