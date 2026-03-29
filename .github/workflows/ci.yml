@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -255,7 +256,15 @@ jobs:
           scan-ref: .
           severity: CRITICAL,HIGH
           exit-code: "1"
-          format: table
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
 
       - name: Semgrep SAST
         uses: semgrep/semgrep-action@v1
@@ -265,11 +274,31 @@ jobs:
             p/default
             p/golang
           publishToken: ""
+        env:
+          SEMGREP_SARIF_FILE: semgrep-results.sarif
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
 
       - name: Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
+          GITLEAKS_SARIF: gitleaks-results.sarif
+
+      - name: Upload Gitleaks SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: gitleaks-results.sarif
+          category: gitleaks
 
       - name: govulncheck
         run: |
@@ -277,8 +306,17 @@ jobs:
             export GOPATH="$HOME/go"
             export PATH="$GOPATH/bin:$PATH"
             go install golang.org/x/vuln/cmd/govulncheck@latest
+            govulncheck -format sarif ./... > govulncheck-results.sarif || true
             govulncheck ./...
           '
+
+      - name: Upload govulncheck SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: govulncheck-results.sarif
+          category: govulncheck
 
       # --- Tier 1.5: Public repo extras ---
 
@@ -289,7 +327,24 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high
+          args: --severity-threshold=high --sarif-file-output=snyk-results.sarif
+
+      - name: Upload Snyk SARIF
+        if: always() && env.SNYK_TOKEN != ''
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: snyk-results.sarif
+          category: snyk
+
+      - name: Snyk monitor (main only)
+        if: github.ref == 'refs/heads/main' && env.SNYK_TOKEN != ''
+        uses: snyk/actions/golang@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
 
       - name: SonarCloud scan
         if: env.SONAR_TOKEN != ''
@@ -304,9 +359,17 @@ jobs:
         uses: ossf/scorecard-action@v2.4.0
         continue-on-error: true
         with:
-          results_file: scorecard-results.json
-          results_format: json
+          results_file: scorecard-results.sarif
+          results_format: sarif
           publish_results: true
+
+      - name: Upload Scorecard SARIF
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: scorecard-results.sarif
+          category: scorecard
 
       - name: Job summary
         if: always()
@@ -330,14 +393,15 @@ jobs:
             echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Upload test-logs on failure
-        if: failure()
+      - name: Upload security artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: security-logs
           path: |
             test-logs/
-            scorecard-results.json
+            *-results.sarif
+            scorecard-results.sarif
           if-no-files-found: ignore
 
   # ---------- CI Summary ----------
