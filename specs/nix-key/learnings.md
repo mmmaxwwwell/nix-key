@@ -301,3 +301,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `Sign()` does a two-phase lookup: first checks the in-memory `keyCache` (SSH fingerprint → device), then auto-refreshes by calling `List()` if not found. This handles the case where the agent hasn't listed keys yet.
 - `ssh.Unmarshal(resp.GetSignature(), sig)` is tried first for SSH wire-format signatures; if it fails, the raw bytes are used with the key type as format — this handles both formats the phone might return.
 - Prior agent attempts left the test file with an unused `grpcKey` variable and unused `encoding/base64` import that needed cleanup before tests would compile.
+
+## T022 — User-flow integration tests
+
+- The `testPhoneServer.signDelay` uses `time.Sleep` which doesn't respect context cancellation. The timeout test completes quickly from the client side (200ms), but the goroutine running `time.Sleep(10s)` on the server side keeps the test running for 10s total. This is acceptable for CI.
+- To simulate mid-connection drop (FR-E08), force-close the gRPC listener from within the `Sign` handler. The client sees either a transport error or the `codes.Unavailable` status, both of which the SSH agent sanitizes to `SSH_AGENT_FAILURE`.
+- Test helpers like `testPhoneServer`, `testDialer`, `newTestECDSAKey`, `setupTestBackend`, and `startTestAgent` are defined in `backend_test.go` and `agent_test.go` (same `agent_test` package), so they're accessible from `userflow_test.go` without redeclaration.
+- The `containsStr` helper from `backend_test.go` is also reusable across test files in the same package.
