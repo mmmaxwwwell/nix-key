@@ -166,3 +166,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `builtins.pathExists` works at eval time to conditionally include test files that don't exist yet (e.g., `nix/tests/service-test.nix`).
 - `default.nix` provides non-flake import by returning `{ package, module, overlay }` attrset from `pkgs.callPackage`.
 
+## T007 — Structured JSON logger
+
+- `slog.NewJSONHandler` uses `time` as the default timestamp key; use `ReplaceAttr` to rename it to `timestamp` for spec compliance.
+- `slog.LevelVar` allows setting the level dynamically and is the recommended way to pass a level to `HandlerOptions.Level`.
+- `WithModule` is just `logger.With("module", name)` — slog's `With` creates a new logger that includes the attrs in every subsequent log call without mutating the parent.
+
