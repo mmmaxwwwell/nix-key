@@ -19,3 +19,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Socket permissions should be `0600` (owner-only) for security. Parent directory `0700`.
 - The `agent.ExtendedAgent` interface adds `SignWithFlags` and `Extension` beyond `agent.Agent`. Implementing `ExtendedAgent` ensures signature algorithm negotiation (e.g., rsa-sha2-256) works correctly.
 
+## T023 — QR code generation
+
+- `skip2/go-qrcode` uses a `replace` directive to `/tmp/go-qrcode` (cloned via git) since the Go module proxy is blocked in the sandbox. This needs to be converted to a proper dependency when network access is available.
+- `qrcode.ToSmallString(false)` renders a compact terminal-printable QR using Unicode half-block characters. The `false` parameter means no border inversion.
+- Go 1.24.6 is available in nix store at `/nix/store/5gkj2kc7drgf6pclxcl4fyg8zlcaqqmd-go-1.24.6`. Use `GOROOT=.../share/go` and `GOTOOLCHAIN=local` to avoid auto-download of newer toolchain.
+- The `go.mod` was bumped to `go 1.25.0` by `golang.org/x/crypto` dependency from T019. Using `go 1.24.6` with `GOTOOLCHAIN=local` works for compilation.
+
