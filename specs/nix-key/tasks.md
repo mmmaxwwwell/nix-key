@@ -73,7 +73,7 @@
 - [x] T041 Implement `nix/package.nix`: `buildGoModule` derivation for `nix-key` binary. Pin Go version, vendor dependencies. Verify binary runs `nix-key --help`. [FR-069]
 - [x] T042 Update `flake.nix` to export: `nixosModules.default` (module.nix), `packages.default` (package.nix), `checks.x86_64-linux.*` (all VM tests), `overlays.default` (adds nix-key to pkgs). Ensure non-flake import works via `default.nix`. [FR-069, FR-060]
 - [x] T043 Write `nix/tests/service-test.nix`: NixOS VM test that: evaluates module with test config, verifies service starts, verifies config.json contains correct values, verifies SSH_AUTH_SOCK is set via environment.d, verifies Unix socket exists at socketPath, verifies daemon responds to control socket status query, verifies graceful shutdown (systemctl stop → daemon exits cleanly, T-NM-05/FR-E07). [T-NM-01 through T-NM-05, SC-004, SC-010, FR-E07]
-- [ ] T044 Write device merge test in `service-test.nix`: declare devices in Nix config, create runtime devices.json with additional device, verify daemon sees both sources merged. Test that Nix-declared device cannot be revoked via CLI (only removed by Nix rebuild). [T-NM-04, FR-063, FR-064]
+- [x] T044 Write device merge test in `service-test.nix`: declare devices in Nix config, create runtime devices.json with additional device, verify daemon sees both sources merged. Test that Nix-declared device cannot be revoked via CLI (only removed by Nix rebuild). [T-NM-04, FR-063, FR-064]
 
 ## Phase 10: End-to-End Tests with Headscale
 

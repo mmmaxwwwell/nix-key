@@ -195,6 +195,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `pkgs.writeText` generates a store path like `/nix/store/<hash>-nix-key-config.json`. The test finds it with `find /nix/store -maxdepth 1 -name '...'`.
 - `environment.etc."xdg/environment.d/50-nix-key.conf"` places the file at `/etc/xdg/environment.d/50-nix-key.conf` — the system-wide XDG defaults directory.
 
+## T044 — Device merge VM test
+
+- To write files to the VM as a specific user, it's simplest to write as root and `chown` — avoids heredoc quoting issues inside `su -c`.
+- Python's `json.dumps()` can be used inline in the NixOS test script to construct JSON data, which is then passed to `printf '%s' '...'` in a shell command.
+- The config.json symlink to the Nix store is inherently read-only, which structurally prevents CLI tools from modifying Nix-declared devices — this is the mechanism that ensures Nix-declared devices can only be removed by Nix rebuild.
+- `import json as json_mod` is needed in the test script if `json` is already used as a variable name earlier (shadowed by the top-level `import json`). Actually, `json` module is imported at the top; re-importing with an alias avoids any confusion.
+
 ## T010 — Graceful shutdown
 
 - `sync.Once` ensures shutdown runs exactly once even if called concurrently or multiple times. The error from the first call is captured via a closure variable.

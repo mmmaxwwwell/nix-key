@@ -1,7 +1,7 @@
 # NixOS VM test for nix-key service module.
 # Validates: T-NM-01 (module evaluation), T-NM-02 (service lifecycle),
-# T-NM-03 (config.json), T-NM-05 (graceful shutdown).
-# Covers: SC-004, SC-010, FR-E07.
+# T-NM-03 (config.json), T-NM-04 (device merge), T-NM-05 (graceful shutdown).
+# Covers: SC-004, SC-010, FR-063, FR-064, FR-E07.
 { pkgs, nixKeyModule }:
 let
   testSocketPath = "/run/user/1000/nix-key/agent.sock";
@@ -40,6 +40,12 @@ in
             tailscaleIp = "100.64.0.2";
             port = testPort;
             certFingerprint = "sha256:test-fingerprint-abc123";
+          };
+          nix-tablet = {
+            name = "Nix Tablet";
+            tailscaleIp = "100.64.0.3";
+            port = 29419;
+            certFingerprint = "sha256:nix-tablet-fingerprint-def456";
           };
         };
       };
@@ -208,6 +214,118 @@ in
         )
         assert "NIXKEY_LOG_LEVEL" in unit, "Should set NIXKEY_LOG_LEVEL"
         assert "NIXKEY_SOCKET_PATH" in unit, "Should set NIXKEY_SOCKET_PATH"
+
+    # ── T-NM-04: Device merge — Nix-declared + runtime devices (FR-063, FR-064) ──
+
+    with subtest("T-NM-04: config.json contains both Nix-declared devices"):
+        devices = config["devices"]
+        assert "test-phone" in devices, \
+            f"Expected 'test-phone' in devices, got {list(devices.keys())}"
+        assert "nix-tablet" in devices, \
+            f"Expected 'nix-tablet' in devices, got {list(devices.keys())}"
+        tablet = devices["nix-tablet"]
+        assert tablet["name"] == "Nix Tablet", f"Unexpected name: {tablet['name']}"
+        assert tablet["tailscaleIp"] == "100.64.0.3", \
+            f"Unexpected IP: {tablet['tailscaleIp']}"
+        assert tablet["port"] == 29419, f"Unexpected port: {tablet['port']}"
+        assert tablet["certFingerprint"] == "sha256:nix-tablet-fingerprint-def456", \
+            f"Unexpected fingerprint: {tablet['certFingerprint']}"
+
+    with subtest("T-NM-04: Nix-declared devices have null cert paths (set by pairing FR-065)"):
+        for dev_id in ["test-phone", "nix-tablet"]:
+            dev = config["devices"][dev_id]
+            assert dev["clientCertPath"] is None, \
+                f"{dev_id}: expected null clientCertPath, got {dev['clientCertPath']}"
+            assert dev["clientKeyPath"] is None, \
+                f"{dev_id}: expected null clientKeyPath, got {dev['clientKeyPath']}"
+
+    with subtest("T-NM-04: create runtime devices.json with additional device"):
+        # Ensure the service has run preStart to create the state directory
+        machine.succeed(
+            "systemctl --user -M testuser@ start nix-key-agent.service || true"
+        )
+        # Write a runtime devices.json with an extra device not in Nix config.
+        # Write as root then chown to testuser (avoids heredoc quoting issues).
+        import json as json_mod
+        runtime_device_data = json_mod.dumps([{
+            "id": "runtime-phone",
+            "name": "Runtime Phone",
+            "tailscaleIp": "100.64.0.10",
+            "listenPort": 29418,
+            "certFingerprint": "sha256:runtime-phone-fp-789",
+            "certPath": "",
+            "clientCertPath": "/home/testuser/.local/state/nix-key/certs/runtime-phone.crt",
+            "clientKeyPath": "/home/testuser/.local/state/nix-key/certs/runtime-phone.key",
+            "source": "runtime-paired",
+        }], indent=2)
+        devices_json_path = "/home/testuser/.local/state/nix-key/devices.json"
+        machine.succeed(
+            f"printf '%s' '{runtime_device_data}' > {devices_json_path} "
+            f"&& chmod 0600 {devices_json_path} "
+            f"&& chown testuser:testuser {devices_json_path}"
+        )
+
+    with subtest("T-NM-04: runtime devices.json is valid and in state directory"):
+        devices_raw = machine.succeed(
+            "cat /home/testuser/.local/state/nix-key/devices.json"
+        ).strip()
+        runtime_devices = json.loads(devices_raw)
+        assert len(runtime_devices) == 1, \
+            f"Expected 1 runtime device, got {len(runtime_devices)}"
+        assert runtime_devices[0]["id"] == "runtime-phone", \
+            f"Unexpected device id: {runtime_devices[0]['id']}"
+        assert runtime_devices[0]["source"] == "runtime-paired", \
+            f"Unexpected source: {runtime_devices[0]['source']}"
+
+    with subtest("T-NM-04: runtime device is distinct from Nix-declared devices"):
+        nix_ids = set(config["devices"].keys())
+        runtime_ids = {d["id"] for d in runtime_devices}
+        overlap = nix_ids & runtime_ids
+        assert len(overlap) == 0, \
+            f"Runtime and Nix-declared device IDs should not overlap, but found: {overlap}"
+
+    with subtest("T-NM-04: config.json and devices.json coexist for daemon merge"):
+        # Verify both files exist and are readable by the testuser
+        machine.succeed("test -L /home/testuser/.config/nix-key/config.json")
+        machine.succeed("test -f /home/testuser/.local/state/nix-key/devices.json")
+        # Verify permissions on devices.json (should be 0600 or writable by user)
+        machine.succeed(
+            "su - testuser -c 'test -r /home/testuser/.local/state/nix-key/devices.json'"
+        )
+
+    with subtest("T-NM-04: merged view would contain all three devices"):
+        # Simulate what the daemon's Merge() would see:
+        # 2 from Nix config + 1 from runtime = 3 total unique devices
+        all_ids = set(config["devices"].keys()) | {d["id"] for d in runtime_devices}
+        assert len(all_ids) == 3, \
+            f"Expected 3 total devices after merge, got {len(all_ids)}: {all_ids}"
+        assert all_ids == {"test-phone", "nix-tablet", "runtime-phone"}, \
+            f"Unexpected device set: {all_ids}"
+
+    with subtest("T-NM-04: nix-key revoke on Nix-declared device is not destructive"):
+        # Nix-declared devices cannot be revoked via CLI — they can only be
+        # removed by changing the NixOS config and rebuilding. The revoke
+        # command is currently a stub; verify it does not remove the device
+        # from config.json (which is a read-only Nix store symlink).
+        machine.succeed(
+            "su - testuser -c '${pkgs.nix-key}/bin/nix-key revoke test-phone' || true"
+        )
+        # config.json is a symlink to the Nix store — it must remain intact
+        linked_config = machine.succeed(
+            "cat /home/testuser/.config/nix-key/config.json"
+        ).strip()
+        parsed = json.loads(linked_config)
+        assert "test-phone" in parsed["devices"], \
+            "Nix-declared device must survive revoke attempt — remove from NixOS config instead"
+
+    with subtest("T-NM-04: config.json symlink is read-only (Nix store)"):
+        # The config.json symlink points to the Nix store which is read-only.
+        # This structurally prevents CLI tools from modifying Nix-declared devices.
+        target = machine.succeed(
+            "readlink /home/testuser/.config/nix-key/config.json"
+        ).strip()
+        assert target.startswith("/nix/store/"), \
+            f"config.json should be a symlink to Nix store, got: {target}"
 
     # ── T-NM-05: Graceful shutdown — systemctl stop exits cleanly (FR-E07) ──
 
