@@ -163,6 +163,7 @@ jobs:
             export GOPATH="$HOME/go"
             export GOMODCACHE="$GOPATH/pkg/mod"
             mkdir -p android/app/libs "$GOMODCACHE"
+            go get golang.org/x/mobile/bind@latest || true
             gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
           '
 
@@ -273,6 +274,8 @@ jobs:
       - name: govulncheck
         run: |
           nix develop --command bash -c '
+            export GOPATH="$HOME/go"
+            export PATH="$GOPATH/bin:$PATH"
             go install golang.org/x/vuln/cmd/govulncheck@latest
             govulncheck ./...
           '

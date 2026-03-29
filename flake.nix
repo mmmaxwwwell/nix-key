@@ -104,7 +104,7 @@
             # Helper to import a NixOS VM test with the nix-key module pre-loaded
             callTest =
               testPath:
-              nixpkgs.legacyPackages.${system}.nixosTest (
+              nixpkgs.legacyPackages.${system}.testers.nixosTest (
                 import testPath {
                   inherit pkgs;
                   nixKeyModule = self.nixosModules.default;

@@ -67,6 +67,7 @@ jobs:
             export GOPATH="$HOME/go"
             export GOMODCACHE="$GOPATH/pkg/mod"
             mkdir -p android/app/libs "$GOMODCACHE"
+            go get golang.org/x/mobile/bind@latest || true
             gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
           '
 
