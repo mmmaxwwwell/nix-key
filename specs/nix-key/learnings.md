@@ -140,6 +140,13 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 
 - The `nix/` directory does not exist initially; it must be created.
 - `nix-instantiate --parse` requires temp store dir workarounds in sandbox (same as T001 learning).
-- `configJson` is defined in the `let` block for use by T040 (systemd service) — it serializes all module options into the config.json format the Go daemon expects.
+- `configFile` (was `configJson`) is a `pkgs.writeText` derivation in the `let` block — creates the config.json in the Nix store, symlinked into `~/.config/nix-key/` by the service's `preStart`.
 - The `assertion` that jaeger.enable and otelEndpoint are mutually exclusive prevents conflicting config; T051 will set otelEndpoint automatically when jaeger is enabled.
+
+## T040 — systemd user service
+
+- `systemd.tmpfiles.rules` are system-level; `%h` resolves to root's home, NOT the invoking user. For user service directories, use `ConfigurationDirectory` and `StateDirectory` in `serviceConfig` instead — systemd sets `$CONFIGURATION_DIRECTORY` and `$STATE_DIRECTORY` env vars pointing to the created paths.
+- `preStart` in NixOS becomes an `ExecStartPre` wrapper script. Systemd specifiers (`%h`, `%S`) are NOT expanded inside shell script content — use `$HOME`, `$STATE_DIRECTORY`, `$CONFIGURATION_DIRECTORY` env vars instead.
+- `environment.etc."xdg/environment.d/50-nix-key.conf"` places the file at `/etc/xdg/environment.d/50-nix-key.conf` — this is the system-wide XDG default directory, picked up by `systemd --user` for all users' login sessions.
+- `lib.getExe` requires the package to have `meta.mainProgram` set or a single output binary. T041 (package.nix) must ensure this.
 

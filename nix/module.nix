@@ -50,8 +50,8 @@ let
     };
   };
 
-  # Build the config.json structure from module options
-  configJson = builtins.toJSON {
+  # Store-based config.json written from module options
+  configFile = pkgs.writeText "nix-key-config.json" (builtins.toJSON {
     port = cfg.port;
     tailscaleInterface = cfg.tailscaleInterface;
     allowKeyListing = cfg.allowKeyListing;
@@ -73,11 +73,16 @@ let
           if dev.clientKey != null then toString dev.clientKey else null;
       }
     ) cfg.devices;
-  };
+  });
 in
 {
   options.services.nix-key = {
     enable = lib.mkEnableOption "nix-key SSH agent that delegates signing to a paired Android phone over Tailscale with mTLS";
+
+    package = lib.mkOption {
+      type = lib.types.package;
+      description = "The nix-key package to use.";
+    };
 
     port = lib.mkOption {
       type = lib.types.port;
@@ -207,5 +212,46 @@ in
         message = "services.nix-key.tracing.otelEndpoint must not be set when jaeger.enable is true; the module sets it automatically.";
       }
     ];
+
+    # systemd user service: nix-key-agent
+    systemd.user.services.nix-key-agent = {
+      description = "nix-key SSH agent — delegates signing to paired Android phone over Tailscale";
+      after = [ "network.target" ];
+      wantedBy = [ "default.target" ];
+
+      serviceConfig = {
+        ExecStart = "${lib.getExe cfg.package} daemon --config %h/.config/nix-key/config.json";
+        Restart = "on-failure";
+        RestartSec = 5;
+
+        # Create ~/.config/nix-key/ and ~/.local/state/nix-key/ with 0700
+        ConfigurationDirectory = "nix-key";
+        ConfigurationDirectoryMode = "0700";
+        StateDirectory = "nix-key";
+        StateDirectoryMode = "0700";
+      };
+
+      # Create certs subdirectory and symlink config.json before starting
+      preStart = ''
+        mkdir -p -m 0700 "$STATE_DIRECTORY/certs"
+        ln -sf ${configFile} "$CONFIGURATION_DIRECTORY/config.json"
+      '';
+
+      environment = {
+        NIXKEY_LOG_LEVEL = cfg.logLevel;
+        NIXKEY_SOCKET_PATH = cfg.socketPath;
+      } // lib.optionalAttrs (cfg.tracing.otelEndpoint != null) {
+        NIXKEY_OTEL_ENDPOINT = cfg.tracing.otelEndpoint;
+      };
+    };
+
+    # Create /etc/xdg/environment.d/50-nix-key.conf so that
+    # SSH_AUTH_SOCK is available in all user login sessions
+    environment.etc."xdg/environment.d/50-nix-key.conf" = {
+      text = ''
+        SSH_AUTH_SOCK=${cfg.socketPath}
+      '';
+      mode = "0644";
+    };
   };
 }
