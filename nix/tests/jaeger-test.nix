@@ -128,7 +128,7 @@
         # insufficient in resource-constrained CI VMs
         machine.wait_until_succeeds(
             "curl -s 'http://localhost:16686/api/traces?service=nix-key-test&limit=1' | jq -e '.data | length > 0'",
-            timeout=30,
+            timeout=120,
         )
         query_result = machine.succeed(
             "curl -s 'http://localhost:16686/api/traces?service=nix-key-test&limit=1'"

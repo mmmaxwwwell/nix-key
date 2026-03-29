@@ -39,11 +39,6 @@ let
     exporters:
       jaeger_storage_exporter:
         trace_storage: memstore
-        timeout: 120s
-        sending_queue:
-          enabled: false
-        retry_on_failure:
-          enabled: false
 
     service:
       extensions: [jaeger_storage, jaeger_query]

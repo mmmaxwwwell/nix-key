@@ -107,7 +107,6 @@ in
 
   testScript = ''
     import json
-    import time
 
     start_all()
 
