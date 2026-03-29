@@ -458,3 +458,14 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `runDevices` writes directly to `os.Stdout` (no `io.Writer` param), so integration tests for device listing use `parseDeviceInfos` + `formatDevicesTable` directly rather than calling `runDevices`.
 - The full workflow test (add→list→status→export→revoke→verify) validates cross-command state changes through a single daemon instance.
 - All 19 integration tests run in ~15ms total since they use in-process control sockets (no real network, no real gRPC).
+
+## T062 — Android APK build infrastructure
+
+- `pkgs.gomobile` exists in nixpkgs and supports `override { withAndroidPkgs = true; androidPkgs = androidComposition; }` to wire up a specific Android SDK/NDK.
+- `androidenv.composeAndroidPackages` returns an attrset with `androidsdk` — the SDK is at `${androidsdk}/libexec/android-sdk/`.
+- Android SDK license acceptance is via `config.android_sdk.accept_license = true` in the nixpkgs import, or `NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1` env var.
+- The Android APK build cannot be a pure Nix derivation because Gradle needs network access to fetch Maven/Google dependencies. The approach is: Nix provides the pinned SDK/NDK/gomobile environment, a build script orchestrates the Gradle build.
+- `gomobile bind` requires `golang.org/x/mobile/bind` in the Go module graph. If it's not in go.mod, the build script adds it via `go get golang.org/x/mobile/bind@latest`.
+- NDK version `26.1.10909125` (r26b) is compatible with gomobile and available in nixpkgs `androidenv`.
+- The `composeAndroidPackages` `extraLicenses` parameter accepts license name strings like `"android-sdk-license"` and `"android-sdk-preview-license"`.
+- CLAUDE.md states "Android app is the only non-Nix artifact" — the Nix expression provides build tooling, not a pure derivation for the APK itself.

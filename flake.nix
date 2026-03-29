@@ -27,11 +27,20 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [ self.overlays.default ];
+          config.android_sdk.accept_license = true;
+        };
+
+        # Android build infrastructure (SDK, NDK, gomobile, build script)
+        androidApk = import ./nix/android-apk.nix {
+          inherit pkgs;
+          lib = pkgs.lib;
         };
       in
       {
         packages.default = pkgs.nix-key;
         packages.phonesim = pkgs.phonesim;
+        packages.build-android-apk = androidApk.build-android-apk;
+        packages.android-sdk = androidApk.androidSdk;
 
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
@@ -58,6 +67,10 @@
 
             # Secret scanning
             gitleaks
+
+            # Android build tools
+            androidApk.gomobile
+            androidApk.build-android-apk
           ];
 
           shellHook = ''

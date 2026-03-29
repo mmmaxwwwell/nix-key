@@ -46,8 +46,10 @@ node_modules/
 # Android
 *.apk
 *.aab
+*.aar
 .gradle/
 local.properties
+android/app/libs/
 
 # Dev certs
 certs/

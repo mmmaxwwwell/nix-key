@@ -1,4 +1,4 @@
-.PHONY: dev test test-unit test-integration lint build proto generate-fixtures cover clean clean-all gomobile
+.PHONY: dev test test-unit test-integration lint build proto generate-fixtures cover clean clean-all gomobile android-apk
 
 BINARY := nix-key
 CMD := ./cmd/nix-key
@@ -32,6 +32,10 @@ proto:
 gomobile:
 	mkdir -p android/app/libs
 	gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
+
+android-apk: gomobile
+	cd android && ./gradlew assembleDebug --no-daemon
+	@echo "APK: android/app/build/outputs/apk/debug/app-debug.apk"
 
 cover:
 	mkdir -p coverage

@@ -105,7 +105,7 @@
 ## Phase 13: Android Emulator E2E Harness + Tests
 
 ### 13a: APK Build Infrastructure
-- [ ] T062 Create Nix expression for Android APK build: either a `nix/android-apk.nix` derivation using `androidenv` from nixpkgs (preferred for reproducibility) or a documented Gradle build step with pinned SDK/NDK versions. The APK must include the gomobile AAR from `pkg/phoneserver`. Verify APK installs on emulator via `adb install`. [Build infra]
+- [x] T062 Create Nix expression for Android APK build: either a `nix/android-apk.nix` derivation using `androidenv` from nixpkgs (preferred for reproducibility) or a documented Gradle build step with pinned SDK/NDK versions. The APK must include the gomobile AAR from `pkg/phoneserver`. Verify APK installs on emulator via `adb install`. [Build infra]
 
 ### 13b: Android Emulator Nix Infrastructure
 - [ ] T063 Create `nix/android-emulator.nix`: Nix expression for Android emulator setup using `androidenv.emulateApp` or `androidenv.androidPkgs`. Configure: system image (API 34, x86_64), AVD with 2GB RAM, swiftshader GPU for headless rendering (no host GPU required), KVM acceleration. Create helper script `start-emulator.sh` that boots emulator, waits for `adb shell getprop sys.boot_completed` (with 120s timeout + retry), and returns. Test: emulator boots in Nix sandbox. [E2E infra]
