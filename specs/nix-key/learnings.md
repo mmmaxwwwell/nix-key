@@ -178,3 +178,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Sentinel errors (`ErrConnection`, `ErrTimeout`, etc.) combined with `Is(target error) bool` methods on each subtype allow `errors.Is(err, ErrConnection)` pattern matching without needing type assertions.
 - `CodeFrom(err)` uses an interface (`Code() string`) with `errors.As` to extract codes from anywhere in the error chain, including when wrapped by `fmt.Errorf("%w", ...)`.
 
+## T043 — NixOS VM service test
+
+- In Nix `''...''` strings, `$(...)` (shell subshell syntax) causes parse errors — Nix treats `$` followed by `(` as an invalid token. Use `find ... | xargs cat` pipelines instead of `cat $(find ...)`.
+- NixOS VM tests access user services via `systemctl --user -M testuser@` (machinectl transport). Requires the user to have lingering enabled (`/var/lib/systemd/linger/<user>`) so the user manager starts at boot without a login session.
+- `ConfigurationDirectory` and `StateDirectory` in systemd user services create dirs under `~/.config/` and `~/.local/state/` respectively (not under `/etc/` or `/var/`).
+- `pkgs.writeText` generates a store path like `/nix/store/<hash>-nix-key-config.json`. The test finds it with `find /nix/store -maxdepth 1 -name '...'`.
+- `environment.etc."xdg/environment.d/50-nix-key.conf"` places the file at `/etc/xdg/environment.d/50-nix-key.conf` — the system-wide XDG defaults directory.
+
