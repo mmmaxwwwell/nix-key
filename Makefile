@@ -1,4 +1,4 @@
-.PHONY: dev test test-unit test-integration lint build proto generate-fixtures cover clean clean-all
+.PHONY: dev test test-unit test-integration lint build proto generate-fixtures cover clean clean-all gomobile
 
 BINARY := nix-key
 CMD := ./cmd/nix-key
@@ -28,6 +28,10 @@ proto:
 		--go_out=$(GEN_DIR) --go_opt=paths=source_relative \
 		--go-grpc_out=$(GEN_DIR) --go-grpc_opt=paths=source_relative \
 		$(PROTO_DIR)/nixkey/v1/nix_key.proto
+
+gomobile:
+	mkdir -p android/app/libs
+	gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
 
 cover:
 	mkdir -p coverage

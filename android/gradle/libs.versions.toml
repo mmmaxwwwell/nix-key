@@ -18,6 +18,9 @@ junit = "4.13.2"
 mockk = "1.13.13"
 compose-testing = "1.7.6"
 runner = "1.6.2"
+grpc = "1.68.2"
+protobuf = "4.29.3"
+protobuf-plugin = "0.9.4"
 
 [libraries]
 # AndroidX Core
@@ -58,6 +61,12 @@ compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose-testing" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
 
+# gRPC (for integration tests and proto stubs)
+grpc-okhttp = { group = "io.grpc", name = "grpc-okhttp", version.ref = "grpc" }
+grpc-protobuf-lite = { group = "io.grpc", name = "grpc-protobuf-lite", version.ref = "grpc" }
+grpc-stub = { group = "io.grpc", name = "grpc-stub", version.ref = "grpc" }
+protobuf-lite = { group = "com.google.protobuf", name = "protobuf-javalite", version.ref = "protobuf" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -65,3 +74,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+protobuf-gradle = { id = "com.google.protobuf", version.ref = "protobuf-plugin" }
