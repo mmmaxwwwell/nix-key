@@ -125,8 +125,11 @@ var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Show current configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("config: not yet implemented")
-		return nil
+		configPath, _ := cmd.Flags().GetString("config-file")
+		if configPath == "" {
+			configPath = defaultConfigPath()
+		}
+		return runConfig(configPath, os.Stdout)
 	},
 }
 
@@ -170,6 +173,7 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	exportCmd.Flags().String("control-socket", "", "Path to daemon control socket")
 	rootCmd.AddCommand(exportCmd)
+	configCmd.Flags().String("config-file", "", "Path to config file (default: ~/.config/nix-key/config.json)")
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(logsCmd)
 	rootCmd.AddCommand(testCmd)

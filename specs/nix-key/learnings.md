@@ -418,3 +418,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The missing integration point was `GoPhoneServer.start()` not calling `PhoneServer.SetOTELEndpoint()` before `startOnAddress()`. Added an optional `otelEndpoint` parameter with default `null`.
 - `GrpcServerService` reads OTEL from `SettingsRepository` (enabled flag + endpoint string) and passes to `GoPhoneServer.start()` — OTEL is only passed when both `otelEnabled` is true and endpoint is non-empty.
 - Android uses regular `SharedPreferences` for OTEL settings (per T030 learning: "not sensitive"), while per-host OTEL data is in `EncryptedSharedPreferences` via `HostRepository`.
+
+## T058 — nix-key config CLI
+
+- `runConfig` reads the raw JSON file (not via `config.Load`) to avoid validation errors on display — the config command should show what's in the file regardless of validity.
+- `map[string]json.RawMessage` is used for parsing to handle heterogeneous value types (string, bool, int, null) without a struct. Note: Go maps don't preserve insertion order, so field display order is non-deterministic.
+- Sensitive fields (`ageKeyFile`, `tailscaleAuthKeyFile`) are defined in a `sensitiveFields` set, matching `Config.RedactedFields()` from `internal/config/`. Values show "present" or "missing" based on whether the string value is non-empty.
+- Nullable optional fields (like `otelEndpoint`) display "not set" when JSON value is `null`.
