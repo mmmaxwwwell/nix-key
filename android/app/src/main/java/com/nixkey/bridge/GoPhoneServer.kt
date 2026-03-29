@@ -76,6 +76,7 @@ class KeyStoreAdapter(
  */
 class ConfirmerAdapter(
     private val signRequestQueue: SignRequestQueue,
+    private val keyManager: KeyManager,
     private val confirmationTimeoutSeconds: Long = 60,
 ) : Confirmer {
 
@@ -91,12 +92,19 @@ class ConfirmerAdapter(
         val approved = AtomicBoolean(false)
         val requestIdRef = AtomicReference<String>()
 
+        // Look up the key's confirmation policy from KeyManager
+        val keyInfo = keyManager.listKeys().find {
+            it.displayName == key || it.fingerprint == key
+        }
+        val policy = keyInfo?.confirmationPolicy ?: ConfirmationPolicy.ALWAYS_ASK
+        val fingerprint = keyInfo?.fingerprint ?: ""
+
         val request = SignRequest(
-            keyFingerprint = "",
+            keyFingerprint = fingerprint,
             hostName = host,
             keyName = key,
             dataToSign = hash.toByteArray(Charsets.UTF_8),
-            confirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            confirmationPolicy = policy,
         )
         requestIdRef.set(request.requestId)
 
@@ -180,7 +188,7 @@ class GoPhoneServer @Inject constructor(
     private val running = AtomicBoolean(false)
 
     val keyStoreAdapter: KeyStoreAdapter by lazy { KeyStoreAdapter(keyManager) }
-    val confirmerAdapter: ConfirmerAdapter by lazy { ConfirmerAdapter(signRequestQueue) }
+    val confirmerAdapter: ConfirmerAdapter by lazy { ConfirmerAdapter(signRequestQueue, keyManager) }
 
     /**
      * Start the gRPC server on the given address (e.g., "0.0.0.0:50051").

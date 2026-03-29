@@ -237,6 +237,14 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - Gitleaks built-in rules have allowlists for common example values (e.g., `AKIAIOSFODNN7EXAMPLE` is auto-allowed). Use non-example patterns for testing.
 - `git config --local core.hooksPath .githooks` in the flake shellHook auto-activates hooks when entering the devshell.
 
+## T038 — Wire sign request end-to-end on Android
+
+- `BiometricPrompt` requires `FragmentActivity`, not `ComponentActivity`. Changed `MainActivity` to extend `FragmentActivity` (available via the `biometric` transitive dependency on `fragment`). `setContent` and `enableEdgeToEdge` extension functions work on `FragmentActivity` since it extends `ComponentActivity`.
+- The Go `Confirmer.RequestConfirmation(hostName, keyName, dataHash)` interface passes keyName but not the key fingerprint. Rather than changing the Go interface (which would require rebuilding the gomobile AAR), `ConfirmerAdapter` looks up the key by display name (or fingerprint, since the Go server falls back to fingerprint when display name lookup fails) in `KeyManager` to get the `ConfirmationPolicy`.
+- The `SignRequestDialog` must be composed at the `MainActivity` level (not inside `NavGraph`) because it's a global overlay that appears over any screen. Compose `AlertDialog` creates its own window, so it works regardless of position in the tree.
+- For the gRPC timeout test, after the client gets `DEADLINE_EXCEEDED`, the server-side `ConfirmerAdapter` is still blocking on its `CountDownLatch`. Must explicitly complete the pending request in the test's finally block to unblock the server for clean teardown.
+- Nesting `NixKeyTheme` (inner in `NixKeyAppUi`, outer in `MainActivity`) is harmless — Compose MaterialTheme contexts stack, with the innermost taking precedence.
+
 ## T012 — Protobuf + make proto
 
 - The proto file, generated Go code, and `make proto` Makefile target were already created during earlier tasks (likely T041/T042 when the Nix package needed `gen/` for compilation). Task was already complete on arrival.

@@ -10,6 +10,8 @@ import com.nixkey.keystore.SignRequestStatus
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import nixkey.v1.NixKey.ListKeysRequest
 import nixkey.v1.NixKey.PingRequest
 import nixkey.v1.NixKey.SignRequest as GrpcSignRequest
@@ -219,6 +221,120 @@ class GoPhoneServerTest {
             } finally {
                 channel.shutdownNow()
                 denyThread.join(5000)
+            }
+        } finally {
+            keyManager.deleteKey(keyInfo.alias)
+        }
+    }
+
+    @Test
+    fun signRpcTimeoutReturnsDeadlineExceeded() {
+        val keyInfo = keyManager.createKey(
+            "test-timeout-key",
+            KeyType.ECDSA_P256,
+            ConfirmationPolicy.ALWAYS_ASK,
+        )
+
+        try {
+            goPhoneServer.start("127.0.0.1:0")
+            Thread.sleep(500)
+
+            // Do NOT approve or deny — let the request hang until client deadline expires
+            val channel = ManagedChannelBuilder
+                .forAddress("127.0.0.1", goPhoneServer.port())
+                .usePlaintext()
+                .build()
+            try {
+                val stub = NixKeyAgentGrpc.newBlockingStub(channel)
+                    .withDeadlineAfter(2, TimeUnit.SECONDS)
+                val req = GrpcSignRequest.newBuilder()
+                    .setKeyFingerprint(keyInfo.fingerprint)
+                    .setData(com.google.protobuf.ByteString.copyFrom("timeout data".toByteArray()))
+                    .setFlags(0)
+                    .build()
+
+                try {
+                    stub.sign(req)
+                    assertTrue("Should have thrown on timeout", false)
+                } catch (e: StatusRuntimeException) {
+                    assertEquals(
+                        "Should be DEADLINE_EXCEEDED",
+                        Status.DEADLINE_EXCEEDED.code,
+                        e.status.code,
+                    )
+                }
+            } finally {
+                channel.shutdownNow()
+                // Unblock the server-side ConfirmerAdapter latch so tearDown doesn't hang
+                val pending = signRequestQueue.currentRequest.value
+                if (pending != null) {
+                    signRequestQueue.complete(pending.requestId, SignRequestStatus.TIMEOUT)
+                    goPhoneServer.confirmerAdapter.notifyCompletion(
+                        pending.requestId,
+                        SignRequestStatus.TIMEOUT,
+                    )
+                }
+            }
+        } finally {
+            keyManager.deleteKey(keyInfo.alias)
+        }
+    }
+
+    @Test
+    fun signRequestCarriesCorrectConfirmationPolicy() {
+        val keyInfo = keyManager.createKey(
+            "test-policy-key",
+            KeyType.ECDSA_P256,
+            ConfirmationPolicy.BIOMETRIC,
+        )
+
+        try {
+            goPhoneServer.start("127.0.0.1:0")
+            Thread.sleep(500)
+
+            // Approve from background, but capture the policy from the SignRequest
+            val policyRef = AtomicReference<ConfirmationPolicy>()
+            val fingerprintRef = AtomicReference<String>()
+            val approveThread = Thread {
+                waitForRequest()
+                val current = signRequestQueue.currentRequest.value ?: return@Thread
+                policyRef.set(current.confirmationPolicy)
+                fingerprintRef.set(current.keyFingerprint)
+                signRequestQueue.complete(current.requestId, SignRequestStatus.APPROVED)
+                goPhoneServer.confirmerAdapter.notifyCompletion(
+                    current.requestId,
+                    SignRequestStatus.APPROVED,
+                )
+            }
+            approveThread.start()
+
+            val channel = ManagedChannelBuilder
+                .forAddress("127.0.0.1", goPhoneServer.port())
+                .usePlaintext()
+                .build()
+            try {
+                val stub = NixKeyAgentGrpc.newBlockingStub(channel)
+                val req = GrpcSignRequest.newBuilder()
+                    .setKeyFingerprint(keyInfo.fingerprint)
+                    .setData(com.google.protobuf.ByteString.copyFrom("policy test".toByteArray()))
+                    .setFlags(0)
+                    .build()
+                stub.sign(req)
+                approveThread.join(5000)
+
+                assertEquals(
+                    "SignRequest should carry the key's BIOMETRIC policy",
+                    ConfirmationPolicy.BIOMETRIC,
+                    policyRef.get(),
+                )
+                assertEquals(
+                    "SignRequest should carry the key's fingerprint",
+                    keyInfo.fingerprint,
+                    fingerprintRef.get(),
+                )
+            } finally {
+                channel.shutdownNow()
+                approveThread.join(5000)
             }
         } finally {
             keyManager.deleteKey(keyInfo.alias)

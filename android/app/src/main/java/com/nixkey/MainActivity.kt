@@ -1,27 +1,72 @@
 package com.nixkey
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.nixkey.bridge.GoPhoneServer
+import com.nixkey.keystore.AuthResult
+import com.nixkey.keystore.BiometricHelper
+import com.nixkey.keystore.SignRequestQueue
+import com.nixkey.keystore.SignRequestStatus
 import com.nixkey.service.GrpcServerService
 import com.nixkey.tailscale.TailscaleManager
 import com.nixkey.ui.NixKeyAppUi
+import com.nixkey.ui.screens.SignRequestDialog
+import com.nixkey.ui.theme.NixKeyTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
 
     @Inject
     lateinit var tailscaleManager: TailscaleManager
+
+    @Inject
+    lateinit var signRequestQueue: SignRequestQueue
+
+    @Inject
+    lateinit var goPhoneServer: GoPhoneServer
+
+    @Inject
+    lateinit var biometricHelper: BiometricHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val needsAuth = !tailscaleManager.hasStoredAuthKey() && !tailscaleManager.isRunning()
         setContent {
-            NixKeyAppUi(needsTailscaleAuth = needsAuth)
+            NixKeyTheme {
+                NixKeyAppUi(needsTailscaleAuth = needsAuth)
+                SignRequestDialog(
+                    queue = signRequestQueue,
+                    onApprove = { request ->
+                        biometricHelper.authenticate(
+                            activity = this@MainActivity,
+                            policy = request.confirmationPolicy,
+                            title = "Sign Request",
+                            subtitle = "Key: ${request.keyName} for ${request.hostName}",
+                        ) { result ->
+                            val status = when (result) {
+                                is AuthResult.Success -> SignRequestStatus.APPROVED
+                                else -> SignRequestStatus.DENIED
+                            }
+                            signRequestQueue.complete(request.requestId, status)
+                            goPhoneServer.confirmerAdapter.notifyCompletion(
+                                request.requestId,
+                                status,
+                            )
+                        }
+                    },
+                    onDeny = { request ->
+                        signRequestQueue.complete(request.requestId, SignRequestStatus.DENIED)
+                        goPhoneServer.confirmerAdapter.notifyCompletion(
+                            request.requestId,
+                            SignRequestStatus.DENIED,
+                        )
+                    },
+                )
+            }
         }
     }
 
