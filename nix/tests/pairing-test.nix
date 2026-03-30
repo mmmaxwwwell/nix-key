@@ -134,6 +134,7 @@ in
         phonesimPkg
         pkgs.jq
         pkgs.curl
+        pkgs.openssl
       ];
     };
 
