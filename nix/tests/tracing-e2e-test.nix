@@ -45,6 +45,24 @@ in
         tracing.jaeger.package = pkgs.jaeger;
       };
 
+      # Minimal static DERP map for headscale (offline VM, no internet)
+      environment.etc."headscale/derp.json".text = builtins.toJSON {
+        Regions = {
+          "900" = {
+            RegionID = 900;
+            RegionCode = "test";
+            RegionName = "Test DERP";
+            Nodes = [{
+              Name = "test-derp";
+              RegionID = 900;
+              HostName = "127.0.0.1";
+              STUNPort = -1;
+              DERPPort = 0;
+            }];
+          };
+        };
+      };
+
       # Headscale server on this node
       services.headscale = {
         enable = true;
@@ -61,7 +79,7 @@ in
           };
           derp = {
             urls = [ ];
-            paths = [ ];
+            paths = [ "/etc/headscale/derp.json" ];
             auto_update_enabled = false;
             update_frequency = "1h";
           };
