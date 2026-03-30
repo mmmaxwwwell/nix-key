@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"port\":29418,\"tailscaleInterface\":\"tailscale0\",\"allowKeyListing\":true,\"signTimeout\":30,\"connectionTimeout\":10,\"socketPath\":\"/tmp/agent.sock\",\"controlSocketPath\":\"/tmp/ctl.sock\",\"logLevel\":\"info\",\"ageKeyFile\":\"~/.age\",\"certExpiry\":\"365d\"}")

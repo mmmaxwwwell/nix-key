@@ -55,3 +55,8 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 ## T076 — Documentation
 
 - No non-obvious gotchas for this task. Pure documentation update covering CLAUDE.md and UI_FLOW.md.
+
+## T077 — Fuzz Testing
+
+- `net.Pipe()` returns `net.Conn` which lacks `CloseWrite()`. Use `client.Close()` instead to signal EOF to the SSH agent server goroutine.
+- Go fuzz seed corpus in `testdata/fuzz/` is automatically picked up alongside `f.Add()` seeds — both are run as regression tests during normal `go test`. No special flags needed.
