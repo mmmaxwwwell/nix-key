@@ -60,3 +60,8 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 
 - `net.Pipe()` returns `net.Conn` which lacks `CloseWrite()`. Use `client.Close()` instead to signal EOF to the SSH agent server goroutine.
 - Go fuzz seed corpus in `testdata/fuzz/` is automatically picked up alongside `f.Add()` seeds — both are run as regression tests during normal `go test`. No special flags needed.
+
+## T078 — Fuzz CI Integration
+
+- `go test -fuzz` only runs one fuzz target at a time (one `-fuzz` regex per invocation). To fuzz multiple targets, loop over each package/function pair with separate `go test` calls.
+- Use `-run='^$'` alongside `-fuzz` to skip non-fuzz tests during generative fuzzing — otherwise all regular tests in the package also run each iteration.

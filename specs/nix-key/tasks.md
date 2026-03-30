@@ -187,7 +187,7 @@
 - [x] T077 Add Go fuzz targets (`testing.F`) for all untrusted-input boundaries: (1) SSH agent protocol message parsing (`internal/agent/`), (2) protobuf message deserialization, (3) QR code payload JSON parsing (`internal/pairing/qr.go`), (4) config JSON parsing (`internal/config/`), (5) certificate PEM parsing (`internal/mtls/certs.go`), (6) control socket JSON protocol parsing (`internal/daemon/control.go`). Seed corpus from existing test fixtures in `testdata/fuzz/`. Property tests: `decode(encode(x)) == x` for protobuf round-trips. Commit `testdata/fuzz/` as regression corpus. [T-FZ-01 through T-FZ-06, SC-012]
   **Done**: 6+ fuzz targets exist, seed corpus committed, `go test` runs seed corpus as regression.
 
-- [ ] T078 Add fuzz CI integration. In `ci.yml`: seed corpus runs on every PR (already happens via `go test`). Add time-boxed generative fuzzing (60s per target) to PR and develop-push workflows. Add `.github/workflows/fuzz.yml` for scheduled nightly deep fuzzing. [SC-012, CI/CD]
+- [x] T078 Add fuzz CI integration. In `ci.yml`: seed corpus runs on every PR (already happens via `go test`). Add time-boxed generative fuzzing (60s per target) to PR and develop-push workflows. Add `.github/workflows/fuzz.yml` for scheduled nightly deep fuzzing. [SC-012, CI/CD]
   **Done**: Fuzz runs on PRs/develop, nightly workflow exists, crashes auto-saved to `testdata/fuzz/`.
 
 ### 15b: Performance & Latency Testing [P with 15a, 15c, 15d]

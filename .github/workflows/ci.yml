@@ -404,6 +404,64 @@ jobs:
             scorecard-results.sarif
           if-no-files-found: ignore
 
+  # ---------- Fuzz (time-boxed generative) ----------
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Time-boxed generative fuzzing (60s per target)
+        run: |
+          nix develop --command bash -c '
+            set -euo pipefail
+            FUZZTIME=60s
+            TARGETS=(
+              "internal/agent FuzzSSHAgentProtocol"
+              "internal/config FuzzConfigParse"
+              "internal/pairing FuzzQRPayloadParse"
+              "internal/daemon FuzzControlRequestParse"
+              "internal/daemon FuzzControlResponseParse"
+              "internal/mtls FuzzCertPEMParse"
+              "internal/mtls FuzzCertFingerprint"
+              "gen/nixkey/v1 FuzzProtoSignRequest"
+              "gen/nixkey/v1 FuzzProtoListKeysResponse"
+              "gen/nixkey/v1 FuzzProtoRoundTrip"
+            )
+            FAILED=0
+            for entry in "${TARGETS[@]}"; do
+              PKG=$(echo "$entry" | cut -d" " -f1)
+              FUNC=$(echo "$entry" | cut -d" " -f2)
+              echo "=== Fuzzing ${PKG}::${FUNC} for ${FUZZTIME} ==="
+              if ! go test -fuzz="^${FUNC}\$" -fuzztime="${FUZZTIME}" -run="^$" "./${PKG}"; then
+                echo "FAIL: ${PKG}::${FUNC}"
+                FAILED=$((FAILED + 1))
+              fi
+            done
+            if [ "$FAILED" -gt 0 ]; then
+              echo "${FAILED} fuzz target(s) found crashes"
+              exit 1
+            fi
+          '
+
+      - name: Save crash corpus
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: testdata/fuzz/
+          if-no-files-found: ignore
+
   # ---------- CI Summary ----------
   ci-summary:
     name: CI Summary
