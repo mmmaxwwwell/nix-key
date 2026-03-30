@@ -6,12 +6,7 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      flake-utils,
-    }:
+  outputs = { self, nixpkgs, flake-utils, }:
     {
       # System-independent outputs
       nixosModules.default = import ./nix/module.nix;
@@ -22,9 +17,7 @@
         jaeger = final.callPackage ./nix/jaeger.nix { };
         infer = final.callPackage ./nix/infer.nix { };
       };
-    }
-    // flake-utils.lib.eachDefaultSystem (
-      system:
+    } // flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -44,8 +37,7 @@
           inherit pkgs;
           lib = pkgs.lib;
         };
-      in
-      {
+      in {
         packages.default = pkgs.nix-key;
         packages.phonesim = pkgs.phonesim;
         packages.build-android-apk = androidApk.build-android-apk;
@@ -54,45 +46,45 @@
         packages.emulator-sdk = androidEmulator.emulatorSdk;
 
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            # Go toolchain
-            go
-            gopls
-            gotools
+          packages = with pkgs;
+            [
+              # Go toolchain
+              go
+              gopls
+              gotools
 
-            # Protobuf
-            protobuf
-            protoc-gen-go
-            protoc-gen-go-grpc
+              # Protobuf
+              protobuf
+              protoc-gen-go
+              protoc-gen-go-grpc
 
-            # Security / encryption
-            age
+              # Security / encryption
+              age
 
-            # Tailscale / Headscale
-            headscale
-            tailscale
+              # Tailscale / Headscale
+              headscale
+              tailscale
 
-            # Linting and formatting
-            golangci-lint
-            nixfmt-rfc-style
+              # Linting and formatting
+              golangci-lint
+              nixfmt-rfc-style
 
-            # Security scanning
-            gitleaks
-            trivy
-            semgrep
-            govulncheck
+              # Security scanning
+              gitleaks
+              trivy
+              semgrep
+              govulncheck
 
-            # Android build tools
-            androidApk.gomobile
-            androidApk.build-android-apk
+              # Android build tools
+              androidApk.gomobile
+              androidApk.build-android-apk
 
-            # Android emulator (E2E testing)
-            androidEmulator.start-emulator
-          ]
-          ++ pkgs.lib.optionals (system == "x86_64-linux") [
-            # Static analysis (x86_64-linux only)
-            infer
-          ];
+              # Android emulator (E2E testing)
+              androidEmulator.start-emulator
+            ] ++ pkgs.lib.optionals (system == "x86_64-linux") [
+              # Static analysis (x86_64-linux only)
+              infer
+            ];
 
           shellHook = ''
             # Install gitleaks pre-commit hook
@@ -105,43 +97,36 @@
             echo "  golangci-lint:  $(golangci-lint --version 2>&1 | head -1)"
           '';
         };
-      }
-      // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+      } // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
         # NixOS VM tests (added by T043+)
-        checks =
-          let
-            # Helper to import a NixOS VM test with the nix-key module pre-loaded
-            callTest =
-              testPath:
-              nixpkgs.legacyPackages.${system}.testers.nixosTest (
-                import testPath {
-                  inherit pkgs;
-                  nixKeyModule = self.nixosModules.default;
-                }
-              );
-            testDir = ./nix/tests;
-            hasTests = builtins.pathExists testDir;
-          in
-          nixpkgs.lib.optionalAttrs hasTests (
-            nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/service-test.nix")) {
-              service-test = callTest (testDir + "/service-test.nix");
-            }
-            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/pairing-test.nix")) {
-              pairing-test = callTest (testDir + "/pairing-test.nix");
-            }
-            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/signing-test.nix")) {
-              signing-test = callTest (testDir + "/signing-test.nix");
-            }
-            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/jaeger-test.nix")) {
-              jaeger-test = callTest (testDir + "/jaeger-test.nix");
-            }
-            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/tracing-e2e-test.nix")) {
-              tracing-e2e-test = callTest (testDir + "/tracing-e2e-test.nix");
-            }
-            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/adversarial-test.nix")) {
-              adversarial-test = callTest (testDir + "/adversarial-test.nix");
-            }
-          );
-      }
-    );
+        checks = let
+          # Helper to import a NixOS VM test with the nix-key module pre-loaded
+          callTest = testPath:
+            nixpkgs.legacyPackages.${system}.testers.nixosTest
+            (import testPath {
+              inherit pkgs;
+              nixKeyModule = self.nixosModules.default;
+            });
+          testDir = ./nix/tests;
+          hasTests = builtins.pathExists testDir;
+        in nixpkgs.lib.optionalAttrs hasTests (nixpkgs.lib.optionalAttrs
+          (builtins.pathExists (testDir + "/service-test.nix")) {
+            service-test = callTest (testDir + "/service-test.nix");
+          } // nixpkgs.lib.optionalAttrs
+          (builtins.pathExists (testDir + "/pairing-test.nix")) {
+            pairing-test = callTest (testDir + "/pairing-test.nix");
+          } // nixpkgs.lib.optionalAttrs
+          (builtins.pathExists (testDir + "/signing-test.nix")) {
+            signing-test = callTest (testDir + "/signing-test.nix");
+          } // nixpkgs.lib.optionalAttrs
+          (builtins.pathExists (testDir + "/jaeger-test.nix")) {
+            jaeger-test = callTest (testDir + "/jaeger-test.nix");
+          } // nixpkgs.lib.optionalAttrs
+          (builtins.pathExists (testDir + "/tracing-e2e-test.nix")) {
+            tracing-e2e-test = callTest (testDir + "/tracing-e2e-test.nix");
+          } // nixpkgs.lib.optionalAttrs
+          (builtins.pathExists (testDir + "/adversarial-test.nix")) {
+            adversarial-test = callTest (testDir + "/adversarial-test.nix");
+          });
+      });
 }

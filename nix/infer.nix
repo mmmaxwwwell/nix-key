@@ -1,21 +1,14 @@
 # Pre-built Facebook Infer static analyzer.
 # Used for RacerD race condition detection in Android/Kotlin code.
-{
-  lib,
-  stdenv,
-  fetchurl,
-  autoPatchelfHook,
-  gmp,
-  mpfr,
-  sqlite,
-  zlib,
-}:
+{ lib, stdenv, fetchurl, autoPatchelfHook, gmp, mpfr, sqlite, zlib, zstd
+, ncurses, }:
 stdenv.mkDerivation rec {
   pname = "infer";
   version = "1.2.0";
 
   src = fetchurl {
-    url = "https://github.com/facebook/infer/releases/download/v${version}/infer-linux-x86_64-v${version}.tar.xz";
+    url =
+      "https://github.com/facebook/infer/releases/download/v${version}/infer-linux-x86_64-v${version}.tar.xz";
     sha256 = "21504063fb3a1dbc7919f34dc6e50ca0d35f50b996d91deb7b8bea8243d52d82";
   };
 
@@ -23,13 +16,10 @@ stdenv.mkDerivation rec {
 
   nativeBuildInputs = [ autoPatchelfHook ];
 
-  buildInputs = [
-    gmp
-    mpfr
-    sqlite
-    zlib
-    stdenv.cc.cc.lib
-  ];
+  buildInputs = [ gmp mpfr sqlite zlib zstd ncurses stdenv.cc.cc.lib ];
+
+  # Bundled clang plugins require libpython3.8 for GDB helpers — not needed for infer itself
+  autoPatchelfIgnoreMissingDeps = [ "libpython3.8.so.1.0" ];
 
   installPhase = ''
     mkdir -p $out
@@ -37,7 +27,8 @@ stdenv.mkDerivation rec {
   '';
 
   meta = {
-    description = "Facebook Infer static analyzer for Java/C/C++/ObjC (includes RacerD)";
+    description =
+      "Facebook Infer static analyzer for Java/C/C++/ObjC (includes RacerD)";
     homepage = "https://fbinfer.com/";
     license = lib.licenses.mit;
     platforms = [ "x86_64-linux" ];

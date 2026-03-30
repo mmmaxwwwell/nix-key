@@ -24,10 +24,7 @@
 #   JDK          = 17
 #   Gradle       = 8.11.1 (via wrapper in android/gradle/wrapper/)
 #
-{
-  pkgs,
-  lib,
-}:
+{ pkgs, lib, }:
 
 let
   # --- Pinned Android SDK/NDK versions ---
@@ -40,10 +37,7 @@ let
     includeSources = false;
     includeSystemImages = false;
     includeEmulator = false;
-    extraLicenses = [
-      "android-sdk-license"
-      "android-sdk-preview-license"
-    ];
+    extraLicenses = [ "android-sdk-license" "android-sdk-preview-license" ];
   };
 
   androidSdk = androidComposition.androidsdk;
@@ -178,12 +172,4 @@ let
     echo "  adb install $APK_PATH"
   '';
 
-in
-{
-  inherit
-    androidSdk
-    androidComposition
-    gomobile
-    build-android-apk
-    ;
-}
+in { inherit androidSdk androidComposition gomobile build-android-apk; }
