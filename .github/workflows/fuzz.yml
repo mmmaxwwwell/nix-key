@@ -50,8 +50,9 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Deep fuzz ${{ matrix.target.func }}
+        env:
+          FUZZTIME: ${{ github.event.inputs.fuzztime || '5m' }}
         run: |
-          FUZZTIME="${{ github.event.inputs.fuzztime || '5m' }}"
           nix develop --command bash -c "
             set -euo pipefail
             echo \"=== Fuzzing ${{ matrix.target.pkg }}::${{ matrix.target.func }} for ${FUZZTIME} ===\"

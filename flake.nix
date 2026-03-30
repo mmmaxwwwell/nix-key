@@ -75,7 +75,6 @@
             # Linting and formatting
             golangci-lint
             nixfmt-rfc-style
-            infer
 
             # Security scanning
             gitleaks
@@ -89,6 +88,10 @@
 
             # Android emulator (E2E testing)
             androidEmulator.start-emulator
+          ]
+          ++ pkgs.lib.optionals (system == "x86_64-linux") [
+            # Static analysis (x86_64-linux only)
+            infer
           ];
 
           shellHook = ''

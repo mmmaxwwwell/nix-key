@@ -63,7 +63,7 @@ func BenchmarkGRPCRoundTrip(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := client.Sign(ctx, req)
+		_, err := client.Sign(context.Background(), req)
 		if err != nil {
 			b.Fatalf("sign: %v", err)
 		}
