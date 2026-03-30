@@ -270,9 +270,16 @@ func TestIntegrationColdStartControlServer(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	dir := t.TempDir()
-	socketDir := filepath.Join(dir, "run", "nix-key")
-	socketPath := filepath.Join(socketDir, "control.sock")
+	// Use /tmp with a short prefix to keep the Unix socket path under the
+	// 108-character sun_path limit. CI runners have long TMPDIR paths that
+	// cause t.TempDir() + test name + subdirs to exceed the limit.
+	dir, err := os.MkdirTemp("/tmp", "nk-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	socketDir := filepath.Join(dir, "run")
+	socketPath := filepath.Join(socketDir, "ctl.sock")
 
 	if _, err := os.Stat(socketDir); !os.IsNotExist(err) {
 		t.Fatal("socket dir should not exist yet")

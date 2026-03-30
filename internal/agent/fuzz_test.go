@@ -3,6 +3,7 @@ package agent
 import (
 	"net"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 	sshagent "golang.org/x/crypto/ssh/agent"
@@ -22,6 +23,11 @@ func FuzzSSHAgentProtocol(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		client, server := net.Pipe()
+		// Prevent hangs from malformed length prefixes that cause
+		// ServeAgent to block indefinitely or allocate excessive memory.
+		deadline := time.Now().Add(2 * time.Second)
+		client.SetDeadline(deadline)
+		server.SetDeadline(deadline)
 		defer client.Close()
 
 		done := make(chan struct{})
