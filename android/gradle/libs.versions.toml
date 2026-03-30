@@ -24,6 +24,7 @@ grpc = "1.68.2"
 protobuf = "4.29.3"
 protobuf-plugin = "0.9.4"
 mlkit-barcode = "17.3.0"
+zxing-core = "3.5.3"
 camera-core = "1.4.1"
 camera-lifecycle = "1.4.1"
 camera-view = "1.4.1"
@@ -74,6 +75,9 @@ jsr305 = { group = "com.google.code.findbugs", name = "jsr305", version.ref = "j
 
 # ML Kit Barcode Scanning
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
+
+# QR Code Generation (for tests)
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing-core" }
 
 # CameraX
 camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camera-core" }

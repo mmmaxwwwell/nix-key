@@ -104,6 +104,11 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 - `@ThreadSafe` requires `com.google.code.findbugs:jsr305:3.0.2` dependency. AndroidX has `@GuardedBy` but NOT `@ThreadSafe`. Add `jsr305` as an `implementation` dependency.
 - Infer v1.2.0 pre-built Linux binary is ~500MB. For the nix package, it needs `autoPatchelfHook` plus runtime deps: `gmp`, `mpfr`, `sqlite`, `zlib`, `stdenv.cc.cc.lib`.
 
+## T091 — ML Kit QR bitmap test
+
+- Use `Base64.NO_WRAP` (not `Base64.DEFAULT`) when generating QR payloads for ZXing — newlines in the base64 string add unnecessary data to the QR code. Android's `Base64.decode(str, Base64.DEFAULT)` in `decodeQrPayload` accepts both wrapped and unwrapped input.
+- ZXing `QRCodeWriter` is added as `androidTestImplementation` only (version 3.5.3). For larger payloads (multi-line PEM certs), increase bitmap size to 800px to ensure reliable ML Kit detection.
+
 ## T082 — Security scan Makefile targets
 
 - govulncheck JSON output is newline-delimited JSON objects (not a JSON array). Use `jq -s '[.[] | select(.finding != null)] | length'` to count findings.

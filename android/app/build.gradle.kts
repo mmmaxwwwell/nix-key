@@ -158,5 +158,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.uiautomator)
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.mockk)
+    androidTestImplementation(libs.zxing.core)
     debugImplementation(libs.compose.ui.test.manifest)
 }
