@@ -97,3 +97,9 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 - The rogue node running `openssl s_server` with adversarial certs needs firewall ports opened on the `tailscale0` interface. Without this, the host daemon cannot reach the TLS servers, causing connection timeout instead of cert-validation rejection.
 - `grpc.NewClient` (gRPC-go v1.67+) is lazy — it does not dial on creation. TLS cert verification via `VerifyPeerCertificate` only runs when the first RPC (e.g., `Ping`) triggers the actual connection. So `mtls.DialMTLS` returns successfully; the cert failure appears as a Ping RPC error.
 - In NixOS VM tests with 3 nodes (host, phone, rogue) all joining headscale, create a separate preauthkey for each node. Reusing the same key works but makes debugging harder when tailnet issues arise.
+
+## T090 — Thread-safety annotations + RacerD
+
+- GoPhoneServer has a real data race: `phoneServer` and `serverThread` are written after `running.getAndSet(true)` in `start()` but read after `running.getAndSet(false)` in `stop()`. The AtomicBoolean CAS establishes happens-before only for the atomic variable itself, not for subsequent non-volatile field writes. Fix: add `@Volatile` to both fields.
+- `@ThreadSafe` requires `com.google.code.findbugs:jsr305:3.0.2` dependency. AndroidX has `@GuardedBy` but NOT `@ThreadSafe`. Add `jsr305` as an `implementation` dependency.
+- Infer v1.2.0 pre-built Linux binary is ~500MB. For the nix package, it needs `autoPatchelfHook` plus runtime deps: `gmp`, `mpfr`, `sqlite`, `zlib`, `stdenv.cc.cc.lib`.

@@ -19,6 +19,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import javax.annotation.concurrent.GuardedBy
+import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,6 +82,7 @@ class KeyStoreAdapter(
  * set to true. The UI layer handles the unlock prompt first, then proceeds
  * to the signing confirmation.
  */
+@ThreadSafe
 class ConfirmerAdapter(
     private val signRequestQueue: SignRequestQueue,
     private val keyManager: KeyManager,
@@ -158,6 +161,7 @@ class ConfirmerAdapter(
         fun onCompleted(requestId: String, status: SignRequestStatus)
     }
 
+    @GuardedBy("observerLock")
     private val observers = mutableListOf<ConfirmationObserver>()
     private val observerLock = Any()
 
@@ -192,13 +196,17 @@ class ConfirmerAdapter(
  * to [KeyManager] via [KeyStoreAdapter] and user confirmation to the
  * Compose UI via [ConfirmerAdapter].
  */
+@ThreadSafe
 @Singleton
 class GoPhoneServer @Inject constructor(
     private val keyManager: KeyManager,
     private val signRequestQueue: SignRequestQueue,
     private val keyUnlockManager: KeyUnlockManager,
 ) {
+    @Volatile
     private var phoneServer: PhoneServer? = null
+
+    @Volatile
     private var serverThread: Thread? = null
     private val running = AtomicBoolean(false)
 

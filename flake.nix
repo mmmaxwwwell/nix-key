@@ -20,6 +20,7 @@
         nix-key = final.callPackage ./nix/package.nix { };
         phonesim = final.callPackage ./nix/phonesim.nix { };
         jaeger = final.callPackage ./nix/jaeger.nix { };
+        infer = final.callPackage ./nix/infer.nix { };
       };
     }
     // flake-utils.lib.eachDefaultSystem (
@@ -74,6 +75,7 @@
             # Linting and formatting
             golangci-lint
             nixfmt-rfc-style
+            infer
 
             # Secret scanning
             gitleaks

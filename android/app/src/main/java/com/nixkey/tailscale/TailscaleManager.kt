@@ -10,6 +10,7 @@ import timber.log.Timber
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,6 +35,7 @@ enum class TailnetConnectionState {
  * [FR-013]: Phone uses userspace Tailscale via libtailscale.
  * [FR-013a]: Auth key or OAuth flow, persisted in encrypted storage.
  */
+@ThreadSafe
 @Singleton
 class TailscaleManager @Inject constructor(
     private val backend: TailscaleBackend,

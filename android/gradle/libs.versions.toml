@@ -19,6 +19,7 @@ mockk = "1.13.13"
 compose-testing = "1.7.6"
 runner = "1.6.2"
 uiautomator = "2.3.0"
+jsr305 = "3.0.2"
 grpc = "1.68.2"
 protobuf = "4.29.3"
 protobuf-plugin = "0.9.4"
@@ -67,6 +68,9 @@ compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose-testing" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
+
+# Thread-safety annotations (JSR-305)
+jsr305 = { group = "com.google.code.findbugs", name = "jsr305", version.ref = "jsr305" }
 
 # ML Kit Barcode Scanning
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }

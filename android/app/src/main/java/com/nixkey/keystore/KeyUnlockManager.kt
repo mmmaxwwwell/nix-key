@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
+import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +30,7 @@ data class UnlockedKeyState(
  *
  * Keys with [UnlockPolicy.NONE] are eagerly unlocked on app start via [eagerUnlockNoneKeys].
  */
+@ThreadSafe
 @Singleton
 class KeyUnlockManager @Inject constructor() {
 

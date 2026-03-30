@@ -44,6 +44,25 @@ jobs:
           cd android
           test -f ./gradlew && nix develop --command bash -c './gradlew ktlintCheck --no-daemon' || echo "Skipping ktlint: gradlew not found"
 
+      - name: RacerD (Infer race detection)
+        run: |
+          cd android
+          if test -f ./gradlew; then
+            nix develop --command bash -c '
+              infer run --racerd-only -- ./gradlew assembleDebug --no-daemon 2>&1
+              if [ -f infer-out/report.json ]; then
+                RACES=$(jq "[.[] | select(.bug_type == \"THREAD_SAFETY_violation\")] | length" infer-out/report.json)
+                echo "RacerD found $RACES potential race(s)"
+                if [ "$RACES" -gt 0 ]; then
+                  jq ".[] | select(.bug_type == \"THREAD_SAFETY_violation\") | {file: .file, line: .line, qualifier: .qualifier}" infer-out/report.json
+                  exit 1
+                fi
+              fi
+            '
+          else
+            echo "Skipping RacerD: gradlew not found"
+          fi
+
       - name: Job summary
         if: always()
         run: |
@@ -52,7 +71,7 @@ jobs:
           PASS=0
           FAIL=0
           FAILURES=""
-          for step in golangci-lint nixfmt ktlint; do
+          for step in golangci-lint nixfmt ktlint racerd; do
             echo "- **${step}**: checked" >> "$GITHUB_STEP_SUMMARY"
           done
           if [ "${{ job.status }}" = "success" ]; then

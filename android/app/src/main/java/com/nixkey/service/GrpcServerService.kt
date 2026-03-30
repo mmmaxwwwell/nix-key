@@ -16,6 +16,7 @@ import com.nixkey.tailscale.TailscaleManager
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import java.net.BindException
+import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 
 /**
@@ -31,6 +32,7 @@ import javax.inject.Inject
  * [FR-012]: gRPC server bound to Tailscale interface.
  * [FR-014]: The phone's TLS server MUST bind only to the Tailscale interface.
  */
+@ThreadSafe
 @AndroidEntryPoint
 class GrpcServerService : Service() {
 

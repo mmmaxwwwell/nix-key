@@ -3,9 +3,11 @@ package com.nixkey.data
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@ThreadSafe
 @Singleton
 class HostRepository @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,

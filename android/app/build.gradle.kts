@@ -143,6 +143,9 @@ dependencies {
     implementation(libs.grpc.stub)
     implementation(libs.protobuf.lite)
 
+    // Thread-safety annotations
+    implementation(libs.jsr305)
+
     // Logging
     implementation(libs.timber)
 

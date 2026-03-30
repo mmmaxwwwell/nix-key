@@ -20,6 +20,7 @@ import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import java.time.Instant
 import java.util.Base64
+import javax.annotation.concurrent.ThreadSafe
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
@@ -32,6 +33,7 @@ import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import timber.log.Timber
 
+@ThreadSafe
 @Singleton
 class KeyManager @Inject constructor(
     @ApplicationContext private val context: Context,

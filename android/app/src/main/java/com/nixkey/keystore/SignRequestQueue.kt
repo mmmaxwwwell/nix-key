@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
 import java.util.concurrent.ConcurrentLinkedQueue
+import javax.annotation.concurrent.GuardedBy
+import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,9 +20,11 @@ import javax.inject.Singleton
  * Thread-safe: uses ConcurrentLinkedQueue for the backing store and StateFlow for
  * reactive UI updates.
  */
+@ThreadSafe
 @Singleton
 class SignRequestQueue @Inject constructor() {
 
+    @GuardedBy("lock")
     private val queue = ConcurrentLinkedQueue<SignRequest>()
     private val _currentRequest = MutableStateFlow<SignRequest?>(null)
 
