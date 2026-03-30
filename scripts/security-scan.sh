@@ -81,9 +81,8 @@ run_semgrep() {
   scanner_findings[$name]=$count
   total_findings=$((total_findings + count))
   if [ "$ec" -ne 0 ] && [ "$ec" -ne 1 ]; then
-    # semgrep exit 1 = findings found (not a tool error)
-    # We still treat findings as a non-pass
-    :
+    # semgrep exit >= 2 = internal tool error, not just findings
+    all_pass=false
   fi
   if [ "$count" -gt 0 ]; then
     all_pass=false

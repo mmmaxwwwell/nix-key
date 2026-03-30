@@ -619,7 +619,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fuzz-crashes
-          path: testdata/fuzz/
+          path: "**/testdata/fuzz/"
           if-no-files-found: ignore
 
   # ---------- CI Summary ----------
