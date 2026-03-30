@@ -276,7 +276,7 @@
 - [x] T103 [P] Add "Upload debug APK" step to test-android job in `.github/workflows/ci.yml`: after Gradle assembleDebug succeeds, use `actions/upload-artifact@v4` with name `debug-apk`, path `android/app/build/outputs/apk/debug/app-debug.apk` [FR-203]
   **Done when**: debug-apk artifact appears in GitHub Actions artifacts on develop builds.
 
-- [ ] T104 [P] Add "Upload Go binary" step to test-host job in `.github/workflows/ci.yml`: build with `nix build`, copy `result/bin/nix-key`, use `actions/upload-artifact@v4` with name `nix-key-binary` [FR-204]
+- [x] T104 [P] Add "Upload Go binary" step to test-host job in `.github/workflows/ci.yml`: build with `nix build`, copy `result/bin/nix-key`, use `actions/upload-artifact@v4` with name `nix-key-binary` [FR-204]
   **Done when**: nix-key-binary artifact appears in GitHub Actions artifacts on develop builds.
 
 - [ ] T105 Add "Verify scanners ran" step to security job in `.github/workflows/ci.yml`: for each scanner (trivy, semgrep, gitleaks, govulncheck), check JSON output file exists and is >10 bytes, log `::warning::` for missing scanners (advisory, not hard failure), use `if: always()` [FR-205, FR-206]
