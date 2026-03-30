@@ -259,7 +259,7 @@
 - [x] T097 Determine license. Check all dependency licenses (`go-licenses`, Gradle license plugin). If all compatible with MIT, use MIT. Otherwise use least restrictive compatible license. Create LICENSE file. [SC-017]
   **Done**: LICENSE file present, compatible with all deps.
 
-- [ ] T098 Update `CLAUDE.md` (was T076): final project structure, all commands including new `make bench`, `make security-scan`, `make validate`, architecture overview, CI/CD debugging, two-policy model summary, new phases. [Documentation]
+- [x] T098 Update `CLAUDE.md` (was T076): final project structure, all commands including new `make bench`, `make security-scan`, `make validate`, architecture overview, CI/CD debugging, two-policy model summary, new phases. [Documentation]
   **Done**: CLAUDE.md reflects final state.
 
 ## Phase 18: Final CI Validation
