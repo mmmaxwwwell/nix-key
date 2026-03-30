@@ -50,6 +50,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.nixkey.ui.components.LocalTailnetConnectionState
+import com.nixkey.ui.components.TailnetIndicator
 import com.nixkey.ui.viewmodel.PairingPhase
 import com.nixkey.ui.viewmodel.PairingViewModel
 import java.util.concurrent.Executors
@@ -63,6 +65,7 @@ fun PairingScreen(
     viewModel: PairingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val tailnetState by LocalTailnetConnectionState.current.collectAsState()
 
     LaunchedEffect(initialPayload) {
         if (initialPayload != null && state.phase == PairingPhase.SCANNING) {
@@ -87,6 +90,9 @@ fun PairingScreen(
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    TailnetIndicator(state = tailnetState)
                 },
             )
         },

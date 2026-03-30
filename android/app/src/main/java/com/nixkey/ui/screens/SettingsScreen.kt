@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.UnlockPolicy
+import com.nixkey.ui.components.LocalTailnetConnectionState
+import com.nixkey.ui.components.TailnetIndicator
 import com.nixkey.ui.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,6 +49,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val tailnetState by LocalTailnetConnectionState.current.collectAsState()
 
     Scaffold(
         topBar = {
@@ -56,6 +59,9 @@ fun SettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    TailnetIndicator(state = tailnetState)
                 },
             )
         },

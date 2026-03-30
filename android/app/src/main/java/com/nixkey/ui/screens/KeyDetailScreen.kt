@@ -51,6 +51,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.KeyType
 import com.nixkey.keystore.UnlockPolicy
+import com.nixkey.ui.components.LocalTailnetConnectionState
+import com.nixkey.ui.components.TailnetIndicator
 import com.nixkey.ui.viewmodel.KeyDetailViewModel
 import kotlinx.coroutines.launch
 
@@ -64,6 +66,7 @@ fun KeyDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val tailnetState by LocalTailnetConnectionState.current.collectAsState()
 
     LaunchedEffect(state.keyDeleted) {
         if (state.keyDeleted) onBack()
@@ -91,6 +94,9 @@ fun KeyDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    TailnetIndicator(state = tailnetState)
                 },
             )
         },

@@ -62,6 +62,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     needsTailscaleAuth = needsAuth,
                     deepLinkPayload = deepLinkPayload,
                     onDeepLinkConsumed = { deepLinkPayload = null },
+                    tailnetConnectionState = tailscaleManager.connectionState,
                 )
                 SignRequestDialog(
                     queue = signRequestQueue,

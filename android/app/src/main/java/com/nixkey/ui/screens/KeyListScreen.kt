@@ -39,6 +39,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.keystore.SshKeyInfo
+import com.nixkey.ui.components.LocalTailnetConnectionState
+import com.nixkey.ui.components.TailnetIndicator
 import com.nixkey.ui.viewmodel.KeyListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +54,7 @@ fun KeyListScreen(
 ) {
     val keys by viewModel.keys.collectAsState()
     val unlockedFingerprints by viewModel.unlockedFingerprints.collectAsState()
+    val tailnetState by LocalTailnetConnectionState.current.collectAsState()
 
     Scaffold(
         topBar = {
@@ -61,6 +64,9 @@ fun KeyListScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    TailnetIndicator(state = tailnetState)
                 },
             )
         },
@@ -162,13 +168,30 @@ private fun KeyCard(
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = key.fingerprint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = key.fingerprint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isUnlocked) "Unlocked" else "Locked",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isUnlocked) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
         }
     }
 }

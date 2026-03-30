@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.data.ConnectionStatus
 import com.nixkey.data.PairedHost
+import com.nixkey.ui.components.LocalTailnetConnectionState
+import com.nixkey.ui.components.TailnetIndicator
 import com.nixkey.ui.viewmodel.ServerListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,12 +49,14 @@ fun ServerListScreen(
     viewModel: ServerListViewModel = hiltViewModel(),
 ) {
     val hosts by viewModel.hosts.collectAsState()
+    val tailnetState by LocalTailnetConnectionState.current.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("nix-key") },
                 actions = {
+                    TailnetIndicator(state = tailnetState)
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }

@@ -2,6 +2,7 @@ package com.nixkey.ui.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.KeyManager
 import com.nixkey.keystore.KeyType
@@ -12,6 +13,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
@@ -49,6 +52,15 @@ class KeyDetailViewModel @Inject constructor(
         if (!isCreateMode && keyId != null) {
             loadKey(keyId)
         }
+        // Reactively update isUnlocked when unlock state changes (FR-111)
+        keyUnlockManager.unlockedFingerprints
+            .onEach { fingerprints ->
+                val fp = _state.value.keyInfo?.fingerprint
+                if (fp != null) {
+                    _state.update { it.copy(isUnlocked = fingerprints.contains(fp)) }
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun loadKey(alias: String) {
@@ -144,7 +156,7 @@ class KeyDetailViewModel @Inject constructor(
     fun lockKey() {
         val fp = _state.value.keyInfo?.fingerprint ?: return
         keyUnlockManager.lock(fp)
-        _state.update { it.copy(isUnlocked = false) }
+        // isUnlocked is updated reactively via unlockedFingerprints collection
     }
 
     fun createKey() {

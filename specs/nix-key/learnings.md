@@ -80,3 +80,9 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 ## T080 — Adversarial Cert Fixtures
 
 - The existing `generateCA` function hardcodes `CommonName: "nix-key Test CA"`. For the rogue CA fixture, a separate `generateRogueCA` function is needed with a distinct CN and serial number, otherwise tests asserting the rogue CA differs from the legitimate one will fail.
+
+## T088 — Status Indicators
+
+- `TailscaleManager` uses `AtomicReference`/`AtomicBoolean` (not `StateFlow`) for internal state, so UI can't reactively observe connection changes without adding an explicit `StateFlow`. Added `connectionState: StateFlow<TailnetConnectionState>` alongside the existing atomic fields.
+- `CompositionLocalProvider` with a `compositionLocalOf<StateFlow<...>>` is the cleanest way to make a singleton's state available across all screens without threading parameters through the nav graph or injecting the manager into every ViewModel.
+- `KeyDetailViewModel` loaded `isUnlocked` once at init and never updated it reactively. Collecting `keyUnlockManager.unlockedFingerprints` in `viewModelScope` fixes this so lock/unlock from other screens (e.g., long-press in key list) is reflected immediately.
