@@ -1,4 +1,8 @@
-{ lib, buildGoModule, go, }:
+{
+  lib,
+  buildGoModule,
+  go,
+}:
 buildGoModule {
   pname = "nix-key";
   version = "0.1.0";
@@ -22,11 +26,13 @@ buildGoModule {
 
   subPackages = [ "cmd/nix-key" ];
 
-  ldflags = [ "-s" "-w" ];
+  ldflags = [
+    "-s"
+    "-w"
+  ];
 
   meta = {
-    description =
-      "SSH agent that delegates signing to a paired Android phone over Tailscale with mTLS";
+    description = "SSH agent that delegates signing to a paired Android phone over Tailscale with mTLS";
     mainProgram = "nix-key";
     license = lib.licenses.mit;
   };

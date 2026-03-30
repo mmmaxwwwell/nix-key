@@ -312,4 +312,4 @@ Download from the GitHub Actions workflow run page → Artifacts section.
 - Host-side code is Nix-built. The flake provides devShell, packages, NixOS module, and checks.
 - Format Nix files with `nixfmt` (rfc-style).
 - Android app is the only non-Nix artifact.
-- When creating NixOS VM tests with headscale, always apply: (1) `dns.nameservers.global` set, (2) `tls_cert_path = null`, (3) no `pkgs` in node function args.
+- When creating NixOS VM tests with headscale, always apply: (1) `dns.nameservers.global` set, (2) generate a self-signed TLS cert via `pkgs.runCommand` and set `tls_cert_path`/`tls_key_path` + `security.pki.certificateFiles` on all nodes (required for embedded DERP relay), (3) no `pkgs` in node function args.

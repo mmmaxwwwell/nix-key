@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   cfg = config.services.nix-key;
 
@@ -6,10 +11,8 @@ let
   # Uses 127.0.0.1 instead of localhost to avoid IPv6 resolution issues in NixOS VMs
   # where localhost resolves to ::1 first but Jaeger only listens on IPv4 (0.0.0.0).
   # The assertion ensures manual otelEndpoint is null when jaeger is enabled.
-  effectiveOtelEndpoint = if cfg.tracing.jaeger.enable then
-    "127.0.0.1:4317"
-  else
-    cfg.tracing.otelEndpoint;
+  effectiveOtelEndpoint =
+    if cfg.tracing.jaeger.enable then "127.0.0.1:4317" else cfg.tracing.otelEndpoint;
 
   # Jaeger v2 requires an explicit config file to set up the in-memory storage
   # pipeline correctly. Without it, the default exporter pipeline fails with
@@ -69,8 +72,7 @@ let
 
       certFingerprint = lib.mkOption {
         type = lib.types.str;
-        description =
-          "SHA256 fingerprint of the phone's TLS server certificate. Primary identity for cert pinning.";
+        description = "SHA256 fingerprint of the phone's TLS server certificate. Primary identity for cert pinning.";
       };
 
       clientCert = lib.mkOption {
@@ -97,33 +99,41 @@ let
   # socketPath and controlSocketPath are omitted when empty (default) — they
   # are resolved at runtime from $XDG_RUNTIME_DIR in the preStart script
   # and passed via environment variables.
-  configFile = pkgs.writeText "nix-key-config.json" (builtins.toJSON ({
-    port = cfg.port;
-    tailscaleInterface = cfg.tailscaleInterface;
-    allowKeyListing = cfg.allowKeyListing;
-    signTimeout = cfg.signTimeout;
-    connectionTimeout = cfg.connectionTimeout;
-    logLevel = cfg.logLevel;
-    otelEndpoint = effectiveOtelEndpoint;
-    jaegerEnable = cfg.tracing.jaeger.enable;
-    ageKeyFile = cfg.secrets.ageKeyFile;
-    tailscaleAuthKeyFile = cfg.tailscale.authKeyFile;
-    certExpiry = cfg.certExpiry;
-    devices = lib.mapAttrs (_name: dev: {
-      inherit (dev) name tailscaleIp port certFingerprint;
-      clientCertPath =
-        if dev.clientCert != null then toString dev.clientCert else null;
-      clientKeyPath =
-        if dev.clientKey != null then toString dev.clientKey else null;
-    }) cfg.devices;
-  } // lib.optionalAttrs (cfg.socketPath != "") { socketPath = cfg.socketPath; }
-    // lib.optionalAttrs (cfg.controlSocketPath != "") {
-      controlSocketPath = cfg.controlSocketPath;
-    }));
-in {
+  configFile = pkgs.writeText "nix-key-config.json" (
+    builtins.toJSON (
+      {
+        port = cfg.port;
+        tailscaleInterface = cfg.tailscaleInterface;
+        allowKeyListing = cfg.allowKeyListing;
+        signTimeout = cfg.signTimeout;
+        connectionTimeout = cfg.connectionTimeout;
+        logLevel = cfg.logLevel;
+        otelEndpoint = effectiveOtelEndpoint;
+        jaegerEnable = cfg.tracing.jaeger.enable;
+        ageKeyFile = cfg.secrets.ageKeyFile;
+        tailscaleAuthKeyFile = cfg.tailscale.authKeyFile;
+        certExpiry = cfg.certExpiry;
+        devices = lib.mapAttrs (_name: dev: {
+          inherit (dev)
+            name
+            tailscaleIp
+            port
+            certFingerprint
+            ;
+          clientCertPath = if dev.clientCert != null then toString dev.clientCert else null;
+          clientKeyPath = if dev.clientKey != null then toString dev.clientKey else null;
+        }) cfg.devices;
+      }
+      // lib.optionalAttrs (cfg.socketPath != "") { socketPath = cfg.socketPath; }
+      // lib.optionalAttrs (cfg.controlSocketPath != "") {
+        controlSocketPath = cfg.controlSocketPath;
+      }
+    )
+  );
+in
+{
   options.services.nix-key = {
-    enable = lib.mkEnableOption
-      "nix-key SSH agent that delegates signing to a paired Android phone over Tailscale with mTLS";
+    enable = lib.mkEnableOption "nix-key SSH agent that delegates signing to a paired Android phone over Tailscale with mTLS";
 
     package = lib.mkOption {
       type = lib.types.package;
@@ -133,15 +143,13 @@ in {
     port = lib.mkOption {
       type = lib.types.port;
       default = 29418;
-      description =
-        "Default port for phone gRPC connections. Can be overridden per device.";
+      description = "Default port for phone gRPC connections. Can be overridden per device.";
     };
 
     tailscaleInterface = lib.mkOption {
       type = lib.types.str;
       default = "tailscale0";
-      description =
-        "Network interface name for Tailscale. The daemon only initiates mTLS connections via this interface.";
+      description = "Network interface name for Tailscale. The daemon only initiates mTLS connections via this interface.";
     };
 
     allowKeyListing = lib.mkOption {
@@ -160,15 +168,13 @@ in {
     signTimeout = lib.mkOption {
       type = lib.types.ints.positive;
       default = 30;
-      description =
-        "Seconds to wait for the phone user to approve or deny a sign request.";
+      description = "Seconds to wait for the phone user to approve or deny a sign request.";
     };
 
     connectionTimeout = lib.mkOption {
       type = lib.types.ints.positive;
       default = 10;
-      description =
-        "Seconds to wait for an mTLS connection to a phone before giving up.";
+      description = "Seconds to wait for an mTLS connection to a phone before giving up.";
     };
 
     socketPath = lib.mkOption {
@@ -192,10 +198,15 @@ in {
     };
 
     logLevel = lib.mkOption {
-      type = lib.types.enum [ "debug" "info" "warn" "error" "fatal" ];
+      type = lib.types.enum [
+        "debug"
+        "info"
+        "warn"
+        "error"
+        "fatal"
+      ];
       default = "info";
-      description =
-        "Minimum log level for the daemon. One of: debug, info, warn, error, fatal.";
+      description = "Minimum log level for the daemon. One of: debug, info, warn, error, fatal.";
     };
 
     tracing = {
@@ -212,8 +223,7 @@ in {
         enable = lib.mkOption {
           type = lib.types.bool;
           default = false;
-          description =
-            "Whether to run a local Jaeger instance and configure the daemon to export traces to it.";
+          description = "Whether to run a local Jaeger instance and configure the daemon to export traces to it.";
         };
 
         package = lib.mkOption {
@@ -227,8 +237,7 @@ in {
       ageKeyFile = lib.mkOption {
         type = lib.types.str;
         default = "~/.local/state/nix-key/age-identity.txt";
-        description =
-          "Path to the age identity file used for decrypting mTLS private keys at rest (FR-103).";
+        description = "Path to the age identity file used for decrypting mTLS private keys at rest (FR-103).";
       };
     };
 
@@ -236,8 +245,7 @@ in {
       authKeyFile = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        description =
-          "Path to a file containing a pre-authorized Tailscale auth key. Useful for automated setups and testing (FR-013b).";
+        description = "Path to a file containing a pre-authorized Tailscale auth key. Useful for automated setups and testing (FR-013b).";
       };
     };
 
@@ -273,23 +281,21 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    assertions = [{
-      assertion = cfg.tracing.jaeger.enable -> cfg.tracing.otelEndpoint == null;
-      message =
-        "services.nix-key.tracing.otelEndpoint must not be set when jaeger.enable is true; the module sets it automatically.";
-    }];
+    assertions = [
+      {
+        assertion = cfg.tracing.jaeger.enable -> cfg.tracing.otelEndpoint == null;
+        message = "services.nix-key.tracing.otelEndpoint must not be set when jaeger.enable is true; the module sets it automatically.";
+      }
+    ];
 
     # systemd user service: nix-key-agent
     systemd.user.services.nix-key-agent = {
-      description =
-        "nix-key SSH agent — delegates signing to paired Android phone over Tailscale";
+      description = "nix-key SSH agent — delegates signing to paired Android phone over Tailscale";
       after = [ "network.target" ];
       wantedBy = [ "default.target" ];
 
       serviceConfig = {
-        ExecStart = "${
-            lib.getExe cfg.package
-          } daemon --config %h/.config/nix-key/config.json";
+        ExecStart = "${lib.getExe cfg.package} daemon --config %h/.config/nix-key/config.json";
         Restart = "on-failure";
         RestartSec = 5;
 
@@ -310,28 +316,35 @@ in {
       # EnvironmentFile so they can use $RUNTIME_DIRECTORY (set by systemd
       # from RuntimeDirectory=nix-key). The - prefix on EnvironmentFile makes
       # it optional (no error if missing on first boot).
-      preStart = let
-        socketLine = if cfg.socketPath != "" then
-          "NIXKEY_SOCKET_PATH=${cfg.socketPath}"
-        else
-          "NIXKEY_SOCKET_PATH=$RUNTIME_DIRECTORY/agent.sock";
-        controlSocketLine = if cfg.controlSocketPath != "" then
-          "NIXKEY_CONTROL_SOCKET_PATH=${cfg.controlSocketPath}"
-        else
-          "NIXKEY_CONTROL_SOCKET_PATH=$RUNTIME_DIRECTORY/control.sock";
-      in ''
-        mkdir -p -m 0700 "$STATE_DIRECTORY/certs"
-        ln -sf ${configFile} "$CONFIGURATION_DIRECTORY/config.json"
-        printf '%s\n' "${socketLine}" "${controlSocketLine}" > "$RUNTIME_DIRECTORY/env"
-      '';
+      preStart =
+        let
+          socketLine =
+            if cfg.socketPath != "" then
+              "NIXKEY_SOCKET_PATH=${cfg.socketPath}"
+            else
+              "NIXKEY_SOCKET_PATH=$RUNTIME_DIRECTORY/agent.sock";
+          controlSocketLine =
+            if cfg.controlSocketPath != "" then
+              "NIXKEY_CONTROL_SOCKET_PATH=${cfg.controlSocketPath}"
+            else
+              "NIXKEY_CONTROL_SOCKET_PATH=$RUNTIME_DIRECTORY/control.sock";
+        in
+        ''
+          mkdir -p -m 0700 "$STATE_DIRECTORY/certs"
+          ln -sf ${configFile} "$CONFIGURATION_DIRECTORY/config.json"
+          printf '%s\n' "${socketLine}" "${controlSocketLine}" > "$RUNTIME_DIRECTORY/env"
+        '';
 
       environment = {
         NIXKEY_LOG_LEVEL = cfg.logLevel;
-      } // lib.optionalAttrs (cfg.socketPath != "") {
+      }
+      // lib.optionalAttrs (cfg.socketPath != "") {
         NIXKEY_SOCKET_PATH = cfg.socketPath;
-      } // lib.optionalAttrs (cfg.controlSocketPath != "") {
+      }
+      // lib.optionalAttrs (cfg.controlSocketPath != "") {
         NIXKEY_CONTROL_SOCKET_PATH = cfg.controlSocketPath;
-      } // lib.optionalAttrs (effectiveOtelEndpoint != null) {
+      }
+      // lib.optionalAttrs (effectiveOtelEndpoint != null) {
         NIXKEY_OTEL_ENDPOINT = effectiveOtelEndpoint;
       };
     };
@@ -340,14 +353,13 @@ in {
     # SSH_AUTH_SOCK is available in all user login sessions.
     # environment.d supports variable expansion, so ${XDG_RUNTIME_DIR} works.
     environment.etc."xdg/environment.d/50-nix-key.conf" = {
-      text = let
-        sock = if cfg.socketPath != "" then
-          cfg.socketPath
-        else
-          "\${XDG_RUNTIME_DIR}/nix-key/agent.sock";
-      in ''
-        SSH_AUTH_SOCK=${sock}
-      '';
+      text =
+        let
+          sock = if cfg.socketPath != "" then cfg.socketPath else "\${XDG_RUNTIME_DIR}/nix-key/agent.sock";
+        in
+        ''
+          SSH_AUTH_SOCK=${sock}
+        '';
       mode = "0644";
     };
 
@@ -359,8 +371,7 @@ in {
       wantedBy = [ "multi-user.target" ];
 
       serviceConfig = {
-        ExecStart =
-          "${cfg.tracing.jaeger.package}/bin/jaeger --config ${jaegerConfig}";
+        ExecStart = "${cfg.tracing.jaeger.package}/bin/jaeger --config ${jaegerConfig}";
         Restart = "on-failure";
         RestartSec = 5;
         DynamicUser = true;

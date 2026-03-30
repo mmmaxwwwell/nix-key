@@ -19,6 +19,17 @@ let
 
   # Agent socket path for direct daemon invocation (not via systemd)
   agentSocketPath = "/tmp/nix-key-test/agent.sock";
+
+  # Self-signed TLS cert for headscale — required so the embedded DERP relay
+  # serves TLS and tailscaled can connect to it.
+  testTlsCert = pkgs.runCommand "headscale-test-cert" { nativeBuildInputs = [ pkgs.openssl ]; } ''
+    mkdir -p $out
+    openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
+      -keyout $out/tls.key -out $out/tls.crt \
+      -days 365 -nodes -subj '/CN=${headscaleDomain}' \
+      -addext 'subjectAltName=DNS:${headscaleDomain},IP:192.168.1.1'
+    chmod 644 $out/tls.crt
+  '';
 in
 {
   name = "nix-key-signing";
@@ -61,7 +72,7 @@ in
       services.headscale = {
         enable = true;
         settings = {
-          server_url = "http://${headscaleDomain}:${toString headscalePort}";
+          server_url = "https://${headscaleDomain}:${toString headscalePort}";
           listen_addr = "0.0.0.0:${toString headscalePort}";
           ip_prefixes = [
             "100.64.0.0/10"
@@ -86,13 +97,16 @@ in
               automatically_add_embedded_derp_region = true;
             };
           };
-          tls_cert_path = null;
-          tls_key_path = null;
+          tls_cert_path = "${testTlsCert}/tls.crt";
+          tls_key_path = "${testTlsCert}/tls.key";
         };
       };
 
       # Tailscale client on host
       services.tailscale.enable = true;
+
+      # Trust the self-signed headscale TLS cert
+      security.pki.certificateFiles = [ "${testTlsCert}/tls.crt" ];
 
       # DNS resolution for headscale
       networking.extraHosts = ''
@@ -128,6 +142,8 @@ in
     {
       # Tailscale client on phone node
       services.tailscale.enable = true;
+
+      security.pki.certificateFiles = [ "${testTlsCert}/tls.crt" ];
 
       # DNS resolution for headscale on host
       networking.extraHosts = ''
@@ -189,14 +205,14 @@ in
     with subtest("host joins tailnet"):
         host.wait_for_unit("tailscaled.service")
         host.succeed(
-            f"tailscale up --login-server http://${headscaleDomain}:${toString headscalePort} "
+            f"tailscale up --login-server https://${headscaleDomain}:${toString headscalePort} "
             f"--auth-key {host_key} --hostname test-host"
         )
 
     with subtest("phone joins tailnet"):
         phone.wait_for_unit("tailscaled.service")
         phone.succeed(
-            f"tailscale up --login-server http://${headscaleDomain}:${toString headscalePort} "
+            f"tailscale up --login-server https://${headscaleDomain}:${toString headscalePort} "
             f"--auth-key {phone_key} --hostname test-phone"
         )
 

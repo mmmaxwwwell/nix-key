@@ -17,7 +17,7 @@
 #   start-emulator --no-wait    # boots emulator without waiting
 #   start-emulator --kill       # kills running emulator
 #
-{ pkgs, lib, }:
+{ pkgs, lib }:
 
 let
   # --- Android SDK with emulator + system image ---
@@ -276,4 +276,7 @@ let
     exit 1
   '';
 
-in { inherit emulatorSdk emulatorComposition start-emulator; }
+in
+{
+  inherit emulatorSdk emulatorComposition start-emulator;
+}

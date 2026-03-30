@@ -1,4 +1,8 @@
-{ lib, buildGoModule, go, }:
+{
+  lib,
+  buildGoModule,
+  go,
+}:
 buildGoModule {
   pname = "phonesim";
   version = "0.1.0";
@@ -23,7 +27,10 @@ buildGoModule {
 
   subPackages = [ "test/phonesim" ];
 
-  ldflags = [ "-s" "-w" ];
+  ldflags = [
+    "-s"
+    "-w"
+  ];
 
   meta = {
     description = "Phone simulator for nix-key E2E testing";

@@ -1,13 +1,17 @@
 # Pre-built Jaeger v2 binary package.
 # Jaeger was removed from nixpkgs; this fetches the official release binary.
-{ lib, stdenv, fetchurl, autoPatchelfHook, }:
+{
+  lib,
+  stdenv,
+  fetchurl,
+  autoPatchelfHook,
+}:
 stdenv.mkDerivation rec {
   pname = "jaeger";
   version = "2.16.0";
 
   src = fetchurl {
-    url =
-      "https://github.com/jaegertracing/jaeger/releases/download/v${version}/jaeger-${version}-linux-amd64.tar.gz";
+    url = "https://github.com/jaegertracing/jaeger/releases/download/v${version}/jaeger-${version}-linux-amd64.tar.gz";
     sha256 = "13qa0aysnz2j9swsm3q13kiz44s6dpk19b4x1ci0cps0yxddyg15";
   };
 
