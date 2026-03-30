@@ -175,6 +175,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Update "latest" symlink for easy access.
+	latestLink := filepath.Join("test-logs", testType, "latest")
+	// Remove existing symlink (ignore error if it doesn't exist).
+	os.Remove(latestLink)
+	if err := os.Symlink(timestamp, latestLink); err != nil {
+		fmt.Fprintf(os.Stderr, "test-reporter: symlink latest: %v\n", err)
+	}
+
 	fmt.Fprintf(os.Stderr, "\ntest-reporter: results written to %s\n", outDir)
 
 	// Exit with non-zero if any tests failed.

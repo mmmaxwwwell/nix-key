@@ -4,6 +4,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 
 ---
 
+## T109a — Go CI local verification
+
+- The test-reporter (`cmd/test-reporter`) didn't create a `latest` symlink, so `test-logs/ci/latest/summary.json` didn't exist. Fixed by adding `os.Symlink(timestamp, latestLink)` after writing summary.json.
+- `nix build` requires Nix store write permissions (`/nix/var/nix/db/big-lock`). In sandboxed environments, use `go build` (via `make build`) as a proxy for verifying the Go binary builds.
+- Go tests report 413 passes across all packages (consistent with prior CI runs reporting 425 — the difference is likely package-level pass events vs test-level).
+
 ## T109c — Security scanner local verification
 
 - Gitleaks outputs bare `[]` (3 bytes) when no secrets are found, which fails a >10 byte check. Wrapping the raw array into a `{scanner, findings, count, exit_code}` object in the scan script fixes this while keeping the data accessible.

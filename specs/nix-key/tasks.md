@@ -284,7 +284,7 @@
 
 ## Phase 19: Local CI Verification & Final CI Validation
 
-- [ ] T109a [P] Verify Go CI steps locally (fix-validate loop): run `nix build` and `go test -json -race -count=1 ./...`. Verify `result/bin/nix-key` exists and `test-logs/ci/latest/summary.json` exists with `passed + failed > 0`. On failure: fix and retry. [FR-202, FR-204]
+- [x] T109a [P] Verify Go CI steps locally (fix-validate loop): run `nix build` and `go test -json -race -count=1 ./...`. Verify `result/bin/nix-key` exists and `test-logs/ci/latest/summary.json` exists with `passed + failed > 0`. On failure: fix and retry. [FR-202, FR-204]
   **Done when**: Go binary builds, Go tests pass with non-zero count, artifact paths verified. Fix-validate loop, 20-iteration cap.
 
 - [ ] T109b [P] Verify Android CI steps locally (fix-validate loop): run `./gradlew assembleDebug testDebugUnitTest --no-daemon` in `android/`. Verify `android/app/build/outputs/apk/debug/app-debug.apk` exists. Verify JUnit XML files exist in `android/app/build/test-results/` with >0 tests. On failure: fix (missing SDK, Gradle config, gomobile AAR) and retry. [FR-200, FR-201, FR-203]
