@@ -143,8 +143,23 @@ in
     # ── Phase 1: Headscale setup ──
 
     with subtest("headscale starts"):
-        host.wait_for_unit("headscale.service")
-        host.wait_for_open_port(${toString headscalePort})
+        # Fail fast if headscale crash-loops instead of waiting 900s default timeout.
+        host.succeed(
+            "for i in $(seq 1 30); do "
+            "  state=$(systemctl is-active headscale.service); "
+            "  if [ \"$state\" = \"active\" ]; then exit 0; fi; "
+            "  if [ \"$state\" = \"failed\" ]; then "
+            "    echo 'headscale.service entered failed state:'; "
+            "    journalctl -u headscale.service --no-pager -n 20; "
+            "    exit 1; "
+            "  fi; "
+            "  sleep 2; "
+            "done; "
+            "echo 'headscale.service did not become active within 60s'; "
+            "journalctl -u headscale.service --no-pager -n 20; "
+            "exit 1"
+        )
+        host.wait_for_open_port(${toString headscalePort}, timeout=30)
 
     with subtest("create headscale user and pre-auth keys"):
         host.succeed("headscale users create nixkey-test")
