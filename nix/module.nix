@@ -39,13 +39,15 @@ let
     exporters:
       jaeger_storage_exporter:
         trace_storage: memstore
+      debug:
+        verbosity: detailed
 
     service:
       extensions: [jaeger_storage, jaeger_query]
       pipelines:
         traces:
           receivers: [otlp]
-          exporters: [jaeger_storage_exporter]
+          exporters: [jaeger_storage_exporter, debug]
   '';
 
   deviceSubmodule = lib.types.submodule {

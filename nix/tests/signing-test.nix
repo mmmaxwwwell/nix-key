@@ -54,6 +54,12 @@ in
             nameservers.global = [ "127.0.0.1" ];
             magic_dns = false;
           };
+          derp = {
+            urls = [ ];
+            paths = [ ];
+            auto_update_enabled = false;
+            update_frequency = "1h";
+          };
           tls_cert_path = null;
           tls_key_path = null;
         };
