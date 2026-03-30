@@ -256,7 +256,7 @@
 - [x] T096 Create `specs/nix-key/coverage-boundaries.md`. Document: fully tested in CI (every PR): host Go with -race, NixOS VM tests. On develop push: Android emulator E2E, fuzz generative. Not in CI: real Keystore hardware, real biometrics, real Tailscale auth, real camera QR. Mitigations: interfaces tested via fakes, protocol via phonesim, camera via ML Kit bitmap test. Per-component thresholds. [Documentation]
   **Done**: Coverage boundaries documented.
 
-- [ ] T097 Determine license. Check all dependency licenses (`go-licenses`, Gradle license plugin). If all compatible with MIT, use MIT. Otherwise use least restrictive compatible license. Create LICENSE file. [SC-017]
+- [x] T097 Determine license. Check all dependency licenses (`go-licenses`, Gradle license plugin). If all compatible with MIT, use MIT. Otherwise use least restrictive compatible license. Create LICENSE file. [SC-017]
   **Done**: LICENSE file present, compatible with all deps.
 
 - [ ] T098 Update `CLAUDE.md` (was T076): final project structure, all commands including new `make bench`, `make security-scan`, `make validate`, architecture overview, CI/CD debugging, two-policy model summary, new phases. [Documentation]

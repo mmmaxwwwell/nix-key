@@ -93,3 +93,8 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - `daemon.ControlServer.Stop()` panics on double-call because it calls `close(s.done)` twice. Never use both an explicit `Stop()` call in the test body AND `t.Cleanup(srv.Stop)` — pick one.
 - To test `SaveToJSON` write failure, making the parent directory read-only with `os.Chmod(dir, 0500)` is insufficient if the file already exists (existing files remain writable). Instead, try writing to a path inside a non-existent subdirectory under a read-only parent so `os.MkdirAll` fails.
 - The PairingServer's one-time token mechanism naturally enforces concurrent pairing rejection: the `tokenUsed` flag is set under a mutex on first use, and subsequent requests with the same token get `401 Unauthorized`. After processing, the server shuts itself down.
+
+## T097 — License determination
+
+- All Go deps (filippo.io/age BSD-3, tailscale BSD-3, spf13/cobra Apache-2.0, gvisor Apache-2.0, OTEL Apache-2.0, golang.org/x BSD-3, grpc Apache-2.0) and Android deps (AndroidX/Compose/Hilt Apache-2.0, BouncyCastle MIT, Protobuf BSD-3) are permissive — MIT is compatible with all of them.
+- `go-licenses` is not in the nix devshell; manual verification via `go mod download` + reading LICENSE files in GOMODCACHE works as a fallback.
