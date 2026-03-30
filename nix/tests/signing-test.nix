@@ -358,7 +358,7 @@ in
     # ── Phase 9: Test denial (phonesim in deny mode) ──
 
     with subtest("stop phonesim for denial test"):
-        phone.execute("pkill phonesim")
+        phone.execute("pkill -9 phonesim")
         phone.wait_until_fails("pgrep phonesim", timeout=10)
 
     with subtest("start phonesim in deny mode"):
