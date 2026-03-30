@@ -192,7 +192,7 @@
 
 ### 15b: Performance & Latency Testing [P with 15a, 15c, 15d]
 
-- [ ] T079 Add E2E latency assertion test: start agent + in-process gRPC phone server with auto-approve, run 20 sign requests, assert p95 < 2s (skip with `-short`). Add microbenchmarks: `BenchmarkMTLSHandshake` (`internal/mtls/`), `BenchmarkGRPCRoundTrip` (`pkg/phoneserver/`), `BenchmarkAgeDecrypt` (`internal/mtls/age.go`). Add `make bench` target to Makefile. CI: > 300% regression fails build. [T-PF-01 through T-PF-04, SC-013]
+- [x] T079 Add E2E latency assertion test: start agent + in-process gRPC phone server with auto-approve, run 20 sign requests, assert p95 < 2s (skip with `-short`). Add microbenchmarks: `BenchmarkMTLSHandshake` (`internal/mtls/`), `BenchmarkGRPCRoundTrip` (`pkg/phoneserver/`), `BenchmarkAgeDecrypt` (`internal/mtls/age.go`). Add `make bench` target to Makefile. CI: > 300% regression fails build. [T-PF-01 through T-PF-04, SC-013]
   **Done**: Latency test exists with p95 check, 3 microbenchmarks exist, `make bench` works.
 
 ### 15c: Adversarial VM Tests [P with 15a, 15b, 15d]

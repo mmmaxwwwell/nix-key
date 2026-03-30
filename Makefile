@@ -1,4 +1,4 @@
-.PHONY: dev test test-unit test-integration lint build proto generate-fixtures cover clean clean-all gomobile android-apk
+.PHONY: dev test test-unit test-integration lint build proto generate-fixtures cover bench clean clean-all gomobile android-apk
 
 BINARY := nix-key
 CMD := ./cmd/nix-key
@@ -42,6 +42,10 @@ cover:
 	go test -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage/index.html
 	@echo "Coverage report: coverage/index.html"
+
+bench:
+	mkdir -p test-logs/bench
+	go test -bench=. -benchmem -count=5 -run='^$$' ./internal/mtls/ ./pkg/phoneserver/ | tee test-logs/bench/latest.txt
 
 generate-fixtures:
 	go run ./test/fixtures/gen

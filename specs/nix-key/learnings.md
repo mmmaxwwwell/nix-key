@@ -66,6 +66,11 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 - `go test -fuzz` only runs one fuzz target at a time (one `-fuzz` regex per invocation). To fuzz multiple targets, loop over each package/function pair with separate `go test` calls.
 - Use `-run='^$'` alongside `-fuzz` to skip non-fuzz tests during generative fuzzing — otherwise all regular tests in the package also run each iteration.
 
+## T079 — Performance & Latency Testing
+
+- `BenchmarkMTLSHandshake` must create a new TCP listener per iteration (can't reuse TLS connections for handshake measurement). Using `net.Listen("tcp", "127.0.0.1:0")` inside the benchmark loop is the simplest correct approach.
+- The E2E latency test (`TestIntegrationE2ESignLatency`) reuses `setupTestBackend` and `startTestAgent` helpers from `backend_test.go`, keeping it in `agent_test` package. The test populates the key cache via `client.List()` before timing sign requests to avoid measuring cache-miss overhead.
+
 ## T087 — Key Unlock Lifecycle
 
 - The existing `ConfirmationPolicy` enum becomes the "signing policy" (per-sign behavior), while the new `UnlockPolicy` enum controls unlock-to-use behavior. Both are independent per-key settings stored separately in EncryptedSharedPreferences.

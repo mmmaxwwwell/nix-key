@@ -96,6 +96,46 @@ jobs:
             go test -json -race -count=1 ./... 2>&1 | go run ./cmd/test-reporter --type ci
           '
 
+      - name: Run benchmarks
+        run: |
+          nix develop --command bash -c '
+            mkdir -p test-logs/bench
+            go test -bench=. -benchmem -count=5 -run="^$" \
+              ./internal/mtls/ ./pkg/phoneserver/ \
+              | tee test-logs/bench/latest.txt
+          '
+
+      - name: Check benchmark regression
+        run: |
+          nix develop --command bash -c '
+            go install golang.org/x/perf/cmd/benchstat@latest
+            # Download baseline from previous run if available
+            if gh run download --name bench-baseline --dir /tmp/bench-baseline 2>/dev/null; then
+              echo "Comparing against baseline..."
+              benchstat /tmp/bench-baseline/latest.txt test-logs/bench/latest.txt | tee test-logs/bench/comparison.txt
+              # Check for >300% regression (4x slower = ratio >= 4.00)
+              if awk "/^Benchmark/ && NF>=5 { gsub(/[~<>]/, \"\", \$5); if (\$5+0 >= 4.0) { print \"REGRESSION: \" \$0; found=1 } } END { exit (found ? 1 : 0) }" test-logs/bench/comparison.txt; then
+                echo "No significant regressions detected."
+              else
+                echo "::error::Benchmark regression >300% detected! See comparison above."
+                exit 1
+              fi
+            else
+              echo "No baseline found — skipping regression check (first run)."
+            fi
+          '
+        env:
+          GH_TOKEN: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Upload benchmark baseline
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-baseline
+          path: test-logs/bench/latest.txt
+          overwrite: true
+
       - name: Nix flake check (NixOS VM tests)
         run: nix flake check --print-build-logs
 
