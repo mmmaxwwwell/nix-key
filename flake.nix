@@ -77,8 +77,11 @@
             nixfmt-rfc-style
             infer
 
-            # Secret scanning
+            # Security scanning
             gitleaks
+            trivy
+            semgrep
+            govulncheck
 
             # Android build tools
             androidApk.gomobile

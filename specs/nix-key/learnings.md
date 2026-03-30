@@ -103,3 +103,8 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 - GoPhoneServer has a real data race: `phoneServer` and `serverThread` are written after `running.getAndSet(true)` in `start()` but read after `running.getAndSet(false)` in `stop()`. The AtomicBoolean CAS establishes happens-before only for the atomic variable itself, not for subsequent non-volatile field writes. Fix: add `@Volatile` to both fields.
 - `@ThreadSafe` requires `com.google.code.findbugs:jsr305:3.0.2` dependency. AndroidX has `@GuardedBy` but NOT `@ThreadSafe`. Add `jsr305` as an `implementation` dependency.
 - Infer v1.2.0 pre-built Linux binary is ~500MB. For the nix package, it needs `autoPatchelfHook` plus runtime deps: `gmp`, `mpfr`, `sqlite`, `zlib`, `stdenv.cc.cc.lib`.
+
+## T082 — Security scan Makefile targets
+
+- govulncheck JSON output is newline-delimited JSON objects (not a JSON array). Use `jq -s '[.[] | select(.finding != null)] | length'` to count findings.
+- gitleaks with 0 findings writes an empty JSON array `[]` to the report file, not `{}` or nothing. Use `jq 'if type == "array" then length else 0 end'` to count.

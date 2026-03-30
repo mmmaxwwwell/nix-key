@@ -205,7 +205,7 @@
 
 ### 15d: Local Security Scan + DX [P with 15a, 15b, 15c]
 
-- [ ] T082 Add `make security-scan` Makefile target: runs Trivy, Semgrep (with `p/golang` config), Gitleaks, govulncheck. JSON output to `test-logs/security/<scanner>.json`. Aggregate into `test-logs/security/summary.json` with `{scanners: {name: {findings: N, exit_code: N}}, total_findings: N, pass: bool}`. Add `make validate` target: `make test && make lint && make security-scan`. [T-DX-07, T-DX-08, SC-022]
+- [x] T082 Add `make security-scan` Makefile target: runs Trivy, Semgrep (with `p/golang` config), Gitleaks, govulncheck. JSON output to `test-logs/security/<scanner>.json`. Aggregate into `test-logs/security/summary.json` with `{scanners: {name: {findings: N, exit_code: N}}, total_findings: N, pass: bool}`. Add `make validate` target: `make test && make lint && make security-scan`. [T-DX-07, T-DX-08, SC-022]
   **Done**: Both targets work, summary.json generated, validate exits 0 only when all pass.
 
 - [ ] T083 Update CI security job to produce JSON alongside SARIF. For each scanner, add parallel JSON output to `test-logs/security/`. Upload `test-logs/security/` as workflow artifact on every run. Update `scripts/ci-summary.sh` to include per-scanner finding counts in security job entry. [CI/CD, SC-009]
@@ -236,7 +236,7 @@
 - [x] T090 Add `@GuardedBy`/`@ThreadSafe` annotations to all concurrent Kotlin code: GoPhoneServer, GrpcServerService, KeyManager, HostRepository, TailscaleManager. Add Infer/RacerD to Nix devshell. Run `infer run --racerd-only -- ./gradlew assembleDebug`. Add to CI lint job. Fix any races found. [Concurrency, Security]
   **Done**: All concurrent code annotated, RacerD runs clean.
 
-- [ ] T091 Add ML Kit `InputImage.fromBitmap()` instrumented test: generate QR code bitmap with known payload, feed to ML Kit barcode scanner, verify correct payload extraction. Tests the full decode→parse path without camera. [T-QR-01, SC-015]
+- [x] T091 Add ML Kit `InputImage.fromBitmap()` instrumented test: generate QR code bitmap with known payload, feed to ML Kit barcode scanner, verify correct payload extraction. Tests the full decode→parse path without camera. [T-QR-01, SC-015]
   **Done**: QR bitmap test passes.
 
 - [ ] T092 Add multi-host pairing test: pair phone with two mock hosts, verify both stored in EncryptedSharedPreferences, sign requests from each host work independently. [T-AI-18, FR-030]
