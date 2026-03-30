@@ -23,14 +23,15 @@ A developer runs `git commit` or `ssh user@host`. The SSH client asks the nix-ke
 2. **Given** the user approves the sign request, **Then** the signature is returned to the SSH client and the operation succeeds.
 3. **Given** the user denies the sign request, **Then** the SSH client receives SSH_AGENT_FAILURE.
 4. **Given** the phone app is closed (not on Tailnet), **When** a sign request arrives, **Then** the daemon returns SSH_AGENT_FAILURE after `connectionTimeout` seconds.
-5. **Given** a key is configured with biometric confirmation, **When** a sign request arrives, **Then** the phone shows BiometricPrompt before signing.
-6. **Given** a key is configured with auto-approve, **When** a sign request arrives, **Then** the phone signs immediately without user interaction and returns the signature.
+5. **Given** a key is locked with password unlock policy and biometric signing policy, **When** a sign request arrives, **Then** the phone prompts for password (unlock), then BiometricPrompt (signing), then signs.
+6. **Given** an unlocked key with biometric signing policy, **When** a second sign request arrives, **Then** only BiometricPrompt is shown (no unlock prompt — already unlocked).
+7. **Given** an unlocked key with auto-approve signing policy, **When** a sign request arrives, **Then** the phone signs immediately without user interaction and returns the signature.
 
 ---
 
 ### User Story 2 — Device Onboarding / Pairing (Priority: P1)
 
-A user runs `nix-key pair` on their NixOS machine. The CLI spins up a temporary HTTPS server bound to the Tailscale interface and displays a QR code in the terminal. The QR code contains the host's Tailscale IP, temporary pairing port, TLS certificate fingerprint, one-time pairing token, and optionally the OTEL collector endpoint. The user opens the nix-key Android app, scans the QR code, and the app asks "Connect to `hostname`? [Accept/Deny]". If the host has OTEL configured, the app also prompts "Enable tracing? Traces will be sent to `100.x.x.x:4317` [Accept/Deny]". On accept, the phone connects to the temporary HTTPS endpoint and presents its own TLS certificate, Tailscale IP, and listening port. The host CLI shows "Phone `Pixel 8` wants to pair. Authorize? [y/N]". On mutual confirmation, both sides store each other's certificates and connection info. The temporary HTTPS server shuts down.
+A user runs `nix-key pair` on their NixOS machine. The CLI spins up a temporary HTTPS server bound to the Tailscale interface and displays a QR code in the terminal. The QR code contains the host's Tailscale IP, temporary pairing port, full TLS server certificate (for immediate pinning), one-time pairing token, and optionally the OTEL collector endpoint. The user opens the nix-key Android app, scans the QR code, and the app asks "Connect to `hostname`? [Accept/Deny]". If the host has OTEL configured, the app also prompts "Enable tracing? Traces will be sent to `100.x.x.x:4317` [Accept/Deny]". On accept, the phone connects to the temporary HTTPS endpoint and presents its own TLS certificate, Tailscale IP, and listening port. The host CLI shows "Phone `Pixel 8` wants to pair. Authorize? [y/N]". On mutual confirmation, both sides store each other's certificates and connection info. The temporary HTTPS server shuts down.
 
 **Why this priority**: Pairing is required before any signing can happen. Co-P1 with Story 1.
 
@@ -51,7 +52,7 @@ A user runs `nix-key pair` on their NixOS machine. The CLI spins up a temporary 
 
 ### User Story 3 — SSH Key Creation on Phone (Priority: P1)
 
-A user opens the nix-key app and creates a new SSH key. They choose a name, key type (Ed25519 default, ECDSA-P256), and confirmation policy (always ask, biometric, password, biometric+password, auto-approve). The key is generated inside Android Keystore (hardware-backed when available). The public key is displayed and can be exported via clipboard, share sheet, or QR code.
+A user opens the nix-key app and creates a new SSH key. They choose a name, key type (Ed25519 default, ECDSA-P256), unlock policy (password default), and signing policy (biometric default). The key is generated inside Android Keystore (hardware-backed when available). The public key is displayed and can be exported via clipboard, share sheet, or QR code.
 
 **Why this priority**: Keys must exist before signing can work. Co-P1 with Stories 1 and 2.
 
@@ -61,9 +62,12 @@ A user opens the nix-key app and creates a new SSH key. They choose a name, key 
 
 1. **Given** the user taps "Create Key", **When** they fill in name and select Ed25519, **Then** a key is generated in Android Keystore.
 2. **Given** a key exists, **When** the user taps "Export Public Key", **Then** the public key is available in standard `ssh-ed25519 AAAA... name` format.
-3. **Given** a key exists, **When** the user changes its confirmation policy to "biometric", **Then** subsequent sign requests for that key require BiometricPrompt.
-4. **Given** a key has auto-approve selected, **Then** the app shows a warning about the security implications before saving.
-5. **Given** the user creates a key, **Then** the private key material is never extractable from Android Keystore.
+3. **Given** a key exists, **When** the user sets unlock policy to "password" and signing policy to "biometric", **Then** the key requires password to unlock and fingerprint for each sign request.
+4. **Given** a key has auto-approve signing or none-unlock selected, **Then** the app shows a warning about the security implications before saving.
+5. **Given** a locked key, **When** a sign request arrives, **Then** the app prompts for the unlock policy first, then the signing policy.
+6. **Given** an unlocked key, **When** the app is backgrounded and foregrounded, **Then** the key remains unlocked.
+7. **Given** an unlocked key, **When** the app process is killed and relaunched, **Then** the key is locked again.
+8. **Given** the user creates a key, **Then** the private key material is never extractable from Android Keystore.
 
 ---
 
@@ -151,6 +155,56 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 
 ---
 
+### Non-Goals
+
+These are things nix-key deliberately does NOT do, even though users might reasonably expect them:
+
+1. **No RSA keys** — Legacy, larger, slower. Ed25519 and ECDSA-P256 cover all modern SSH use cases.
+2. **No key export or backup** — YubiKey model. Private keys are non-extractable. Lose the phone = re-generate keys and update `authorized_keys`. "Rotate your shit."
+3. **No host-side agent lock/unlock** — The SSH agent protocol's lock (`ssh-add -x`) and unlock (`ssh-add -X`) are not implemented. Phone reachability (app open/closed) serves as the coarse lock. Per-key unlock on the phone (FR-116-119) is a separate, finer-grained mechanism for decrypting key material into memory.
+4. **No persistent Tailscale connection** — Userspace Tailscale only when the app is foregrounded. Battery and security benefit. No background service keeping the phone on the Tailnet.
+5. **No Windows or macOS host support** — NixOS exclusive. The NixOS module is the primary distribution mechanism. Non-NixOS Linux could work manually but is not a goal.
+6. **No multi-user SSH agent sharing** — Single user per host. The systemd user service runs per-user, not system-wide.
+7. **No Diffie-Hellman key exchange for pairing** — QR-based cert exchange with physical proximity is simpler and sufficient. No TOFU vulnerability.
+8. **No auto-retry on phone unreachable** — Fail fast. SSH clients handle their own retries.
+9. **No timeout-based auto-approve** — No "approve for 5 minutes" mode. Each sign request requires explicit approval (or auto-approve per key, with warning). Simplicity over convenience.
+10. **No Docker for development** — Nix-first project. `nix develop` provides everything. No Docker Compose, no devcontainers.
+
+---
+
+### Operational Workflows
+
+**Day-1 Setup (first 10 minutes):**
+1. Add `nix-key` flake input → `services.nix-key.enable = true` with config → `nixos-rebuild switch`
+2. Verify: `systemctl --user status nix-key-agent` shows active
+3. `nix-key pair` → scan QR code on phone → mutual confirm on both sides
+4. `ssh-add -L` → see phone's keys listed
+5. `ssh user@host` → approve on phone → SSH succeeds
+
+**Day-2 Operations:**
+- Add another phone: `nix-key pair` (supports multiple phones)
+- Check status: `nix-key status` (daemon state, connected devices, cert expiry warnings)
+- Revoke a lost phone: `nix-key revoke <device>` (removes cert, removes from registry)
+- Debug connectivity: `nix-key test <device>` → `nix-key logs`
+- Create/manage keys: done entirely on the phone app
+- Rotate certs: re-pair the device (no in-place cert rotation — re-pairing is the rotation mechanism)
+- View config: `nix-key config`
+- Export a key: `nix-key export <key-id>` (prints SSH public key to stdout)
+
+**Failure Recovery:**
+- Phone unreachable → is the app open? → `nix-key test <device>` → check `nix-key logs`
+- Daemon crash → `journalctl --user -u nix-key-agent` → `systemctl --user restart nix-key-agent` → `nix-key status`
+- Cert approaching expiry → `nix-key status` warns at 30 days → re-pair to rotate
+- Lost phone → `nix-key revoke <device>` → re-generate keys on new phone → update `authorized_keys` on servers
+
+**Admin Processes:**
+- Cert rotation: re-pair the device
+- Clear stale devices: `nix-key devices` → `nix-key revoke` for offline devices
+- Enable tracing for debugging: set `services.nix-key.tracing.otelEndpoint` → rebuild → reproduce issue → view traces in Jaeger
+- Reset all state: `rm -rf ~/.config/nix-key/ ~/.local/state/nix-key/` → re-pair all devices
+
+---
+
 ### Edge Cases & Failure Modes
 
 - **FR-E01**: When the phone is unreachable (app closed, no Tailnet), the daemon MUST return SSH_AGENT_FAILURE after `connectionTimeout` seconds with no retry.
@@ -165,6 +219,13 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 - **FR-E10**: When the one-time pairing token is replayed, the server MUST reject the connection.
 - **FR-E11**: When `nix-key pair` is run but the Tailscale interface is not available, the CLI MUST fail with a clear error.
 - **FR-E12**: When a phone's Tailscale IP changes (e.g., after Tailscale re-auth), the next successful connection MUST update the stored IP. The cert fingerprint is the identity, not the IP.
+- **FR-E13**: When a key unlock attempt fails (wrong password, biometric failure after Android's standard retry limit), the sign request MUST fail with SSH_AGENT_FAILURE. The key remains locked. No custom retry logic — Android's BiometricPrompt handles retries and lockout.
+- **FR-E14**: When age decryption of mTLS private keys fails at daemon startup (wrong age identity, corrupted encrypted file), the daemon MUST refuse to start with a clear error message identifying which file failed and why. This is distinct from FR-E06 (config validation) — config may be valid but the referenced encrypted files may not be.
+- **FR-E15**: When a host sends a sign request for a key that has been deleted on the phone, the phone MUST return a gRPC error indicating the key was not found. The daemon MUST return SSH_AGENT_FAILURE to the SSH client.
+- **FR-E16**: When `nix-key pair` fails mid-write (disk full, permission error), no partial state MUST be persisted. The pairing MUST be atomic — either both sides have complete state or neither does. On write failure, clean up any partial files and report the error.
+- **FR-E17**: When `nix-key pair` is run while another pairing session is already in progress, the second invocation MUST fail with "Pairing already in progress" rather than a cryptic port-binding error.
+- **FR-E18**: When an mTLS certificate expires while the daemon is running, existing connections are NOT disrupted (certs are validated at handshake time, not mid-stream). New connections to/from that device will fail with a cert validation error. The daemon MUST log a WARN when a connection fails due to an expired cert and suggest re-pairing.
+- **FR-E19**: When the phone's gRPC server fails to bind its configured port (port in use, permission denied), the app MUST show a specific error notification (e.g., "Port 29418 in use") rather than a generic "failed to start" message. The Tailnet connection indicator (FR-110) MUST show red/"Disconnected".
 
 ---
 
@@ -214,7 +275,7 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 - **FR-028**: The temporary HTTPS server MUST shut down after pairing completes or times out.
 - **FR-029**: One host MUST support multiple paired phones.
 - **FR-030**: One phone MUST support multiple paired hosts.
-- **FR-032**: mTLS certificates MUST have a configurable expiry (default 1 year). The `nix-key status` command MUST warn when a device cert is within 30 days of expiry. Re-pairing is required to rotate certs.
+- **FR-032**: mTLS certificates MUST have a configurable expiry (default: no expiry). Configurable via `services.nix-key.certExpiry` (NixOS module, applies to all future pairings) or `nix-key pair --expiry <duration>` (CLI flag, overrides module setting for this pairing). When a cert has an expiry set, `nix-key status` MUST warn when a device cert is within 30 days of expiry. Re-pairing is required to rotate certs.
 - **FR-031**: `nix-key pair` MUST generate two certificate pairs: (a) a TLS server cert/key for the temporary pairing HTTPS server, and (b) a TLS client cert/key that the host will use during normal operation to connect to phones.
 
 ### Functional Requirements — Key Management (Android)
@@ -224,18 +285,28 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 - **FR-042**: Private key material MUST never be extractable from Android Keystore.
 - **FR-043**: Public keys MUST be exportable in standard SSH format (`ssh-ed25519 AAAA... name`).
 - **FR-044**: Export methods: clipboard, share sheet, QR code.
-- **FR-045**: Each key MUST have a configurable confirmation policy: always ask (default), biometric only, password only, biometric+password, auto-approve.
-- **FR-046**: Auto-approve MUST show a security warning before the user can enable it.
+- **FR-045**: Each key MUST have two independent, user-configurable policies:
+  - **Unlock policy** (decrypt key material into memory, once per app session): none (auto-unlock on app start), biometric, password (default), biometric+password.
+  - **Signing policy** (per sign request, after key is unlocked): always-ask (simple Approve/Deny dialog, no biometric or password — just a tap), biometric (default — BiometricPrompt), password (device credential prompt), biometric+password (both required), auto-approve (no dialog, sign immediately).
+  Example: a key with "password unlock, biometric signing" requires a password once when the app opens, then fingerprint for each SSH sign request.
+- **FR-046**: Auto-approve signing policy AND none-unlock policy MUST each show a security warning before the user can enable them.
 - **FR-047**: Key deletion MUST require biometric or password confirmation.
 - **FR-048**: Each key MUST have a user-editable display name.
 
 ### Functional Requirements — Sign Request Handling (Android)
 
-- **FR-050**: When a sign request arrives, the app MUST show an overlay/dialog with: host name, key name, data hash (truncated).
-- **FR-051**: The confirmation prompt MUST trigger the key's configured confirmation policy (biometric/password/both/none).
+- **FR-050**: When a sign request arrives and the key is unlocked (or after unlock succeeds per FR-116), the app MUST show a sign confirmation overlay/dialog with: host name, key name, data hash (truncated) — unless the signing policy is auto-approve, in which case the app signs immediately with no dialog.
+- **FR-051**: The sign request flow MUST execute the key's two policies in order: (1) if the key is locked, trigger the unlock policy (biometric/password/both/none per FR-116/FR-119), then (2) trigger the signing policy (always-ask/biometric/password/both/auto-approve per FR-045).
 - **FR-052**: [REMOVED — SSH agent protocol always includes a key blob in sign requests; this scenario is unreachable. When `allowKeyListing` is disabled, users must configure their SSH client with the correct public key via `IdentityFile`.]
-- **FR-053**: Multiple concurrent sign requests MUST be queued and shown as separate prompts.
+- **FR-053**: Multiple concurrent sign requests MUST be queued and shown as separate prompts. If the key is locked, the first queued request triggers the unlock prompt; subsequent queued requests for the same key wait and skip unlock once the first request unlocks it. If the first request's unlock fails (FR-E13), the next queued request triggers its own unlock prompt — giving the user another chance to authenticate.
 - **FR-054**: The phone MUST have a setting to deny key listing regardless of host configuration.
+
+### Functional Requirements — Key Unlock Lifecycle (Android)
+
+- **FR-116**: When a sign request arrives for a locked key (key material not yet decrypted into memory), the app MUST automatically trigger the key's unlock prompt before proceeding to the signing policy prompt. The unlock prompt MUST show the key name and the requesting host name (e.g., "Unlock key 'work-key' for host 'laptop'?") so the user knows why they're unlocking.
+- **FR-117**: The app MUST provide a way to manually re-lock a key from the UI (lock button on key detail screen or long-press action on key list). Re-locking wipes the decrypted key material from memory. If sign requests are queued for the re-locked key, the next queued request triggers a fresh unlock prompt.
+- **FR-118**: Decrypted key material MUST remain in memory while the app process is alive, including when the app is backgrounded. When the app process is killed (by the OS or user), all decrypted key material MUST be wiped — keys return to locked state on next app launch.
+- **FR-119**: The unlock prompt MUST use the key's configured unlock policy (biometric, password, biometric+password, or none). If the unlock policy is "none", the key is eagerly decrypted on app start with no user interaction (no waiting for first sign request). Keys with any other unlock policy remain locked until a sign request triggers FR-116.
 
 ### Functional Requirements — NixOS Module
 
@@ -243,7 +314,7 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 - **FR-061**: `services.nix-key.enable` MUST create a systemd user service `nix-key-agent.service`.
 - **FR-062**: The module MUST write all configuration to `~/.config/nix-key/config.json`.
 - **FR-063**: The module MUST support declarative device definitions in the `devices` attrset.
-- **FR-064**: Declarative devices MUST be merged with runtime-paired devices from `~/.local/state/nix-key/devices.json`.
+- **FR-064**: Declarative devices MUST be merged with runtime-paired devices from `~/.local/state/nix-key/devices.json`. On conflict (same cert fingerprint with different values), Nix-declared values take precedence. Nix-declared fields set to `null` are filled by runtime-paired values.
 - **FR-065**: Each device in the `devices` attrset MUST support optional `clientCert` and `clientKey` paths for programmatic mTLS cert definition, with `null` meaning "set by pairing".
 - **FR-066**: The `allowKeyListing` option MUST include documentation noting that the phone can also independently deny listing, resulting in an empty array.
 - **FR-067**: The module MUST support `services.nix-key.tracing.otelEndpoint` for OTEL collector configuration.
@@ -255,12 +326,17 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 
 - **FR-070**: `nix-key pair` MUST display a QR code in the terminal and wait for phone connection.
 - **FR-071**: `nix-key devices` MUST list all authorized phones with name, Tailscale IP, cert fingerprint, last seen, connection status.
-- **FR-072**: `nix-key revoke <device>` MUST remove the device and delete its cert.
+- **FR-072**: `nix-key revoke <device>` MUST remove the device and delete its cert. Revocation is host-side only — the phone is not notified. The phone discovers revocation when its next mTLS connection is rejected (FR-E09).
 - **FR-073**: `nix-key status` MUST show daemon status, connected devices, available keys, socket path.
-- **FR-074**: `nix-key export <key-id>` MUST print the public key in SSH format to stdout. `key-id` is the key's SHA256 fingerprint (as shown by `nix-key status`) or a unique prefix match.
+- **FR-074**: `nix-key export <key-id>` MUST print the public key in SSH format to stdout. `key-id` is the key's SHA256 fingerprint (as shown by `nix-key status`) or a unique prefix match. If the prefix matches multiple keys, error with "ambiguous prefix" and list candidates. The phone holding the key MUST be reachable — export queries the phone via gRPC, no local key caching.
 - **FR-075**: `nix-key config` MUST show current configuration.
 - **FR-076**: `nix-key logs` MUST tail daemon logs with human-readable formatting.
 - **FR-077**: `nix-key test <device>` MUST verify mTLS handshake and round-trip to the specified phone.
+
+### Functional Requirements — CLI ↔ Daemon Communication
+
+- **FR-078**: The daemon MUST expose a control socket (Unix socket at a configurable `controlSocketPath`) for CLI commands to communicate with the running daemon.
+- **FR-079**: The control socket protocol MUST use line-delimited JSON. Commands: `register-device`, `list-devices`, `revoke-device`, `get-status`, `get-keys`. Each request is a JSON object with a `command` field; each response is a JSON object with a `status` field and command-specific data.
 
 ### Functional Requirements — Distributed Tracing
 
@@ -288,6 +364,15 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 - **FR-096**: All errors MUST include an error code, human-readable message, and correlation ID.
 - **FR-097**: Error messages to SSH clients MUST be sanitized (no internal paths, cert details, or stack traces).
 
+### Functional Requirements — Android UI Status & Loading States
+
+- **FR-110**: The Android app MUST display a persistent Tailnet connection indicator visible across all screens: green/"Connected" when Tailscale is up and gRPC server is listening, yellow/"Connecting..." during Tailscale auth or reconnect, red/"Disconnected" when Tailscale is not started or auth failed.
+- **FR-111**: The key list screen MUST show a per-key lock/unlock indicator reflecting whether the key's material is currently decrypted in memory: locked icon when the key has not been unlocked this session, unlocked icon when the key material is in memory and ready to sign. Keys in auto-approve signing mode with none-unlock policy show the unlocked icon with a security warning badge (per FR-046).
+- **FR-112**: During Tailscale auth (first launch or reconnect), the app MUST show "Connecting to Tailnet..." with a progress indicator. On timeout (30s) or failure, show an error message with retry button. Never show "ready" while auth is in progress.
+- **FR-113**: During QR pairing flow, the app MUST show sequential states: "Scanning..." during QR decode, "Connecting to host..." during pairing POST, "Waiting for host approval..." while the HTTP connection is held open. On timeout or failure, show actionable error with retry.
+- **FR-114**: The gRPC server startup notification MUST show "Starting nix-key..." during Tailscale + gRPC initialization. The "nix-key active" notification MUST only appear after the gRPC server is actually listening and ready to serve requests.
+- **FR-115**: If Tailscale auth state is stale on app launch (e.g., token expired), the app MUST show the re-auth flow instead of crashing or showing a blank screen.
+
 ### Functional Requirements — Configuration
 
 - **FR-098**: All settings from the NixOS module MUST be written to `~/.config/nix-key/config.json`.
@@ -304,7 +389,7 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 ### Key Entities
 
 - **Device**: A paired phone. Attributes: name, Tailscale IP, listening port, cert fingerprint, client cert path (optional), last seen timestamp, pairing source (nix-declared or runtime).
-- **SSHKey**: An SSH key on a phone. Attributes: public key blob, key type, display name, fingerprint. Note: private key exists only in Android Keystore.
+- **SSHKey**: An SSH key on a phone. Attributes: public key blob, key type, display name, fingerprint, unlock policy (none/biometric/password/biometric+password, default: password), signing policy (always-ask/biometric/password/biometric+password/auto-approve, default: biometric), unlock state (locked/unlocked, runtime only — not persisted). Note: private key exists only in Android Keystore. Unlock state resets to locked on process kill.
 - **SignRequest**: A pending SSH signing request. Attributes: request ID, key fingerprint, data to sign, host name, timestamp, status (pending/approved/denied/timeout).
 - **PairingSession**: A temporary pairing session. Attributes: one-time token, host server cert (for temp HTTPS), host client cert (for normal operation), temporary port, OTEL config (optional), status, expiry. Pairing protocol: phone POSTs `{phoneName, phoneTailscaleIp, phoneListenPort, phoneServerCert, oneTimeToken}`, host responds with `{hostName, hostClientCert, status}` after CLI user confirms.
 
@@ -328,7 +413,7 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 - **Format**: JSON (`~/.config/nix-key/config.json`)
 - **Layers**: NixOS module (generates file) → config file (read by daemon/CLI) → environment variables (override, for testing)
 - **Validation**: JSON schema validation on daemon startup, fail-fast on invalid config
-- **Secrets**: mTLS private keys stored encrypted at rest in `~/.local/state/nix-key/certs/` using age encryption with a Keystore-derived key (or sops). Decrypted into memory at daemon startup. Config references encrypted file paths, never plaintext keys. File permissions 0600 as defense-in-depth.
+- **Secrets**: mTLS private keys stored encrypted at rest in `~/.local/state/nix-key/certs/` using age encryption. Decrypted into memory at daemon startup. Config references encrypted file paths, never plaintext keys. File permissions 0600 as defense-in-depth.
 
 ### Security
 - **mTLS**: Self-signed certificates with fingerprint pinning, no CA chain
@@ -372,7 +457,16 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 - **Task runner**: Makefile + `nix develop` shell
 - **One-command dev**: `nix develop` provides Go, Android SDK (for local testing), test tools
 - **Test commands**: `nix flake check` (all tests), `go test ./...` (unit/integration), `nix build .#checks.x86_64-linux.nixos-test` (VM tests)
+- **Additional Makefile targets**: `make bench` (microbenchmarks), `make security-scan` (local security scan with JSON output), `make validate` (full local CI parity: test + lint + security scan)
 - **Debugging**: VS Code `launch.json` for Go daemon, Android Studio for the app
+- **Concurrency safety**: Go tests run with `-race` flag. Android code uses `@GuardedBy`/`@ThreadSafe` annotations checked by Infer/RacerD in CI.
+- **Fuzz testing**: Go native fuzzing (`testing.F`) for protocol parsers. Run on PRs and develop pushes (time-boxed). Seed corpus committed as regression tests.
+
+### Security Scanning (Local)
+- **Makefile target**: `make security-scan` runs Trivy, Semgrep, Gitleaks, govulncheck with JSON output to `test-logs/security/`
+- **Summary**: Aggregated `test-logs/security/summary.json` with per-scanner finding counts and pass/fail
+- **CI dual output**: SARIF (for GitHub Security tab) + JSON (for agent debugging) from each scanner
+- **`make validate`**: Full local CI parity — `make test && make lint && make security-scan`
 
 ### Branching
 - `main` = release branch. Every push to main triggers full CI + release.
@@ -389,30 +483,102 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 - **T-NM-03**: Config file generation — verify config.json is written with all settings [FR-062, FR-098, FR-099]
 - **T-NM-04**: Device merge — verify Nix-declared devices are merged with runtime-paired devices [FR-063, FR-064]
 - **T-NM-05**: Graceful shutdown — verify daemon shuts down cleanly on service stop [FR-E07]
+- **T-NM-06**: Log level config — verify `services.nix-key.logLevel = "DEBUG"` changes daemon log output level [FR-092]
+- **T-NM-07**: Declarative device cert paths — verify devices with `clientCert`/`clientKey` paths work correctly for mTLS [FR-065]
+- **T-NM-08**: Environment.d — verify `~/.config/environment.d/50-nix-key.conf` is created with correct SSH_AUTH_SOCK [FR-069a]
 
 ### Host Integration Tests (Go)
-- **T-HI-01**: SSH agent protocol — verify list-keys and sign-request with a mock phone TLS server [FR-001, FR-004, FR-005, FR-006]
+- **T-HI-01**: SSH agent protocol — verify list-keys (including skip unreachable phones after connectionTimeout) and sign-request with a mock phone TLS server [FR-001, FR-004, FR-005, FR-006, FR-007]
 - **T-HI-02**: mTLS handshake — verify mutual certificate validation and pinning [FR-010, FR-011]
 - **T-HI-03**: Pairing flow — verify full pairing with temporary HTTPS server and simulated phone [FR-020 through FR-028]
 - **T-HI-04**: CLI commands — verify all CLI commands against a running daemon [FR-070 through FR-077]
-- **T-HI-05**: Timeout behavior — verify connectionTimeout and signTimeout [FR-E01, FR-E03]
+- **T-HI-05**: Timeout behavior — verify connectionTimeout and signTimeout, mid-connection drop returns failure [FR-E01, FR-E03, FR-E08]
 - **T-HI-06**: Key listing with allowKeyListing disabled [FR-005, FR-066]
 - **T-HI-07**: Config validation — verify fail-fast on invalid config [FR-100, FR-E06]
 - **T-HI-08**: Concurrent sign requests [FR-E04]
 - **T-HI-09**: OTEL trace propagation — verify traceparent in mTLS headers [FR-082, FR-083, FR-085]
+- **T-HI-09a**: Tracing disabled = no overhead — verify no tracer initialized, no span creation, no OTLP connections when otelEndpoint is null [FR-086]
 - **T-HI-10**: IP update on reconnect — verify stored IP updates when phone's Tailscale IP changes [FR-E12]
+- **T-HI-11**: Cert expiry warning — verify `nix-key status` warns when device cert is within 30 days of expiry [FR-032]
+- **T-HI-12**: Two cert pairs generated during pairing — verify `nix-key pair` generates a server cert (temp HTTPS) and a client cert (normal operation), both distinct [FR-031]
+- **T-HI-13**: Age decryption failure — verify daemon refuses to start with clear error when age identity is wrong or encrypted file is corrupted [FR-E14]
+- **T-HI-14**: Deleted key sign request — verify SSH_AGENT_FAILURE when host requests signing with a key fingerprint that no longer exists on the phone [FR-E15]
+- **T-HI-15**: Atomic pairing — verify no partial state persisted when pairing write fails (simulate disk error) [FR-E16]
+- **T-HI-16**: Concurrent pairing rejection — verify second `nix-key pair` fails with "Pairing already in progress" [FR-E17]
+- **T-HI-17**: Error hierarchy — verify typed errors include error codes and correlation IDs, SSH client errors are sanitized [FR-095, FR-096, FR-097]
+- **T-HI-18**: Logging — verify structured JSON output, correct levels, correlation ID propagation, security events at INFO+ [FR-090, FR-091, FR-094]
+- **T-HI-19**: Secrets at rest — after pairing, verify private key files on disk are age-encrypted (not plaintext PEM), verify daemon decrypts into memory and never writes plaintext to any file, verify `ageKeyFile` config option works [FR-101, FR-102, FR-103, FR-104]
+- **T-HI-20**: Control socket — verify daemon creates control socket at configured path, CLI can connect and exchange JSON commands [FR-078, FR-079]
+- **T-HI-21**: Pairing without Tailscale — verify `nix-key pair` fails with clear error when Tailscale interface is unavailable [FR-E11]
 
 ### Android Instrumented Tests
 - **T-AI-01**: Key generation — create Ed25519 and ECDSA keys in Keystore [FR-040, FR-041]
 - **T-AI-02**: Key non-extractability — verify private key cannot be exported [FR-042]
 - **T-AI-03**: Public key export — verify SSH format output [FR-043, FR-044]
-- **T-AI-04**: Confirmation policies — verify biometric/password prompts per policy [FR-045, FR-051]
+- **T-AI-04**: Unlock and signing policies — verify independent unlock policy (biometric/password/biometric+password/none) and signing policy (always-ask/biometric/password/biometric+password/auto-approve) per key. Test: password-unlock + biometric-sign combo, biometric+password combo for both policies, auto-unlock with warning, sign request on locked key triggers unlock first [FR-045, FR-051, FR-116, FR-119]
+- **T-AI-11**: Key unlock lifecycle — verify key material persists in memory across background/foreground, wiped on process kill, manual re-lock via UI [FR-117, FR-118]
 - **T-AI-05**: TLS server lifecycle — verify server starts/stops with app foreground/background [FR-013, FR-014]
-- **T-AI-06**: Sign request handling — verify prompt display and signing [FR-050, FR-053]
+- **T-AI-06**: Sign request handling — verify prompt display, signing on approve, SSH_AGENT_FAILURE on deny [FR-050, FR-053, FR-E02]
 - **T-AI-07**: Key listing denial — verify phone-side deny overrides host [FR-054]
 - **T-AI-08**: Pairing flow — verify QR decode, confirmation prompt, cert storage [FR-022, FR-024, FR-026]
 - **T-AI-09**: OTEL acceptance — verify tracing config prompt and storage [FR-023, FR-088]
 - **T-AI-10**: Key deletion — verify biometric confirmation required [FR-047]
+- **T-AI-12**: Unlock failure — verify failed unlock (wrong password, biometric failure) results in sign request failure, key remains locked [FR-E13]
+- **T-AI-13**: Security warnings — verify warning dialogs shown when enabling auto-approve signing or none-unlock policy [FR-046]
+- **T-AI-14**: Display name editing — verify key display name can be edited and persists [FR-048]
+- **T-AI-15**: Android structured logging — verify JSON log output, trace ID correlation when OTEL enabled, security events at INFO+ [FR-093, FR-094]
+- **T-AI-16**: Expired cert mid-session — verify new connections fail with expired cert, existing connections unaffected, WARN logged [FR-E18]
+- **T-AI-17**: gRPC port conflict — verify specific error notification when port unavailable, Tailnet indicator shows red [FR-E19]
+- **T-AI-18**: Multi-host pairing — pair phone with two mock hosts, verify both stored correctly, sign requests from each host work independently [FR-030]
+
+### Adversarial Security Tests (NixOS VM)
+- **T-ADV-01**: Rogue node with expired client cert attempts mTLS connection → rejected [FR-E05, FR-011]
+- **T-ADV-02**: Rogue node with cert signed by different CA → rejected [FR-011]
+- **T-ADV-03**: Rogue node with valid-but-unpaired cert (not in devices.json) → rejected [FR-E09]
+- **T-ADV-04**: Connection attempt on non-Tailscale interface (raw eth0) → rejected [FR-015]
+- **T-ADV-05**: Replayed one-time pairing token → rejected [FR-E10]
+- **T-ADV-06**: Verify error responses from adversarial connections leak no internal details [FR-097]
+
+### Fuzz Tests (Go native fuzzing)
+- **T-FZ-01**: SSH agent protocol message parsing [FR-001]
+- **T-FZ-02**: Protobuf message deserialization [FR-017]
+- **T-FZ-03**: QR code payload JSON parsing [FR-021]
+- **T-FZ-04**: Config JSON parsing [FR-100]
+- **T-FZ-05**: Certificate PEM parsing [FR-010]
+- **T-FZ-06**: Control socket JSON protocol parsing [FR-079]
+
+### Performance & Latency Tests
+- **T-PF-01**: E2E sign request latency — 20 runs, p95 < 2 seconds [Performance goal]
+- **T-PF-02**: mTLS handshake microbenchmark — < 200ms [Performance sub-budget]
+- **T-PF-03**: gRPC round-trip microbenchmark — < 100ms [Performance sub-budget]
+- **T-PF-04**: Age decrypt microbenchmark — < 50ms [Performance sub-budget]
+
+### QR Scanning Test
+- **T-QR-01**: ML Kit `InputImage.fromBitmap()` test — feed QR code bitmap directly to barcode scanner, verify correct payload extraction without camera hardware [FR-022, FR-021]
+
+### Android UI Status Tests
+- **T-UI-01**: Tailnet connection indicator shows correct states: disconnected → connecting → connected [FR-110]
+- **T-UI-02**: Per-key lock/unlock indicators reflect runtime unlock state (locked = key material not in memory, unlocked = decrypted) [FR-111, FR-118]
+- **T-UI-03**: Loading states during Tailscale auth, pairing, and gRPC startup — never show "ready" while init in progress [FR-112, FR-113, FR-114]
+- **T-UI-04**: Stale Tailscale auth triggers re-auth flow, not crash [FR-115]
+
+### DX Makefile Target Tests
+- **T-DX-01**: `make test` runs unit + integration tests with structured output to `test-logs/`, exits 0 on pass, non-zero on fail [DX]
+- **T-DX-02**: `make test-unit` runs only `-short` tests, `make test-integration` runs only `Integration` tests [DX]
+- **T-DX-03**: `make lint` runs golangci-lint, exits non-zero on findings [DX]
+- **T-DX-04**: `make build` produces a working `nix-key` binary that responds to `--help` [DX]
+- **T-DX-05**: `make proto` regenerates protobuf Go code without errors [DX]
+- **T-DX-06**: `make bench` runs microbenchmarks and prints results [DX]
+- **T-DX-07**: `make security-scan` runs all scanners, writes JSON to `test-logs/security/`, produces `summary.json` [DX]
+- **T-DX-08**: `make validate` runs test + lint + security-scan as a single command, exits 0 only if all pass [DX]
+- **T-DX-09**: `make cover` generates HTML coverage report in `coverage/` [DX]
+- **T-DX-10**: `make generate-fixtures` regenerates deterministic test fixtures without errors [DX]
+- **T-DX-11**: `make clean` and `make clean-all` remove expected artifacts without errors [DX]
+
+### Cold-Start & Idempotency Tests
+- **T-CS-01**: Delete all state dirs (`~/.config/nix-key/`, `~/.local/state/nix-key/`), start daemon with valid config → verify dirs created with correct permissions (0700 for secret dirs), daemon starts successfully [Idempotency, Operational Workflows]
+- **T-CS-02**: Stop daemon, start again (warm start) → verify reuses existing state, no errors, no re-creation of existing artifacts [Idempotency]
+- **T-CS-03**: Run `nix-key pair` setup twice → verify second run doesn't corrupt state, age identity is skip-if-exists [Idempotency, FR-104]
 
 ### End-to-End Tests (Headscale-backed)
 - **T-E2E-00**: All E2E tests MUST use a headscale instance (self-hosted Tailscale control server) spun up in the NixOS VM test. This provides a real Tailnet without requiring external Tailscale accounts. Both the host daemon and simulated phone client authenticate against headscale with pre-authorized keys. [FR-013a, FR-013b]
@@ -424,16 +590,28 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 
 ## Success Criteria
 
-- **SC-001**: SSH signing via phone works end-to-end — `ssh-add -L` lists keys, SSH operations succeed when phone approves [validates FR-001 through FR-007, FR-050 through FR-053]
-- **SC-002**: Pairing completes with mutual confirmation and certificate exchange [validates FR-020 through FR-030]
+- **SC-001**: SSH signing via phone works end-to-end — `ssh-add -L` lists keys, SSH operations succeed when phone approves (including unlock-then-sign flow for locked keys) [validates FR-001 through FR-007, FR-050 through FR-053, FR-116 through FR-119]
+- **SC-002**: Pairing completes with mutual confirmation and certificate exchange, generates two cert pairs, certs have configurable expiry [validates FR-020 through FR-032]
 - **SC-003**: Keys are created in Android Keystore, public key exports in valid SSH format [validates FR-040 through FR-048]
-- **SC-004**: NixOS module installs cleanly via flakes and channels, service starts, SSH_AUTH_SOCK is set [validates FR-060 through FR-069]
-- **SC-005**: All CLI commands work correctly against a running daemon [validates FR-070 through FR-077]
+- **SC-004**: NixOS module installs cleanly via flakes and channels, service starts, SSH_AUTH_SOCK is set via environment.d [validates FR-060 through FR-069a]
+- **SC-005**: All CLI commands work correctly against a running daemon via control socket [validates FR-070 through FR-079]
 - **SC-006**: Phone unreachable / user deny / timeout all result in SSH_AGENT_FAILURE [validates FR-E01 through FR-E03]
 - **SC-007**: mTLS with certificate pinning enforced on all connections [validates FR-010 through FR-016]
 - **SC-008**: Distributed traces visible in Jaeger when OTEL is enabled [validates FR-080 through FR-088]
 - **SC-009**: Zero critical vulnerabilities in security scan [validates scanning pipeline]
-- **SC-010**: NixOS VM tests pass — service lifecycle, config generation, device merge [validates T-NM-01 through T-NM-05]
+- **SC-010**: NixOS VM tests pass — service lifecycle, config generation, device merge, log level, declarative certs, environment.d [validates T-NM-01 through T-NM-08]
+- **SC-011**: Adversarial connections rejected — expired cert, wrong CA, unpaired device, non-Tailscale interface, replayed token all fail with no internal detail leakage [validates T-ADV-01 through T-ADV-06]
+- **SC-012**: Fuzz targets run clean — seed corpus passes as regression, no crashes on generative fuzzing [validates T-FZ-01 through T-FZ-06]
+- **SC-013**: Sign request p95 latency < 2 seconds with simulated phone [validates T-PF-01]
+- **SC-014**: Android app shows correct Tailnet status and per-key lock indicators, loading states for all async operations [validates FR-110 through FR-115]
+- **SC-015**: QR code scanning works via ML Kit image input (bitmap test) [validates T-QR-01]
+- **SC-016**: README.md exists with install instructions, config table, CI setup, architecture diagram [validates Documentation]
+- **SC-017**: MIT license (or least restrictive compatible with dependencies) [validates License]
+- **SC-018**: Structured JSON logging on host and phone, correct log levels, correlation IDs propagated, security events logged at INFO+ [validates FR-090 through FR-094]
+- **SC-019**: Typed error hierarchy with error codes and correlation IDs, sanitized SSH client errors [validates FR-095 through FR-097]
+- **SC-020**: Config fail-fast on invalid input, age encryption for all mTLS private keys at rest, decryption into memory only [validates FR-098 through FR-104]
+- **SC-021**: Cold-start creates dirs with correct permissions, warm-start reuses state, pairing is idempotent [validates T-CS-01 through T-CS-03]
+- **SC-022**: All Makefile targets work correctly (test, lint, build, bench, security-scan, validate, cover, proto, generate-fixtures, clean) [validates T-DX-01 through T-DX-11]
 
 ---
 

@@ -180,6 +180,93 @@
 - [x] T075 [needs: gh, ci-loop] CI/CD validation: push to develop, iterate until CI green, create PR to main. Verify `release-please` creates release PR. [CI validation]
 - [ ] T076 Update `CLAUDE.md` with final project structure, all available commands, test instructions, architecture overview, CI/CD debugging instructions (how to read `ci-summary.json`, where to find test-logs artifacts). Update `UI_FLOW.md` to reflect final implementation. [Documentation]
 
+## Phase 15: Host Hardening
+
+### 15a: Fuzz Testing [P with 15b, 15c, 15d]
+
+- [ ] T077 Add Go fuzz targets (`testing.F`) for all untrusted-input boundaries: (1) SSH agent protocol message parsing (`internal/agent/`), (2) protobuf message deserialization, (3) QR code payload JSON parsing (`internal/pairing/qr.go`), (4) config JSON parsing (`internal/config/`), (5) certificate PEM parsing (`internal/mtls/certs.go`), (6) control socket JSON protocol parsing (`internal/daemon/control.go`). Seed corpus from existing test fixtures in `testdata/fuzz/`. Property tests: `decode(encode(x)) == x` for protobuf round-trips. Commit `testdata/fuzz/` as regression corpus. [T-FZ-01 through T-FZ-06, SC-012]
+  **Done**: 6+ fuzz targets exist, seed corpus committed, `go test` runs seed corpus as regression.
+
+- [ ] T078 Add fuzz CI integration. In `ci.yml`: seed corpus runs on every PR (already happens via `go test`). Add time-boxed generative fuzzing (60s per target) to PR and develop-push workflows. Add `.github/workflows/fuzz.yml` for scheduled nightly deep fuzzing. [SC-012, CI/CD]
+  **Done**: Fuzz runs on PRs/develop, nightly workflow exists, crashes auto-saved to `testdata/fuzz/`.
+
+### 15b: Performance & Latency Testing [P with 15a, 15c, 15d]
+
+- [ ] T079 Add E2E latency assertion test: start agent + in-process gRPC phone server with auto-approve, run 20 sign requests, assert p95 < 2s (skip with `-short`). Add microbenchmarks: `BenchmarkMTLSHandshake` (`internal/mtls/`), `BenchmarkGRPCRoundTrip` (`pkg/phoneserver/`), `BenchmarkAgeDecrypt` (`internal/mtls/age.go`). Add `make bench` target to Makefile. CI: > 300% regression fails build. [T-PF-01 through T-PF-04, SC-013]
+  **Done**: Latency test exists with p95 check, 3 microbenchmarks exist, `make bench` works.
+
+### 15c: Adversarial VM Tests [P with 15a, 15b, 15d]
+
+- [ ] T080 Add adversarial cert fixtures to `test/fixtures/gen/`: deterministic adversarial certificates — (1) expired client cert, (2) not-yet-valid cert, (3) cert signed by different CA, (4) cert with wrong EKU, (5) valid cert not in trust store (unpaired device). All from fixed seeds. Add to `make generate-fixtures`. [T-ADV-01 through T-ADV-06] [produces: adversarial cert fixtures]
+  **Done**: `test/fixtures/adversarial/` contains all 5 cert types.
+
+- [ ] T081 Write `nix/tests/adversarial-test.nix`: NixOS VM test with `rogue` node alongside legitimate host and phonesim. Tests: (1) expired cert → rejected, (2) wrong-CA cert → rejected, (3) unpaired cert → rejected, (4) connection on non-Tailscale interface (raw eth0) → rejected, (5) replayed pairing token → rejected, (6) error responses leak no internal details. Use `host.fail(...)` for adversarial assertions. Enable firewall. [T-ADV-01 through T-ADV-06, SC-011] [consumes: adversarial cert fixtures]
+  **Done**: VM test passes all 6 scenarios with firewall enabled.
+
+### 15d: Local Security Scan + DX [P with 15a, 15b, 15c]
+
+- [ ] T082 Add `make security-scan` Makefile target: runs Trivy, Semgrep (with `p/golang` config), Gitleaks, govulncheck. JSON output to `test-logs/security/<scanner>.json`. Aggregate into `test-logs/security/summary.json` with `{scanners: {name: {findings: N, exit_code: N}}, total_findings: N, pass: bool}`. Add `make validate` target: `make test && make lint && make security-scan`. [T-DX-07, T-DX-08, SC-022]
+  **Done**: Both targets work, summary.json generated, validate exits 0 only when all pass.
+
+- [ ] T083 Update CI security job to produce JSON alongside SARIF. For each scanner, add parallel JSON output to `test-logs/security/`. Upload `test-logs/security/` as workflow artifact on every run. Update `scripts/ci-summary.sh` to include per-scanner finding counts in security job entry. [CI/CD, SC-009]
+  **Done**: CI produces SARIF + JSON, artifacts uploaded, ci-summary.json has per-scanner details.
+
+### 15e: DX Validation + Cold-Start [depends on 15d]
+
+- [ ] T084 Verify all Makefile targets work: `make test`, `make test-unit`, `make test-integration`, `make lint`, `make build`, `make proto`, `make bench`, `make security-scan`, `make validate`, `make cover`, `make generate-fixtures`, `make clean`, `make clean-all`. Each must exit 0 and produce expected output. [T-DX-01 through T-DX-11, SC-022]
+  **Done**: All targets verified.
+
+- [ ] T085 Add automated cold-start and idempotency tests. Cold-start: delete all state dirs → start daemon → verify dirs created with 0700 permissions, daemon starts. Warm-start: stop/restart → reuses state, no errors. Pairing idempotency: `nix-key pair` setup twice → no corruption, age identity skip-if-exists. Secrets at rest: verify private keys on disk are age-encrypted after pairing, daemon decrypts into memory only, `ageKeyFile` option works. [T-CS-01 through T-CS-03, T-HI-19, SC-020, SC-021]
+  **Done**: Cold-start, warm-start, idempotency, and secrets-at-rest tests pass.
+
+- [ ] T086 Add missing host integration tests: cert expiry warning in `nix-key status` (T-HI-11), two cert pairs generated during pairing (T-HI-12), age decrypt failure at startup (T-HI-13), deleted key sign request (T-HI-14), atomic pairing on write failure (T-HI-15), concurrent pairing rejection (T-HI-16), error hierarchy validation (T-HI-17), logging validation (T-HI-18), control socket test (T-HI-20), pairing without Tailscale (T-HI-21), tracing disabled = no overhead (T-HI-09a). [SC-018, SC-019, SC-020]
+  **Done**: All new T-HI tests pass.
+
+## Phase 16: Android Hardening
+
+- [ ] T087 Implement key unlock lifecycle (FR-116 through FR-119). Two independent per-key policies: unlock policy (none/biometric/password/biometric+password, default: password) and signing policy (always-ask/biometric/password/biometric+password/auto-approve, default: biometric). Sign request on locked key auto-triggers unlock prompt showing key name + host name. Eager decrypt on app start for none-unlock keys. Key material persists in memory across background/foreground, wiped on process kill. Manual re-lock from key detail or long-press. Queued requests retry own unlock if prior unlock fails (FR-053). Re-lock while queued triggers fresh unlock (FR-117). Security warning for none-unlock and auto-approve signing (FR-046). [FR-045, FR-046, FR-051, FR-116-119, FR-E13, T-AI-04, T-AI-11, T-AI-12]
+  **Done**: Both policies configurable per key, unlock lifecycle works, all edge cases covered.
+
+- [ ] T088 Implement persistent Tailnet connection indicator across all screens (FR-110): green/Connected, yellow/Connecting, red/Disconnected. Implement per-key lock/unlock indicator on key list reflecting runtime decrypt state (FR-111). [T-UI-01, T-UI-02, SC-014]
+  **Done**: Indicators visible on all screens, correct states.
+
+- [ ] T089 Implement loading states for all async operations. Tailscale auth: "Connecting to Tailnet..." with spinner, error+retry on failure/timeout (FR-112). Pairing: "Scanning...", "Connecting to host...", "Waiting for host approval..." with error+retry (FR-113). gRPC startup: "Starting nix-key..." notification, "nix-key active" only when listening (FR-114). Stale auth: re-auth flow instead of crash (FR-115). Port conflict: specific error notification (FR-E19). [T-UI-03, T-UI-04, SC-014]
+  **Done**: All async ops show loading→ready or loading→error states, never premature "ready".
+
+- [ ] T090 Add `@GuardedBy`/`@ThreadSafe` annotations to all concurrent Kotlin code: GoPhoneServer, GrpcServerService, KeyManager, HostRepository, TailscaleManager. Add Infer/RacerD to Nix devshell. Run `infer run --racerd-only -- ./gradlew assembleDebug`. Add to CI lint job. Fix any races found. [Concurrency, Security]
+  **Done**: All concurrent code annotated, RacerD runs clean.
+
+- [ ] T091 Add ML Kit `InputImage.fromBitmap()` instrumented test: generate QR code bitmap with known payload, feed to ML Kit barcode scanner, verify correct payload extraction. Tests the full decode→parse path without camera. [T-QR-01, SC-015]
+  **Done**: QR bitmap test passes.
+
+- [ ] T092 Add multi-host pairing test: pair phone with two mock hosts, verify both stored in EncryptedSharedPreferences, sign requests from each host work independently. [T-AI-18, FR-030]
+  **Done**: Multi-host pairing works.
+
+- [ ] T093 Add remaining Android tests: security warnings for auto-approve/none-unlock (T-AI-13), display name editing (T-AI-14), Android structured logging with trace correlation (T-AI-15), expired cert mid-session behavior (T-AI-16), gRPC port conflict error (T-AI-17). [FR-046, FR-048, FR-093, FR-094, FR-E18, FR-E19]
+  **Done**: All new T-AI tests pass.
+
+- [ ] T094 Update `data-model.md`: replace "confirmation policy" with unlock policy + signing policy split. Update SSHKey entity state transitions to include locked/unlocked runtime state. Update `UI_FLOW.md`: replace all "confirmation policy" references with two-policy model, add Tailnet indicator and per-key lock indicator to screen descriptions, add loading states to relevant screens. [Stale terminology fix]
+  **Done**: data-model.md and UI_FLOW.md consistent with spec two-policy model.
+
+## Phase 17: Documentation & License
+
+- [ ] T095 Create `README.md` at repository root. Sections: (1) Title + tagline, (2) Badges (CI, coverage, license, release), (3) Description (what/why/differentiator), (4) Architecture diagram (Mermaid: host↔Tailscale↔phone), (5) Features list, (6) Getting Started (prerequisites, install via flake + channel, first run), (7) Configuration table (all `services.nix-key` options with Key/Type/Default/Required/Sensitive/Description), (8) Usage (CLI subcommands with examples), (9) Development (nix develop, make test, project structure), (10) CI Setup (required secrets: SNYK_TOKEN, SONAR_TOKEN, CACHIX_AUTH_TOKEN with how-to-obtain), (11) Security (threat model, cert pinning, non-extractable keys), (12) License. [SC-016]
+  **Done**: README renders, all commands work, badges live.
+
+- [ ] T096 Create `specs/nix-key/coverage-boundaries.md`. Document: fully tested in CI (every PR): host Go with -race, NixOS VM tests. On develop push: Android emulator E2E, fuzz generative. Not in CI: real Keystore hardware, real biometrics, real Tailscale auth, real camera QR. Mitigations: interfaces tested via fakes, protocol via phonesim, camera via ML Kit bitmap test. Per-component thresholds. [Documentation]
+  **Done**: Coverage boundaries documented.
+
+- [ ] T097 Determine license. Check all dependency licenses (`go-licenses`, Gradle license plugin). If all compatible with MIT, use MIT. Otherwise use least restrictive compatible license. Create LICENSE file. [SC-017]
+  **Done**: LICENSE file present, compatible with all deps.
+
+- [ ] T098 Update `CLAUDE.md` (was T076): final project structure, all commands including new `make bench`, `make security-scan`, `make validate`, architecture overview, CI/CD debugging, two-policy model summary, new phases. [Documentation]
+  **Done**: CLAUDE.md reflects final state.
+
+## Phase 18: Final CI Validation
+
+- [ ] T099 [needs: gh, ci-loop] Push all Phase 15-17 work to develop. Iterate until CI green (including fuzz, bench, adversarial, security scan, RacerD). Create PR to main. Verify `release-please` creates release PR. [CI validation]
+  **Done**: CI fully green, PR created.
+
 ---
 
 ## Phase Dependencies Summary
@@ -193,37 +280,47 @@ T028-T032 → T033-T038 (Phase 8) [parallel with Phases 5-6]
 T019-T027 + T039-T044 → T045-T048 (Phase 10)
 T033-T038 + T039-T044 → T045-T048 (Phase 10)
 T045-T048 → T049-T053 (Phase 11) [parallel with Phase 12]
-T023-T027 + T039-T044 → T054-T061 (Phase 12) [needs daemon + control socket + NixOS module, NOT Phase 10 E2E]
-T033 → T062 (APK build) [can start after gomobile bridge]
+T023-T027 + T039-T044 → T054-T061 (Phase 12)
+T033 → T062 (APK build)
 T054-T061 → T063-T066 (Phase 13: emulator harness + E2E)
 T062-T066 → T067-T072 (Phase 14: CI/CD)
-T072 → T073-T076 (Post-Implementation)
+T072 → T073-T075 (Post-Implementation: review, smoke, CI)
+T075 → T077-T086 (Phase 15: Host Hardening) [15a-15d parallel, 15e depends on 15d]
+T075 → T087-T094 (Phase 16: Android Hardening) [parallel with Phase 15]
+T086 + T094 → T095-T098 (Phase 17: Documentation & License)
+T098 → T099 (Phase 18: Final CI Validation)
 ```
 
-### Phase 13 Internal Dependencies
+### Phase 15 Internal Dependencies
 
 ```
-T062 (APK build) ─────────────────────────────┐
-T063 (emulator Nix) ──────────────────────────┤
-T064 (deep link QR bypass) ───────────────────┤→ T066 (E2E test)
-T065 (UI Automator helpers) ──────────────────┘
+T077-T078 (fuzz) ──────────────────┐
+T079 (bench) ──────────────────────┤
+T080 → T081 (adversarial) ────────┤→ T084-T086 (DX validation + cold-start + missing tests)
+T082-T083 (security scan + CI) ───┘
 ```
 
-T062-T065 can all be built in parallel. T066 requires all four.
+T077-T083 can all run in parallel (15a-15d). T084-T086 (15e) depend on T082 (needs `make validate`).
 
-### Phase 14 Internal Dependencies
+### Phase 16 Internal Dependencies
 
 ```
-T067 (CI workflow) → T068 (CI summary) → T072 (verify pipeline)
-T069 (E2E workflow, depends on T066) ──────┘
-T070 (release workflow) ───────────────────┘
-T071 (branch protection) ─────────────────┘
+T087 (unlock lifecycle) ──────────┐
+T088 (status indicators) ────────┤
+T089 (loading states) ───────────┤→ T094 (update data-model.md + UI_FLOW.md)
+T090 (RacerD) ───────────────────┤
+T091 (QR bitmap test) ──────────┤
+T092 (multi-host test) ──────────┤
+T093 (remaining Android tests) ──┘
 ```
+
+T087-T093 can all run in parallel. T094 depends on all (updates docs to reflect new code).
 
 ### Parallel Agent Strategy
 
 ```
-Agent A (Host):    T001→T006 → T007→T011 → T012→T014 → T015→T018 → T019→T022 → T023→T027 → T039→T044 → T045→T048 → T049→T053 → T054→T061 → T067→T072
-Agent B (Android): (wait for T006) → T028→T032 → T033→T038 → (wait for T044) → T045 collab → T062→T066 → (wait for T067) → T072 collab
-Sync points: T044 (NixOS module ready), T048 (E2E phonesim ready), T066 (Android E2E ready), T072 (CI verified)
+Agent A (Host):    T001→...→T075 → T077-T086 (Phase 15) → T095-T098 (Phase 17) → T099
+Agent B (Android): T001→...→T075 → T087-T094 (Phase 16) → (wait for T098) → T099
+Agent C (Docs):    (wait for T086 + T094) → T095-T098 (Phase 17)
+Sync points: T044, T048, T066, T072, T075 (hardening starts), T086+T094 (docs start), T098 (final CI)
 ```
