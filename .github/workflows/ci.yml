@@ -178,8 +178,8 @@ jobs:
             echo "::error::test-logs/ci/latest/summary.json not found — no test results produced"
             exit 1
           fi
-          PASSED=$(jq -r '.passed // 0' test-logs/ci/latest/summary.json)
-          FAILED=$(jq -r '.failed // 0' test-logs/ci/latest/summary.json)
+          PASSED=$(jq -r '.pass // 0' test-logs/ci/latest/summary.json)
+          FAILED=$(jq -r '.fail // 0' test-logs/ci/latest/summary.json)
           TOTAL=$((PASSED + FAILED))
           echo "Tests ran: ${TOTAL} (passed=${PASSED}, failed=${FAILED})"
           if [ "$TOTAL" -eq 0 ]; then
@@ -193,9 +193,9 @@ jobs:
           echo "## Test Host Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -f test-logs/ci/latest/summary.json ]; then
-            PASS=$(jq -r '.passed // 0' test-logs/ci/latest/summary.json)
-            FAIL=$(jq -r '.failed // 0' test-logs/ci/latest/summary.json)
-            SKIP=$(jq -r '.skipped // 0' test-logs/ci/latest/summary.json)
+            PASS=$(jq -r '.pass // 0' test-logs/ci/latest/summary.json)
+            FAIL=$(jq -r '.fail // 0' test-logs/ci/latest/summary.json)
+            SKIP=$(jq -r '.skip // 0' test-logs/ci/latest/summary.json)
             echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
             echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
             echo "| Passed | ${PASS} |" >> "$GITHUB_STEP_SUMMARY"
