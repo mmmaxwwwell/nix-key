@@ -158,6 +158,19 @@ jobs:
       - name: Nix flake check (NixOS VM tests)
         run: nix flake check --print-build-logs
 
+      - name: Build Go binary
+        run: |
+          nix build
+          cp result/bin/nix-key nix-key
+
+      - name: Upload Go binary
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nix-key-binary
+          path: nix-key
+          if-no-files-found: warn
+
       - name: Verify tests ran
         if: always()
         run: |

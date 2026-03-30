@@ -273,7 +273,7 @@
 - [x] T102 [P] Add "Verify tests ran" step to test-host job in `.github/workflows/ci.yml`: check `test-logs/ci/latest/summary.json` exists, parse `passed + failed` with jq, exit non-zero if total is 0 or file missing, use `if: always()` with `::error::` annotation [FR-202, FR-206]
   **Done when**: test-host job fails with clear error when no tests ran.
 
-- [ ] T103 [P] Add "Upload debug APK" step to test-android job in `.github/workflows/ci.yml`: after Gradle assembleDebug succeeds, use `actions/upload-artifact@v4` with name `debug-apk`, path `android/app/build/outputs/apk/debug/app-debug.apk` [FR-203]
+- [x] T103 [P] Add "Upload debug APK" step to test-android job in `.github/workflows/ci.yml`: after Gradle assembleDebug succeeds, use `actions/upload-artifact@v4` with name `debug-apk`, path `android/app/build/outputs/apk/debug/app-debug.apk` [FR-203]
   **Done when**: debug-apk artifact appears in GitHub Actions artifacts on develop builds.
 
 - [ ] T104 [P] Add "Upload Go binary" step to test-host job in `.github/workflows/ci.yml`: build with `nix build`, copy `result/bin/nix-key`, use `actions/upload-artifact@v4` with name `nix-key-binary` [FR-204]
