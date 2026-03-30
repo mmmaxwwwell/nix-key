@@ -26,8 +26,8 @@ specs/nix-key/learnings.md
 *~
 
 # Nix
-result
-result-*
+/result
+/result-*
 
 # Security
 *.pem
@@ -43,7 +43,7 @@ credentials.json
 /phonesim
 /test-reporter
 dist/
-build/
+/build/
 
 # Python
 __pycache__/
@@ -61,6 +61,7 @@ node_modules/
 .gradle/
 local.properties
 android/app/libs/
+android/**/build/
 
 # Dev certs
 certs/
