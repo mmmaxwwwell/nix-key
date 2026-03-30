@@ -66,7 +66,8 @@ erDiagram
         string displayName
         enum keyType
         string fingerprint UK
-        enum confirmationPolicy
+        enum unlockPolicy
+        enum signingPolicy
         timestamp createdAt
         string wrappingKeyAlias
     }
@@ -95,7 +96,8 @@ erDiagram
 
     AppSettings {
         bool denyKeyListing
-        string defaultConfirmationPolicy
+        string defaultUnlockPolicy
+        string defaultSigningPolicy
         int listenPort
         blob tailscaleAuthState
     }
@@ -198,11 +200,14 @@ erDiagram
 | `displayName` | `string` | Required, non-empty, user-editable | -- | User-chosen name for the key (FR-048) |
 | `keyType` | `enum` | `"ed25519"` or `"ecdsa-p256"` | `"ed25519"` | Key algorithm. Determines storage strategy |
 | `fingerprint` | `string` | **Unique**, SHA256 hex | -- | SSH public key fingerprint, computed at creation |
-| `confirmationPolicy` | `enum` | See Confirmation Policies below | `"always_ask"` | Per-key confirmation behavior for sign requests (FR-045) |
+| `unlockPolicy` | `enum` | See Unlock Policies below | `"password"` | Per-key unlock behavior — controls decrypting key material into memory (FR-045, FR-116, FR-119) |
+| `signingPolicy` | `enum` | See Signing Policies below | `"biometric"` | Per-key signing behavior — controls per-sign-request confirmation after key is unlocked (FR-045, FR-051) |
 | `createdAt` | `timestamp` | Required, ISO 8601 | -- | Key creation time |
 | `wrappingKeyAlias` | `string` or `null` | Keystore alias, required for Ed25519, null for ECDSA | `null` | Keystore AES key alias used to wrap Ed25519 software key (FR-040) |
 
-**Confirmation policies**: `"always_ask"` (default, shows prompt every time), `"biometric"` (BiometricPrompt only), `"password"` (device credential only), `"biometric_password"` (BiometricPrompt with fallback to device credential), `"auto_approve"` (no prompt, requires security warning acknowledgment per FR-046).
+**Unlock policies** (decrypt key into memory, once per app session): `"none"` (auto-unlock on app start, requires security warning per FR-046), `"biometric"` (BiometricPrompt), `"password"` (default — device credential prompt), `"biometric_password"` (BiometricPrompt + device credential, both required).
+
+**Signing policies** (per sign request, after key is unlocked): `"always_ask"` (simple Approve/Deny dialog, no biometric/password), `"biometric"` (default — BiometricPrompt), `"password"` (device credential prompt), `"biometric_password"` (BiometricPrompt + device credential), `"auto_approve"` (no dialog, sign immediately — requires security warning per FR-046).
 
 **Storage**: Private key material in Android Keystore (hardware-backed for ECDSA, AES-wrapped for Ed25519). Metadata in EncryptedSharedPreferences. Private keys are never extractable (FR-042).
 
@@ -227,7 +232,8 @@ erDiagram
 | Field | Type | Constraints | Default | Description |
 |-------|------|-------------|---------|-------------|
 | `denyKeyListing` | `bool` | -- | `false` | Phone-side override: if `true`, returns empty key list to all hosts regardless of host config (FR-054) |
-| `defaultConfirmationPolicy` | `string` | Valid confirmation policy enum | `"always_ask"` | Default policy applied to newly created keys |
+| `defaultUnlockPolicy` | `string` | Valid unlock policy enum | `"password"` | Default unlock policy applied to newly created keys |
+| `defaultSigningPolicy` | `string` | Valid signing policy enum | `"biometric"` | Default signing policy applied to newly created keys |
 | `listenPort` | `int` | 1--65535 | `29418` | Port for the phone's gRPC TLS server |
 | `tailscaleAuthState` | `blob` | Encrypted | -- | Persisted Tailscale auth state so re-auth is not required on every app open (FR-013a) |
 
@@ -288,6 +294,10 @@ Note: There is no stored "revoked" state. Revocation deletes the device entirely
 
 ### SSHKey (Android Side)
 
+SSHKey has two orthogonal state dimensions: a persistent lifecycle state and a runtime unlock state.
+
+#### Persistent Lifecycle
+
 ```
     User taps "Create Key"
               │
@@ -308,10 +318,41 @@ Note: There is no stored "revoked" state. Revocation deletes the device entirely
 | From | To | Trigger | Side Effects |
 |------|----|---------|--------------|
 | -- | ACTIVE | User creates key | Key generated in Keystore (ECDSA) or software + AES wrap (Ed25519). Metadata written to EncryptedSharedPreferences |
-| ACTIVE | ACTIVE | User edits display name or confirmation policy | Metadata updated in EncryptedSharedPreferences |
+| ACTIVE | ACTIVE | User edits display name, unlock policy, or signing policy | Metadata updated in EncryptedSharedPreferences |
 | ACTIVE | DELETED | User deletes key (requires biometric/password per FR-047) | Key removed from Keystore, metadata removed from EncryptedSharedPreferences, wrapping key removed (Ed25519). Hosts see updated key list on next `ListKeys` |
 
-Note: There is no "disabled" state. Keys are either active or deleted. The confirmation policy on each key controls whether signing requires interaction.
+#### Runtime Unlock State (transient, not persisted)
+
+```
+    App process starts
+              │
+              ├─ unlock policy = "none" ──> ┌──────────┐
+              │    (eager decrypt)           │ UNLOCKED │◄──── Sign request triggers
+              │                              └──────────┘      unlock prompt (FR-116),
+              │                                   │            user succeeds
+              v                                   │
+         ┌──────────┐                             │
+         │  LOCKED  │◄────────────────────────────┘
+         └──────────┘   Manual re-lock (FR-117)
+              │         or process killed (FR-118)
+              │
+              │ Sign request arrives (FR-116)
+              v
+         ┌───────────────────┐
+         │ UNLOCK PROMPTING  │ ── success ──> UNLOCKED
+         └───────────────────┘ ── fail ──> LOCKED (request denied)
+```
+
+| From | To | Trigger | Side Effects |
+|------|----|---------|--------------|
+| -- | LOCKED | App process starts (unlock policy != "none") | Key material not in memory. Sign requests trigger unlock prompt (FR-116) |
+| -- | UNLOCKED | App process starts (unlock policy = "none") | Key material eagerly decrypted into memory on app start (FR-119) |
+| LOCKED | UNLOCK PROMPTING | Sign request arrives for locked key | Unlock prompt shown with key name + host name (FR-116). Uses key's unlock policy (biometric/password/both) |
+| UNLOCK PROMPTING | UNLOCKED | User passes unlock challenge | Key material decrypted into memory. Proceeds to signing policy prompt |
+| UNLOCK PROMPTING | LOCKED | User fails/cancels unlock | Sign request denied (SSH_AGENT_FAILURE). Key remains locked |
+| UNLOCKED | LOCKED | User manually re-locks (FR-117) or process killed (FR-118) | Key material wiped from memory. Queued requests trigger fresh unlock prompt |
+
+Note: Unlock state is runtime-only and never persisted. On process kill, all keys return to LOCKED (except none-unlock keys which auto-unlock on next app start). Key material persists in memory across background/foreground transitions (FR-118). The unlock policy and signing policy on each key are independent — unlock controls memory decryption, signing controls per-request confirmation.
 
 ### SignRequest (Android Side, transient)
 
@@ -333,7 +374,7 @@ Note: There is no "disabled" state. Keys are either active or deleted. The confi
 
 | From | To | Trigger | Side Effects |
 |------|----|---------|--------------|
-| -- | PENDING | gRPC `Sign` request received from authenticated host | Request queued, confirmation prompt shown (FR-050). For `auto_approve` keys, transitions immediately to APPROVED |
+| -- | PENDING | gRPC `Sign` request received from authenticated host | If key is locked, unlock prompt triggered first (FR-116). Then confirmation prompt shown per signing policy (FR-050). For `auto_approve` signing policy, transitions immediately to APPROVED |
 | PENDING | APPROVED | User approves (or auto-approve policy) | Keystore signs data, signature returned via gRPC response |
 | PENDING | DENIED | User explicitly denies | gRPC error returned, host daemon sends SSH_AGENT_FAILURE (FR-E02) |
 | PENDING | TIMEOUT | `signTimeout` elapses without user action | gRPC error returned, host daemon sends SSH_AGENT_FAILURE (FR-E03) |
@@ -357,7 +398,7 @@ All states are terminal. SignRequest objects are discarded after reaching a term
 | **C-009**: Ed25519 wrapping key required | If `SSHKey.keyType = "ed25519"`, then `wrappingKeyAlias` must be non-null and reference a valid Keystore AES key | Enforced at key creation time. ECDSA keys have `wrappingKeyAlias = null` |
 | **C-010**: Nix-declared device merge | Nix-declared devices override runtime-paired `clientCertPath`/`clientKeyPath` (if set); runtime-paired wins for `lastSeen` and `tailscaleIp` | Daemon merge logic at startup (FR-064) |
 | **C-011**: Cert expiry warning | `nix-key status` must warn when any device cert is within 30 days of expiry | CLI reads cert, computes days remaining (FR-032) |
-| **C-012**: Auto-approve requires acknowledgment | `SSHKey.confirmationPolicy` cannot be set to `"auto_approve"` without the user first acknowledging a security warning | Android UI enforces warning dialog before persisting (FR-046) |
+| **C-012**: Security-sensitive policies require acknowledgment | `SSHKey.signingPolicy` cannot be set to `"auto_approve"` and `SSHKey.unlockPolicy` cannot be set to `"none"` without the user first acknowledging a security warning for each | Android UI enforces warning dialog before persisting (FR-046) |
 
 ---
 
