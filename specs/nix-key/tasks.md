@@ -264,7 +264,7 @@
 
 ## Phase 18: Final CI Validation
 
-- [ ] T099 [needs: gh, ci-loop] Push all Phase 15-17 work to develop. Iterate until CI green (including fuzz, bench, adversarial, security scan, RacerD). Create PR to main. Verify `release-please` creates release PR. [CI validation]
+- [x] T099 [needs: gh, ci-loop] Push all Phase 15-17 work to develop. Iterate until CI green (including fuzz, bench, adversarial, security scan, RacerD). Create PR to main. Verify `release-please` creates release PR. [CI validation]
   **Done**: CI fully green, PR created.
 
 ---
