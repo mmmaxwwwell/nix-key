@@ -32,9 +32,9 @@ let
       otlp:
         protocols:
           grpc:
-            endpoint: 127.0.0.1:4317
+            endpoint: 0.0.0.0:4317
           http:
-            endpoint: 127.0.0.1:4318
+            endpoint: 0.0.0.0:4318
 
     exporters:
       jaeger_storage_exporter:

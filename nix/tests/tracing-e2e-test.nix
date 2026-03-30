@@ -307,31 +307,26 @@ in
     # ── Phase 7: Query Jaeger and verify distributed traces ──
 
     with subtest("wait for traces to be indexed"):
-        # OTLP batchers flush periodically; give them time to export.
-        # Also give Jaeger time to index the traces.
-        time.sleep(5)
+        # OTLP batchers flush periodically (default 5s); give them time to
+        # export plus Jaeger time to index.
+        time.sleep(10)
 
     with subtest("query Jaeger for host traces"):
-        # Query for traces from the host service ("nix-key")
-        host_traces_raw = host.wait_until_succeeds(
+        # Use jq -e so the command fails (non-zero exit) when trace count is 0,
+        # causing wait_until_succeeds to retry until traces actually appear.
+        host.wait_until_succeeds(
             "curl -sf 'http://localhost:16686/api/traces?service=nix-key&limit=10' "
-            "| jq '.data | length' ",
-            timeout=30,
-        ).strip()
-        host_trace_count = int(host_traces_raw)
-        assert host_trace_count > 0, \
-            f"Expected at least one trace from nix-key service, got {host_trace_count}"
+            "| jq -e '.data | length > 0' ",
+            timeout=60,
+        )
 
     with subtest("query Jaeger for phone traces"):
-        # Query for traces from the phone service ("nix-key-phone")
-        phone_traces_raw = host.wait_until_succeeds(
+        # Same jq -e pattern: retry until phone traces appear.
+        host.wait_until_succeeds(
             "curl -sf 'http://localhost:16686/api/traces?service=nix-key-phone&limit=10' "
-            "| jq '.data | length' ",
-            timeout=30,
-        ).strip()
-        phone_trace_count = int(phone_traces_raw)
-        assert phone_trace_count > 0, \
-            f"Expected at least one trace from nix-key-phone service, got {phone_trace_count}"
+            "| jq -e '.data | length > 0' ",
+            timeout=60,
+        )
 
     with subtest("verify distributed trace with host and phone spans"):
         # Get all traces from the host service — they should include phone spans
