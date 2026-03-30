@@ -19,7 +19,8 @@ stdenv.mkDerivation rec {
   buildInputs = [ gmp mpfr sqlite zlib zstd ncurses stdenv.cc.cc.lib ];
 
   # Bundled clang plugins require libpython3.8 for GDB helpers — not needed for infer itself
-  autoPatchelfIgnoreMissingDeps = [ "libpython3.8.so.1.0" ];
+  autoPatchelfIgnoreMissingDeps =
+    [ "libpython3.8.so.1.0" "libclang.so.18.1" "libxml2.so.2" ];
 
   installPhase = ''
     mkdir -p $out
