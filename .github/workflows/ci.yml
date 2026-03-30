@@ -534,6 +534,28 @@ jobs:
           sarif_file: scorecard-results.sarif
           category: scorecard
 
+      - name: Verify scanners ran
+        if: always()
+        run: |
+          MISSING=0
+          for scanner in trivy semgrep gitleaks govulncheck; do
+            FILE="test-logs/security/${scanner}.json"
+            if [ ! -f "$FILE" ]; then
+              echo "::warning::Scanner output missing: ${FILE}"
+              MISSING=$((MISSING + 1))
+            elif [ "$(wc -c < "$FILE")" -le 10 ]; then
+              echo "::warning::Scanner output too small (<= 10 bytes): ${FILE}"
+              MISSING=$((MISSING + 1))
+            else
+              echo "Verified: ${scanner} output exists ($(wc -c < "$FILE") bytes)"
+            fi
+          done
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::warning::${MISSING} scanner(s) did not produce valid output"
+          else
+            echo "All 4 Tier 1 scanners produced output"
+          fi
+
       - name: Generate security summary JSON
         if: always()
         run: |

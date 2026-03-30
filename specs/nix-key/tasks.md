@@ -279,7 +279,7 @@
 - [x] T104 [P] Add "Upload Go binary" step to test-host job in `.github/workflows/ci.yml`: build with `nix build`, copy `result/bin/nix-key`, use `actions/upload-artifact@v4` with name `nix-key-binary` [FR-204]
   **Done when**: nix-key-binary artifact appears in GitHub Actions artifacts on develop builds.
 
-- [ ] T105 Add "Verify scanners ran" step to security job in `.github/workflows/ci.yml`: for each scanner (trivy, semgrep, gitleaks, govulncheck), check JSON output file exists and is >10 bytes, log `::warning::` for missing scanners (advisory, not hard failure), use `if: always()` [FR-205, FR-206]
+- [x] T105 Add "Verify scanners ran" step to security job in `.github/workflows/ci.yml`: for each scanner (trivy, semgrep, gitleaks, govulncheck), check JSON output file exists and is >10 bytes, log `::warning::` for missing scanners (advisory, not hard failure), use `if: always()` [FR-205, FR-206]
   **Done when**: Security job logs show verification output for each scanner.
 
 ## Phase 19: Final CI Validation & Observable Output Validation

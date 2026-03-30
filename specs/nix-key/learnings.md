@@ -25,3 +25,8 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **Attempt 2** passed all 6 jobs (Lint, Test Host, Test Android, Security, Fuzz, CI Summary) after applying all three fixes in a single commit.
 - **Android test gap**: `gradlew` is not checked into the repo, so the `Gradle build + unit tests` step in Test Android exits with "No such file or directory" but the exit code is swallowed by `| tee`. The job reports 0 tests passed/failed and concludes "success". The lint job's ktlint step handles this gracefully with `test -f ./gradlew`. This is a pre-existing condition, not a T099 regression.
 - **Sanity-check approach**: Cross-reference CI-reported test counts against on-disk test files. 425 Go test passes across 12 packages matches the 12 Go packages with `_test.go` files. 10/10 fuzz targets ran for 60s each.
+
+## T105 — Verify scanners ran
+
+- Security scanner JSON outputs are in `test-logs/security/{trivy,semgrep,gitleaks,govulncheck}.json`. The "Verify scanners ran" step should be placed after all scanner steps but before "Generate security summary JSON" to ensure all outputs are available.
+- Scanner verification uses `::warning::` (not `::error::`) because missing scanners are advisory — some scanners (e.g., semgrep, gitleaks) use `continue-on-error: true` and may not produce output in all environments.
