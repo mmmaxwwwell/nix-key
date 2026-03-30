@@ -282,7 +282,16 @@
 - [x] T105 Add "Verify scanners ran" step to security job in `.github/workflows/ci.yml`: for each scanner (trivy, semgrep, gitleaks, govulncheck), check JSON output file exists and is >10 bytes, log `::warning::` for missing scanners (advisory, not hard failure), use `if: always()` [FR-205, FR-206]
   **Done when**: Security job logs show verification output for each scanner.
 
-## Phase 19: Final CI Validation & Observable Output Validation
+## Phase 19: Local CI Verification & Final CI Validation
+
+- [ ] T109a [P] Verify Go CI steps locally (fix-validate loop): run `nix build` and `go test -json -race -count=1 ./...`. Verify `result/bin/nix-key` exists and `test-logs/ci/latest/summary.json` exists with `passed + failed > 0`. On failure: fix and retry. [FR-202, FR-204]
+  **Done when**: Go binary builds, Go tests pass with non-zero count, artifact paths verified. Fix-validate loop, 20-iteration cap.
+
+- [ ] T109b [P] Verify Android CI steps locally (fix-validate loop): run `./gradlew assembleDebug testDebugUnitTest --no-daemon` in `android/`. Verify `android/app/build/outputs/apk/debug/app-debug.apk` exists. Verify JUnit XML files exist in `android/app/build/test-results/` with >0 tests. On failure: fix (missing SDK, Gradle config, gomobile AAR) and retry. [FR-200, FR-201, FR-203]
+  **Done when**: Android APK builds, Android tests pass with non-zero count, artifact paths verified. Fix-validate loop, 20-iteration cap.
+
+- [x] T109c [P] Verify security scanner CI steps locally (fix-validate loop): run each scanner command from the security job (`trivy fs`, `semgrep scan`, `gitleaks detect`, `govulncheck`). Verify each produces JSON output >10 bytes in `test-logs/security/`. On failure: fix (missing scanner binary, wrong config) and retry. [FR-205]
+  **Done when**: All 4 scanners produce non-empty JSON output. Fix-validate loop, 20-iteration cap.
 
 - [ ] T099 [needs: gh, ci-loop] Push all work to develop. Iterate until CI green (including non-vacuous validation steps, artifact uploads, fuzz, bench, adversarial, security scan, RacerD). Create PR to main. [CI validation, FR-208]
   **Done when**: CI fully green on develop with non-vacuous test counts, artifacts uploaded, PR to main created.
@@ -318,7 +327,8 @@ T075 → T077-T086 (Phase 15: Host Hardening) [15a-15d parallel, 15e depends on 
 T075 → T087-T094 (Phase 16: Android Hardening) [parallel with Phase 15]
 T086 + T094 → T095-T098 (Phase 17: Documentation & License)
 T098 → T100-T105 (Phase 18: CI Hardening) [all parallel]
-T100-T105 → T099 (Phase 19: CI loop + PR to main)
+T100-T105 → T109a, T109b, T109c (Phase 19: local CI verification) [all parallel]
+T109a + T109b + T109c → T099 (Phase 19: CI loop + PR to main)
 T099 → T106-T107 (Phase 19: Observable validation) [parallel]
 T107 → T108 (Phase 19: Post-merge badge validation)
 ```

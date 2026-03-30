@@ -4,10 +4,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 
 ---
 
-## T097 — License determination
+## T109c — Security scanner local verification
 
-- All Go deps (filippo.io/age BSD-3, tailscale BSD-3, spf13/cobra Apache-2.0, gvisor Apache-2.0, OTEL Apache-2.0, golang.org/x BSD-3, grpc Apache-2.0) and Android deps (AndroidX/Compose/Hilt Apache-2.0, BouncyCastle MIT, Protobuf BSD-3) are permissive — MIT is compatible with all of them.
-- `go-licenses` is not in the nix devshell; manual verification via `go mod download` + reading LICENSE files in GOMODCACHE works as a fallback.
+- Gitleaks outputs bare `[]` (3 bytes) when no secrets are found, which fails a >10 byte check. Wrapping the raw array into a `{scanner, findings, count, exit_code}` object in the scan script fixes this while keeping the data accessible.
 
 ## T099 — Nix devshell / infer build failure
 

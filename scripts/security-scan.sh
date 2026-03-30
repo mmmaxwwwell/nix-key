@@ -114,6 +114,12 @@ run_gitleaks() {
   local count=0
   if [ -f "$OUTDIR/gitleaks.json" ]; then
     count=$(jq 'if type == "array" then length else 0 end' "$OUTDIR/gitleaks.json" 2>/dev/null || echo 0)
+    # Wrap raw array output into a structured object for consistency
+    local raw
+    raw=$(cat "$OUTDIR/gitleaks.json")
+    jq -n --argjson findings "$raw" --argjson exit_code "$ec" \
+      '{scanner: "gitleaks", findings: $findings, count: ($findings | length), exit_code: $exit_code}' \
+      > "$OUTDIR/gitleaks.json"
   fi
   scanner_findings[$name]=$count
   total_findings=$((total_findings + count))
