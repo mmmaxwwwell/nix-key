@@ -219,7 +219,7 @@
 - [x] T085 Add automated cold-start and idempotency tests. Cold-start: delete all state dirs → start daemon → verify dirs created with 0700 permissions, daemon starts. Warm-start: stop/restart → reuses state, no errors. Pairing idempotency: `nix-key pair` setup twice → no corruption, age identity skip-if-exists. Secrets at rest: verify private keys on disk are age-encrypted after pairing, daemon decrypts into memory only, `ageKeyFile` option works. [T-CS-01 through T-CS-03, T-HI-19, SC-020, SC-021]
   **Done**: Cold-start, warm-start, idempotency, and secrets-at-rest tests pass.
 
-- [ ] T086 Add missing host integration tests: cert expiry warning in `nix-key status` (T-HI-11), two cert pairs generated during pairing (T-HI-12), age decrypt failure at startup (T-HI-13), deleted key sign request (T-HI-14), atomic pairing on write failure (T-HI-15), concurrent pairing rejection (T-HI-16), error hierarchy validation (T-HI-17), logging validation (T-HI-18), control socket test (T-HI-20), pairing without Tailscale (T-HI-21), tracing disabled = no overhead (T-HI-09a). [SC-018, SC-019, SC-020]
+- [x] T086 Add missing host integration tests: cert expiry warning in `nix-key status` (T-HI-11), two cert pairs generated during pairing (T-HI-12), age decrypt failure at startup (T-HI-13), deleted key sign request (T-HI-14), atomic pairing on write failure (T-HI-15), concurrent pairing rejection (T-HI-16), error hierarchy validation (T-HI-17), logging validation (T-HI-18), control socket test (T-HI-20), pairing without Tailscale (T-HI-21), tracing disabled = no overhead (T-HI-09a). [SC-018, SC-019, SC-020]
   **Done**: All new T-HI tests pass.
 
 ## Phase 16: Android Hardening

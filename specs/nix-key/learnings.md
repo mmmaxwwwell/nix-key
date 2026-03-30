@@ -139,3 +139,9 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 
 - The control server command for status is `"get-status"`, not `"status"`. The `handleCommand` switch uses `"get-status"`. Using `"status"` returns `{status: "error", error: "unknown command: status"}`.
 - Pairing-level tests that need access to unexported functions (`processPairingResult`, `generateClientCertPair`, `ensureAgeIdentity`) must live in the `pairing` package. Go's `export_test.go` pattern only works within the same package's test build, not for external test packages.
+
+## T086 — Host integration tests (hardening)
+
+- `daemon.ControlServer.Stop()` panics on double-call because it calls `close(s.done)` twice. Never use both an explicit `Stop()` call in the test body AND `t.Cleanup(srv.Stop)` — pick one.
+- To test `SaveToJSON` write failure, making the parent directory read-only with `os.Chmod(dir, 0500)` is insufficient if the file already exists (existing files remain writable). Instead, try writing to a path inside a non-existent subdirectory under a read-only parent so `os.MkdirAll` fails.
+- The PairingServer's one-time token mechanism naturally enforces concurrent pairing rejection: the `tokenUsed` flag is set under a mutex on first use, and subsequent requests with the same token get `401 Unauthorized`. After processing, the server shuts itself down.
