@@ -262,10 +262,39 @@
 - [x] T098 Update `CLAUDE.md` (was T076): final project structure, all commands including new `make bench`, `make security-scan`, `make validate`, architecture overview, CI/CD debugging, two-policy model summary, new phases. [Documentation]
   **Done**: CLAUDE.md reflects final state.
 
-## Phase 18: Final CI Validation
+## Phase 18: CI Hardening & Non-Vacuous Validation [Story 8]
 
-- [x] T099 [needs: gh, ci-loop] Push all Phase 15-17 work to develop. Iterate until CI green (including fuzz, bench, adversarial, security scan, RacerD). Create PR to main. Verify `release-please` creates release PR. [CI validation]
-  **Done**: CI fully green, PR created.
+- [x] T100 [P] Fix exit code swallowing in test-android Gradle step: add `set -o pipefail` before `./gradlew assembleDebug testDebugUnitTest` in `.github/workflows/ci.yml` [FR-200]
+  **Done when**: Gradle failures cause the step to exit non-zero even when piped through tee.
+
+- [ ] T101 [P] Add "Verify tests ran" step to test-android job in `.github/workflows/ci.yml`: count JUnit XML files in `android/app/build/test-results/`, extract total test count, exit non-zero if 0 files or 0 tests, use `if: always()` with `::error::` annotation [FR-201, FR-206]
+  **Done when**: test-android job fails with clear error when no tests ran.
+
+- [ ] T102 [P] Add "Verify tests ran" step to test-host job in `.github/workflows/ci.yml`: check `test-logs/ci/latest/summary.json` exists, parse `passed + failed` with jq, exit non-zero if total is 0 or file missing, use `if: always()` with `::error::` annotation [FR-202, FR-206]
+  **Done when**: test-host job fails with clear error when no tests ran.
+
+- [ ] T103 [P] Add "Upload debug APK" step to test-android job in `.github/workflows/ci.yml`: after Gradle assembleDebug succeeds, use `actions/upload-artifact@v4` with name `debug-apk`, path `android/app/build/outputs/apk/debug/app-debug.apk` [FR-203]
+  **Done when**: debug-apk artifact appears in GitHub Actions artifacts on develop builds.
+
+- [ ] T104 [P] Add "Upload Go binary" step to test-host job in `.github/workflows/ci.yml`: build with `nix build`, copy `result/bin/nix-key`, use `actions/upload-artifact@v4` with name `nix-key-binary` [FR-204]
+  **Done when**: nix-key-binary artifact appears in GitHub Actions artifacts on develop builds.
+
+- [ ] T105 Add "Verify scanners ran" step to security job in `.github/workflows/ci.yml`: for each scanner (trivy, semgrep, gitleaks, govulncheck), check JSON output file exists and is >10 bytes, log `::warning::` for missing scanners (advisory, not hard failure), use `if: always()` [FR-205, FR-206]
+  **Done when**: Security job logs show verification output for each scanner.
+
+## Phase 19: Final CI Validation & Observable Output Validation
+
+- [ ] T099 [needs: gh, ci-loop] Push all work to develop. Iterate until CI green (including non-vacuous validation steps, artifact uploads, fuzz, bench, adversarial, security scan, RacerD). Create PR to main. [CI validation, FR-208]
+  **Done when**: CI fully green on develop with non-vacuous test counts, artifacts uploaded, PR to main created.
+
+- [ ] T106 [needs: gh] Observable output validation: after CI passes on develop, verify all expected artifacts are listed in the workflow run (`gh run view --json artifacts`), download debug-apk and nix-key-binary to confirm non-empty [SC-024]
+  **Done when**: Both artifacts verified present and non-empty.
+
+- [ ] T107 [needs: gh] Default branch readiness check: verify PR to main includes all workflow files, LICENSE, README, release config (`release-please-config.json`, `.release-please-manifest.json`). Verify `workflow_run` triggers in e2e.yml reference a workflow name that will exist on main after merge. [FR-208]
+  **Done when**: PR diff confirms all required files reach main.
+
+- [ ] T108 [needs: gh] Post-merge badge validation: after PR merges to main, fetch all 5 README badge URLs with curl, verify HTTP 200 and valid SVG content (no "not specified", "not found", 404). Document any badges that will self-heal after first release (GitHub release version badge). [FR-207, SC-025]
+  **Done when**: CI, E2E, Release, License badges all render valid status. Release version badge documented as self-healing.
 
 ---
 
@@ -288,7 +317,10 @@ T072 → T073-T075 (Post-Implementation: review, smoke, CI)
 T075 → T077-T086 (Phase 15: Host Hardening) [15a-15d parallel, 15e depends on 15d]
 T075 → T087-T094 (Phase 16: Android Hardening) [parallel with Phase 15]
 T086 + T094 → T095-T098 (Phase 17: Documentation & License)
-T098 → T099 (Phase 18: Final CI Validation)
+T098 → T100-T105 (Phase 18: CI Hardening) [all parallel]
+T100-T105 → T099 (Phase 19: CI loop + PR to main)
+T099 → T106-T107 (Phase 19: Observable validation) [parallel]
+T107 → T108 (Phase 19: Post-merge badge validation)
 ```
 
 ### Phase 15 Internal Dependencies

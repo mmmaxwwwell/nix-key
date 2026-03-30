@@ -229,11 +229,36 @@ jobs:
 
       - name: Gradle build + unit tests
         run: |
+          set -o pipefail
           mkdir -p test-logs
           cd android
           ./gradlew assembleDebug testDebugUnitTest --no-daemon 2>&1 | tee ../test-logs/android-build.log
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Verify tests ran
+        if: always()
+        run: |
+          XML_COUNT=0
+          TOTAL_TESTS=0
+          if [ -d android/app/build/test-results ]; then
+            XML_COUNT=$(find android/app/build/test-results -name '*.xml' 2>/dev/null | wc -l)
+            for xml in $(find android/app/build/test-results -name '*.xml' 2>/dev/null); do
+              TESTS=$(grep -o 'tests="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*' || echo 0)
+              TOTAL_TESTS=$((TOTAL_TESTS + TESTS))
+            done
+          fi
+          echo "JUnit XML files found: ${XML_COUNT}"
+          echo "Total tests reported: ${TOTAL_TESTS}"
+          if [ "$XML_COUNT" -eq 0 ]; then
+            echo "::error::No JUnit XML files found in android/app/build/test-results/ — tests may not have run"
+            exit 1
+          fi
+          if [ "$TOTAL_TESTS" -eq 0 ]; then
+            echo "::error::JUnit XML files found but 0 tests reported — tests may not have run"
+            exit 1
+          fi
+          echo "Verified: ${TOTAL_TESTS} test(s) across ${XML_COUNT} XML file(s)"
 
       - name: Job summary
         if: always()
