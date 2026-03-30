@@ -239,7 +239,7 @@
 - [x] T091 Add ML Kit `InputImage.fromBitmap()` instrumented test: generate QR code bitmap with known payload, feed to ML Kit barcode scanner, verify correct payload extraction. Tests the full decode→parse path without camera. [T-QR-01, SC-015]
   **Done**: QR bitmap test passes.
 
-- [ ] T092 Add multi-host pairing test: pair phone with two mock hosts, verify both stored in EncryptedSharedPreferences, sign requests from each host work independently. [T-AI-18, FR-030]
+- [x] T092 Add multi-host pairing test: pair phone with two mock hosts, verify both stored in EncryptedSharedPreferences, sign requests from each host work independently. [T-AI-18, FR-030]
   **Done**: Multi-host pairing works.
 
 - [ ] T093 Add remaining Android tests: security warnings for auto-approve/none-unlock (T-AI-13), display name editing (T-AI-14), Android structured logging with trace correlation (T-AI-15), expired cert mid-session behavior (T-AI-16), gRPC port conflict error (T-AI-17). [FR-046, FR-048, FR-093, FR-094, FR-E18, FR-E19]

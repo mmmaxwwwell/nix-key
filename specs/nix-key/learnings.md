@@ -118,3 +118,8 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 
 - Trivy action doesn't support dual output formats in one invocation. Run it twice: once for SARIF (with `exit-code: "1"` for CI gating), once for JSON (with `exit-code: "0"` and `continue-on-error: true` so it always produces the file).
 - The `security-logs` artifact path was changed from `test-logs/` (entire directory) to `test-logs/security/` (scoped). The `ci-summary.sh` `find_summary` function searches `<artifacts-dir>/security-logs/` so the summary.json is found at `security-logs/security/summary.json` (artifact name / subpath).
+
+## T092 — Multi-host pairing test
+
+- `GoPhoneServer` constructor requires `KeyUnlockManager` (added in T087). The existing `GoPhoneServerTest` still passes only 2 args (keyManager, signRequestQueue) — this is a latent compile error. New tests must pass all 3 args.
+- When testing sign requests through `GoPhoneServer`, keys must be pre-unlocked via `keyUnlockManager.unlock(keyInfo)` to avoid `needsUnlock=true` in `SignRequest`, which would block the auto-approve flow in tests.
