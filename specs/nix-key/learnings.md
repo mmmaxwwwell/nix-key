@@ -51,3 +51,7 @@ T075 required 33+ CI attempts over multiple sessions to get all jobs green. Majo
 6. **CI cancellation loop** (attempts 23, 26): `cancel-in-progress: true` killed 15-20 min VM tests when new commits pushed. Fixed with `cancel-in-progress: false`.
 
 Key takeaway: NixOS VM integration tests are the highest-friction CI component. Headscale boilerplate should be extracted into a shared test module to prevent the recurring triple-fix pattern across test files.
+
+## T076 — Documentation
+
+- No non-obvious gotchas for this task. Pure documentation update covering CLAUDE.md and UI_FLOW.md.
