@@ -10,26 +10,24 @@
 
 ```mermaid
 flowchart TD
-    classDef android fill:#2e7d32,stroke:#1b5e20,color:#fff
-
-    LAUNCH([App Launch]):::android
-    TS_AUTH[Tailscale Auth Screen]:::android
-    SERVER_LIST[Server List / Home]:::android
-    PAIRING[Pairing Screen]:::android
-    KEY_MGMT[Key Management Screen]:::android
-    KEY_DETAIL[Key Detail Screen]:::android
-    SETTINGS[Settings Screen]:::android
-    SIGN_PROMPT[Sign Request Prompt]:::android
+    LAUNCH([App Launch])
+    TS_AUTH[Tailscale Auth Screen]
+    SERVER_LIST[Server List / Home]
+    PAIRING[Pairing Screen]
+    KEY_MGMT[Key Management Screen]
+    KEY_DETAIL[Key Detail Screen]
+    SETTINGS[Settings Screen]
+    SIGN_PROMPT[Sign Request Prompt]
 
     LAUNCH -->|First launch / no auth| TS_AUTH
     LAUNCH -->|Auth present| SERVER_LIST
     TS_AUTH -->|Auth success| SERVER_LIST
-    SERVER_LIST -->|Tap "Scan QR Code"| PAIRING
+    SERVER_LIST -->|Tap Scan QR Code| PAIRING
     SERVER_LIST -->|Tap host row| KEY_MGMT
     SERVER_LIST -->|Tap gear icon| SETTINGS
     PAIRING -->|Pairing complete or cancel| SERVER_LIST
     KEY_MGMT -->|Tap key row| KEY_DETAIL
-    KEY_MGMT -->|Tap "Create Key" FAB| KEY_DETAIL
+    KEY_MGMT -->|Tap Create Key FAB| KEY_DETAIL
     KEY_MGMT -->|Back| SERVER_LIST
     KEY_DETAIL -->|Back / Save / Delete| KEY_MGMT
     SETTINGS -->|Back| SERVER_LIST
