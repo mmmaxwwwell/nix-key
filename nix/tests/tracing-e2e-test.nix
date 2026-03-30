@@ -268,7 +268,7 @@ in
         host.succeed("systemctl --user -M testuser@ stop nix-key-agent.service || true")
         host.succeed(
             "su - testuser -c '"
-            "NIXKEY_OTEL_ENDPOINT=localhost:4317 "
+            "NIXKEY_OTEL_ENDPOINT=127.0.0.1:4317 "
             "NIXKEY_CONTROL_SOCKET_PATH=/tmp/nix-key-test/control.sock "
             "${pkgs.nix-key}/bin/nix-key daemon "
             "--config /home/testuser/.config/nix-key/config.json "
@@ -305,6 +305,10 @@ in
             f"Expected SSH signature block, got: {sig_output[:200]}"
 
     # ── Phase 7: Query Jaeger and verify distributed traces ──
+
+    with subtest("dump daemon log for diagnostics"):
+        daemon_log = host.succeed("cat /tmp/nix-key-daemon.log 2>/dev/null || echo 'NO LOG FILE'")
+        print(f"=== DAEMON LOG ===\n{daemon_log}\n=== END DAEMON LOG ===")
 
     with subtest("wait for traces to be indexed"):
         # OTLP batchers flush periodically (default 5s); give them time to

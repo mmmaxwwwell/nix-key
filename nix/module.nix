@@ -7,10 +7,12 @@
 let
   cfg = config.services.nix-key;
 
-  # When jaeger.enable is true, otelEndpoint is automatically set to localhost:4317.
+  # When jaeger.enable is true, otelEndpoint is automatically set to 127.0.0.1:4317.
+  # Uses 127.0.0.1 instead of localhost to avoid IPv6 resolution issues in NixOS VMs
+  # where localhost resolves to ::1 first but Jaeger only listens on IPv4 (0.0.0.0).
   # The assertion ensures manual otelEndpoint is null when jaeger is enabled.
   effectiveOtelEndpoint =
-    if cfg.tracing.jaeger.enable then "localhost:4317" else cfg.tracing.otelEndpoint;
+    if cfg.tracing.jaeger.enable then "127.0.0.1:4317" else cfg.tracing.otelEndpoint;
 
   # Jaeger v2 requires an explicit config file to set up the in-memory storage
   # pipeline correctly. Without it, the default exporter pipeline fails with

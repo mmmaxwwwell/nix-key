@@ -31,7 +31,10 @@
       ];
 
       # curl is needed for trace submission test, jq for polling Jaeger query API
-      environment.systemPackages = [ pkgs.curl pkgs.jq ];
+      environment.systemPackages = [
+        pkgs.curl
+        pkgs.jq
+      ];
     };
 
   testScript = ''
@@ -53,13 +56,13 @@
 
     # ── config.json has otelEndpoint set automatically ──
 
-    with subtest("config.json otelEndpoint is localhost:4317"):
+    with subtest("config.json otelEndpoint is 127.0.0.1:4317"):
         config_raw = machine.succeed(
             "find /nix/store -maxdepth 1 -name '*nix-key-config.json' | head -1 | xargs cat"
         ).strip()
         config = json.loads(config_raw)
-        assert config["otelEndpoint"] == "localhost:4317", \
-            f"Expected otelEndpoint 'localhost:4317', got {config['otelEndpoint']}"
+        assert config["otelEndpoint"] == "127.0.0.1:4317", \
+            f"Expected otelEndpoint '127.0.0.1:4317', got {config['otelEndpoint']}"
 
     with subtest("config.json jaegerEnable is true"):
         assert config["jaegerEnable"] is True, \
@@ -77,8 +80,8 @@
         )
         assert "NIXKEY_OTEL_ENDPOINT" in unit, \
             "nix-key-agent service should have NIXKEY_OTEL_ENDPOINT env var"
-        assert "localhost:4317" in unit, \
-            "NIXKEY_OTEL_ENDPOINT should be localhost:4317"
+        assert "127.0.0.1:4317" in unit, \
+            "NIXKEY_OTEL_ENDPOINT should be 127.0.0.1:4317"
 
     # ── Jaeger accepts traces via OTLP ──
 
