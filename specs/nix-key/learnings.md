@@ -123,3 +123,9 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 
 - `GoPhoneServer` constructor requires `KeyUnlockManager` (added in T087). The existing `GoPhoneServerTest` still passes only 2 args (keyManager, signRequestQueue) — this is a latent compile error. New tests must pass all 3 args.
 - When testing sign requests through `GoPhoneServer`, keys must be pre-unlocked via `keyUnlockManager.unlock(keyInfo)` to avoid `needsUnlock=true` in `SignRequest`, which would block the auto-approve flow in tests.
+
+## T093 — Remaining Android tests
+
+- `KeyDetailViewModel` can be instantiated in tests with a mock `KeyManager`, a real `KeyUnlockManager()`, and `SavedStateHandle(mapOf("keyId" to "new"))` for create-mode. The ViewModel's `init` block loads the key from `keyId`, so "new" triggers create-mode without KeyManager calls.
+- The None-unlock warning dialog confirm button text is "Disable Unlock" (not "Enable") — the UI text describes the action being taken, not the policy name. Always check the actual Composable source for button labels.
+- `JsonTree.log()` calls `android.util.Log.println()` which requires the Android runtime. Structured logging tests must be `androidTest` (instrumented), not plain unit tests, to exercise the real code path.

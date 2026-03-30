@@ -242,7 +242,7 @@
 - [x] T092 Add multi-host pairing test: pair phone with two mock hosts, verify both stored in EncryptedSharedPreferences, sign requests from each host work independently. [T-AI-18, FR-030]
   **Done**: Multi-host pairing works.
 
-- [ ] T093 Add remaining Android tests: security warnings for auto-approve/none-unlock (T-AI-13), display name editing (T-AI-14), Android structured logging with trace correlation (T-AI-15), expired cert mid-session behavior (T-AI-16), gRPC port conflict error (T-AI-17). [FR-046, FR-048, FR-093, FR-094, FR-E18, FR-E19]
+- [x] T093 Add remaining Android tests: security warnings for auto-approve/none-unlock (T-AI-13), display name editing (T-AI-14), Android structured logging with trace correlation (T-AI-15), expired cert mid-session behavior (T-AI-16), gRPC port conflict error (T-AI-17). [FR-046, FR-048, FR-093, FR-094, FR-E18, FR-E19]
   **Done**: All new T-AI tests pass.
 
 - [ ] T094 Update `data-model.md`: replace "confirmation policy" with unlock policy + signing policy split. Update SSHKey entity state transitions to include locked/unlocked runtime state. Update `UI_FLOW.md`: replace all "confirmation policy" references with two-policy model, add Tailnet indicator and per-key lock indicator to screen descriptions, add loading states to relevant screens. [Stale terminology fix]
