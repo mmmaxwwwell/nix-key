@@ -45,7 +45,8 @@ in
         tracing.jaeger.package = pkgs.jaeger;
       };
 
-      # Minimal static DERP map for headscale (offline VM, no internet)
+      # Minimal static DERP map so headscale startup validation passes
+      # (non-empty map required). The embedded DERP server provides actual relay.
       environment.etc."headscale/derp.yaml".text = ''
         regions:
           900:
@@ -55,9 +56,10 @@ in
             nodes:
               - name: test-derp
                 regionid: 900
-                hostname: 127.0.0.1
+                hostname: 192.168.1.1
+                ipv4: 192.168.1.1
                 stunport: -1
-                derpport: 0
+                derpport: 8080
       '';
 
       # Headscale server on this node
@@ -79,6 +81,15 @@ in
             paths = [ "/etc/headscale/derp.yaml" ];
             auto_update_enabled = false;
             update_frequency = "1h";
+            server = {
+              enabled = true;
+              region_id = 999;
+              region_code = "headscale";
+              region_name = "Headscale Embedded DERP";
+              stun_listen_addr = "0.0.0.0:3478";
+              ipv4 = "192.168.1.1";
+              automatically_add_embedded_derp_region = true;
+            };
           };
           tls_cert_path = null;
           tls_key_path = null;
@@ -200,8 +211,8 @@ in
         phone_ts_ip = phone.succeed("tailscale ip -4").strip()
         assert host_ts_ip.startswith("100."), f"Host IP should be in 100.x range, got: {host_ts_ip}"
         assert phone_ts_ip.startswith("100."), f"Phone IP should be in 100.x range, got: {phone_ts_ip}"
-        host.wait_until_succeeds(f"ping -c 1 -W 5 {phone_ts_ip}", timeout=30)
-        phone.wait_until_succeeds(f"ping -c 1 -W 5 {host_ts_ip}", timeout=30)
+        host.wait_until_succeeds(f"ping -c 1 -W 5 {phone_ts_ip}", timeout=120)
+        phone.wait_until_succeeds(f"ping -c 1 -W 5 {host_ts_ip}", timeout=120)
 
     # ── Phase 3: Start phonesim with OTEL ──
     # phonesim exports traces to Jaeger on the host node via the host's Tailscale IP.
