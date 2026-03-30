@@ -208,7 +208,7 @@
 - [x] T082 Add `make security-scan` Makefile target: runs Trivy, Semgrep (with `p/golang` config), Gitleaks, govulncheck. JSON output to `test-logs/security/<scanner>.json`. Aggregate into `test-logs/security/summary.json` with `{scanners: {name: {findings: N, exit_code: N}}, total_findings: N, pass: bool}`. Add `make validate` target: `make test && make lint && make security-scan`. [T-DX-07, T-DX-08, SC-022]
   **Done**: Both targets work, summary.json generated, validate exits 0 only when all pass.
 
-- [ ] T083 Update CI security job to produce JSON alongside SARIF. For each scanner, add parallel JSON output to `test-logs/security/`. Upload `test-logs/security/` as workflow artifact on every run. Update `scripts/ci-summary.sh` to include per-scanner finding counts in security job entry. [CI/CD, SC-009]
+- [x] T083 Update CI security job to produce JSON alongside SARIF. For each scanner, add parallel JSON output to `test-logs/security/`. Upload `test-logs/security/` as workflow artifact on every run. Update `scripts/ci-summary.sh` to include per-scanner finding counts in security job entry. [CI/CD, SC-009]
   **Done**: CI produces SARIF + JSON, artifacts uploaded, ci-summary.json has per-scanner details.
 
 ### 15e: DX Validation + Cold-Start [depends on 15d]

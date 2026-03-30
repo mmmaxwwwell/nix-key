@@ -105,6 +105,23 @@ jobs_json=$(echo "$jobs_json" | jq --argjson entry "$test_android_entry" '. + [$
 security_result="${JOB_SECURITY:-skipped}"
 security_summary=$(find_summary "security-logs")
 security_entry=$(build_job_entry "security" "$security_result" "$security_summary")
+
+# Enrich security entry with per-scanner finding counts if available
+security_scan_summary=""
+if [ -d "${ARTIFACTS_DIR}/security-logs" ]; then
+  security_scan_summary=$(find "${ARTIFACTS_DIR}/security-logs" -path "*/security/summary.json" -type f 2>/dev/null | head -1)
+fi
+if [ -n "$security_scan_summary" ] && [ -f "$security_scan_summary" ]; then
+  scanners_json=$(jq -c '.scanners' "$security_scan_summary")
+  total_findings=$(jq -r '.total_findings // 0' "$security_scan_summary")
+  scan_pass=$(jq -r '.pass // true' "$security_scan_summary")
+  security_entry=$(echo "$security_entry" | jq \
+    --argjson scanners "$scanners_json" \
+    --argjson total_findings "$total_findings" \
+    --argjson scan_pass "$scan_pass" \
+    '. + {scanners: $scanners, total_findings: $total_findings, scan_pass: $scan_pass}')
+fi
+
 jobs_json=$(echo "$jobs_json" | jq --argjson entry "$security_entry" '. + [$entry]')
 
 # --- Determine overall status ---

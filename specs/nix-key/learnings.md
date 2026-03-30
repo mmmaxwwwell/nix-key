@@ -113,3 +113,8 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 
 - govulncheck JSON output is newline-delimited JSON objects (not a JSON array). Use `jq -s '[.[] | select(.finding != null)] | length'` to count findings.
 - gitleaks with 0 findings writes an empty JSON array `[]` to the report file, not `{}` or nothing. Use `jq 'if type == "array" then length else 0 end'` to count.
+
+## T083 — CI security JSON output
+
+- Trivy action doesn't support dual output formats in one invocation. Run it twice: once for SARIF (with `exit-code: "1"` for CI gating), once for JSON (with `exit-code: "0"` and `continue-on-error: true` so it always produces the file).
+- The `security-logs` artifact path was changed from `test-logs/` (entire directory) to `test-logs/security/` (scoped). The `ci-summary.sh` `find_summary` function searches `<artifacts-dir>/security-logs/` so the summary.json is found at `security-logs/security/summary.json` (artifact name / subpath).
