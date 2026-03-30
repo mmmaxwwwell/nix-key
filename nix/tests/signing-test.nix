@@ -312,8 +312,8 @@ in
     # ── Phase 8: Test timeout (phonesim with 60s delay, signTimeout=5s) ──
 
     with subtest("stop phonesim for timeout test"):
-        phone.succeed("pkill -f phonesim || true")
-        phone.wait_until_fails("pgrep -f phonesim", timeout=10)
+        phone.execute("pkill phonesim")
+        phone.wait_until_fails("pgrep phonesim", timeout=10)
 
     with subtest("start phonesim with 60s sign delay"):
         phone.succeed(
@@ -358,8 +358,8 @@ in
     # ── Phase 9: Test denial (phonesim in deny mode) ──
 
     with subtest("stop phonesim for denial test"):
-        phone.succeed("pkill -f phonesim || true")
-        phone.wait_until_fails("pgrep -f phonesim", timeout=10)
+        phone.execute("pkill phonesim")
+        phone.wait_until_fails("pgrep phonesim", timeout=10)
 
     with subtest("start phonesim in deny mode"):
         phone.succeed(
