@@ -35,3 +35,22 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 
 - Security scanner JSON outputs are in `test-logs/security/{trivy,semgrep,gitleaks,govulncheck}.json`. The "Verify scanners ran" step should be placed after all scanner steps but before "Generate security summary JSON" to ensure all outputs are available.
 - Scanner verification uses `::warning::` (not `::error::`) because missing scanners are advisory — some scanners (e.g., semgrep, gitleaks) use `continue-on-error: true` and may not produce output in all environments.
+
+## T109b — Android CI local verification
+
+- **Gradle wrapper missing**: `gradlew` and `gradle-wrapper.jar` were not checked into the repo. Generated using Gradle 8.11.1 distribution in a temp project and copied the wrapper files.
+- **`settings.gradle.kts` API mismatch**: Used `dependencyResolution` (Gradle 9.x API) instead of `dependencyResolutionManagement` (Gradle 8.x). Also needed `repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)`.
+- **Protobuf Gradle plugin 0.9.4→0.9.6**: Required for Kotlin DSL compatibility. Also needs `import com.google.protobuf.gradle.proto` at top of `build.gradle.kts`.
+- **Version catalog in protobuf DSL**: `libs.versions.protobuf.get()` doesn't resolve inside protobuf DSL blocks. Hardcode version strings (`"4.29.3"`, `"1.68.2"`) instead.
+- **`proto {}` sourceSets scoping**: Must be declared via `android.sourceSets {}` outside the `android {}` block (not inside `sourceSets {}` within `android {}`).
+- **Build-tools version**: Nix SDK only has build-tools 35.0.0; AGP 8.7.3 tries to install 34.0.0 in read-only Nix store. Fix: set `buildToolsVersion = "35.0.0"` explicitly.
+- **AAPT2 ELF patching**: Downloaded AAPT2 binary has wrong dynamic linker for Nix. Use `-Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/35.0.0/aapt2` to use the SDK's pre-patched binary.
+- **protoc-gen-grpc-java ELF patching**: Downloaded from Maven, needs `patchelf --set-interpreter --set-rpath` for Nix dynamic linker and libstdc++.
+- **gomobile broken with Go 1.26**: Nix-packaged gomobile (Dec 2024) sets `GOPATH=gomobile-work` (relative path) which Go 1.26 rejects. Workaround: create stub AAR with gomobile-compatible Java classes.
+- **gomobile stub AAR classes**: Must match gomobile's type mapping exactly — Go `int32` → Java `long` (not `int`). Stub classes: `Key`, `KeyList`, `KeyStore`, `Confirmer`, `PhoneServer`, `Phoneserver`.
+- **HostnameVerifier SAM conversion**: Kotlin lambda `{ _, _ -> true }` doesn't auto-convert for `setHostnameVerifier`. Use explicit `javax.net.ssl.HostnameVerifier { _, _ -> true }`.
+- **BouncyCastle META-INF conflict**: bcpkix, bcutil, bcprov JARs all contain `META-INF/versions/9/OSGI-INF/MANIFEST.MF`. Add to packaging excludes.
+- **Hilt DI bindings**: `TailscaleBackend`, `Context`, and `BiometricManager` need explicit `@Provides` methods in a Hilt `@Module`. Created `AppModule.kt`.
+- **javax.annotation.Generated**: gRPC generated code requires `javax.annotation:javax.annotation-api:1.3.2` dependency.
+- **`BuildConfig` unresolved**: Need `buildConfig = true` in `buildFeatures`.
+- **Android build result**: `assembleDebug` produces 69MB APK; `testDebugUnitTest` runs 5 tests (TraceContextTest) with 0 failures.

@@ -114,7 +114,7 @@ class GrpcServerService : Service() {
                 e.message?.contains("address already in use", ignoreCase = true) == true ||
                 e.message?.contains("EADDRINUSE", ignoreCase = true) == true
             if (isPortConflict) {
-                Timber.e(e, "GrpcServerService: port conflict on %s", address)
+                Timber.e(e, "GrpcServerService: port conflict on port %d", settingsRepository.listenPort)
                 updateNotification("Port ${settingsRepository.listenPort} already in use")
             } else {
                 Timber.e(e, "GrpcServerService: failed to start server")

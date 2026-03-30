@@ -20,7 +20,7 @@ buildGoModule {
     ];
   };
 
-  vendorHash = "sha256-nuaLaq/hyvyBrYeQq9IJfGTbcUCvLBSAK6jczYTanto=";
+  vendorHash = "sha256-wA9YwExysROt5GVUmaDDDsaZYhCddygthmsWIkq9KYo=";
 
   # Pin Go version from nixpkgs (matches flake devShell)
   inherit go;

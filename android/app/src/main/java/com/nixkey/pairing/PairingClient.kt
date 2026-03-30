@@ -52,7 +52,7 @@ class PairingClient @Inject constructor() {
 
         val connection = url.openConnection() as HttpsURLConnection
         connection.sslSocketFactory = sslContext.socketFactory
-        connection.hostnameVerifier = { _, _ -> true }
+        connection.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }
         connection.requestMethod = "POST"
         connection.setRequestProperty("Content-Type", "application/json")
         connection.doOutput = true

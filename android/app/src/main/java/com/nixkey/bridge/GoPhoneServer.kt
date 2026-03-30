@@ -50,7 +50,7 @@ class KeyStoreAdapter(
         return keyList
     }
 
-    override fun sign(fingerprint: String?, data: ByteArray?, flags: Int): ByteArray {
+    override fun sign(fingerprint: String?, data: ByteArray?, flags: Long): ByteArray {
         val fp = fingerprint ?: throw IllegalArgumentException("fingerprint is null")
         val d = data ?: throw IllegalArgumentException("data is null")
         val keys = keyManager.listKeys()

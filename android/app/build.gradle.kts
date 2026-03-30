@@ -1,3 +1,5 @@
+import com.google.protobuf.gradle.proto
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -11,6 +13,7 @@ plugins {
 android {
     namespace = "com.nixkey"
     compileSdk = 35
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "com.nixkey"
@@ -47,30 +50,25 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
     }
 
-    sourceSets {
-        getByName("main") {
-            proto {
-                srcDir("../../proto")
-            }
-        }
-    }
 }
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
+        artifact = "com.google.protobuf:protoc:4.29.3"
     }
     plugins {
         create("grpc") {
-            artifact = "io.grpc:protoc-gen-grpc-java:${libs.versions.grpc.get()}"
+            artifact = "io.grpc:protoc-gen-grpc-java:1.68.2"
         }
     }
     generateProtoTasks {
@@ -85,6 +83,14 @@ protobuf {
                     option("lite")
                 }
             }
+        }
+    }
+}
+
+android.sourceSets {
+    getByName("main") {
+        proto {
+            srcDir("../../proto")
         }
     }
 }
@@ -145,6 +151,9 @@ dependencies {
 
     // Thread-safety annotations
     implementation(libs.jsr305)
+
+    // javax.annotation.Generated (required by protoc-gen-grpc-java generated code)
+    implementation("javax.annotation:javax.annotation-api:1.3.2")
 
     // Logging
     implementation(libs.timber)

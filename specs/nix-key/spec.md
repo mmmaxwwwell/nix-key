@@ -118,13 +118,13 @@ The user manages authorized phones via the `nix-key` CLI:
 A NixOS user adds `nix-key` to their flake inputs and configures `services.nix-key` in their system configuration. The module:
 - Installs the `nix-key` CLI binary
 - Creates a systemd user service `nix-key-agent.service`
-- Sets `SSH_AUTH_SOCK` via `systemd.user.services` environment
+- Sets `SSH_AUTH_SOCK` via `~/.config/environment.d/50-nix-key.conf` (per FR-069a)
 - Writes all settings to `~/.config/nix-key/config.json`
 - Manages certificate directory permissions
 - Merges Nix-declared devices with runtime-paired devices
 - Optionally runs a Jaeger instance for tracing
 
-**Why this priority**: The primary distribution mechanism. Critical for the "super easy to import" goal.
+**Why this priority**: The primary distribution mechanism. Critical for a 3-line flake import experience.
 
 **Independent Test**: NixOS VM test that evaluates the module with a test config, verifies the service starts, config file is written correctly, and SSH_AUTH_SOCK is set.
 
@@ -152,6 +152,25 @@ When OTEL is configured on the host and the phone has accepted tracing during pa
 1. **Given** OTEL is configured on host and phone, **When** a sign request completes, **Then** a trace with spans from both host and phone is visible in the collector.
 2. **Given** OTEL is disabled, **When** a sign request completes, **Then** no trace overhead is added.
 3. **Given** a trace is collected, **Then** the W3C `traceparent` header is present in the mTLS request and the phone's spans are children of the host's spans.
+
+---
+
+### User Story 8 — Non-Vacuous CI & Observable Output Validation (Priority: P2)
+
+The CI pipeline must not silently pass when zero tests run. Every CI job that runs tests must assert a non-zero test count. The pipeline must upload debug artifacts (APK, Go binary) on develop builds so developers can download and test without waiting for a release. All README badges must render correctly. The default branch must contain all files needed for workflow triggers, license detection, and release automation.
+
+**Why this priority**: A vacuously green CI job gives false confidence. The test-android job was reporting 0/0 as success because Gradle exit codes were swallowed by pipe-to-tee. The E2E badge was failing because `main` had no workflows (GitHub uses the default branch's workflow file for `workflow_run` triggers).
+
+**Independent Test**: Push to develop, verify all CI jobs report >0 tests, verify debug artifacts are downloadable, verify all 5 README badges render valid status after merging to main.
+
+**Acceptance Scenarios**:
+
+1. **Given** the test-android job runs and produces 0 JUnit XML files, **When** the verification step runs, **Then** the job exits non-zero with `::error::`.
+2. **Given** the test-host job runs and `summary.json` reports 0 tests, **When** the verification step runs, **Then** the job exits non-zero.
+3. **Given** a push to develop triggers CI, **When** the test-android job completes, **Then** a `debug-apk` artifact is uploaded and downloadable.
+4. **Given** a push to develop triggers CI, **When** the test-host job completes, **Then** a `nix-key-binary` artifact is uploaded and downloadable.
+5. **Given** develop is merged to main, **When** shields.io queries the GitHub API, **Then** the license badge shows "MIT". The release version badge will show "no releases" until a release-please PR is merged (second merge cycle).
+6. **Given** the current `e2e.yml` exists on main, **When** the E2E workflow triggers via `workflow_run`, **Then** it uses the correct workflow file and passes.
 
 ---
 
@@ -386,6 +405,18 @@ These are things nix-key deliberately does NOT do, even though users might reaso
 - **FR-103**: The NixOS module MUST support `services.nix-key.secrets.ageKeyFile` to specify the age identity file for decrypting cert private keys.
 - **FR-104**: `nix-key pair` MUST encrypt all generated private keys with age before writing to disk.
 
+### Functional Requirements — CI Validation & Observable Outputs
+
+- **FR-200**: The `test-android` CI job MUST include `set -o pipefail` before Gradle commands to prevent exit code swallowing via pipe-to-tee.
+- **FR-201**: The `test-android` CI job MUST include a verification step that asserts >0 JUnit XML result files and >0 total tests. Exit non-zero if either is 0.
+- **FR-202**: The `test-host` CI job MUST include a verification step that asserts `test-logs/ci/latest/summary.json` exists and `passed + failed > 0`.
+- **FR-203**: The `test-android` job MUST upload the debug APK as a GitHub Actions artifact (`debug-apk`) on successful develop builds.
+- **FR-204**: The `test-host` job MUST upload the Go binary as a GitHub Actions artifact (`nix-key-binary`) on successful develop builds.
+- **FR-205**: The `security` CI job SHOULD validate that each scanner's JSON output file exists and is >10 bytes.
+- **FR-206**: Verification steps MUST use `if: always()` and produce `::error::` annotations on failure.
+- **FR-207**: All README badges MUST render with valid status (not 404, "not specified") after merging to main. Exception: the GitHub release version badge is expected to show "no releases" until the first release is created via release-please (requires a second merge: release-please PR → main). This is acceptable for new projects.
+- **FR-208**: The default branch (`main`) MUST contain all workflow files, LICENSE, README, and release config needed for badge rendering, `workflow_run` triggers, and release automation.
+
 ### Key Entities
 
 - **Device**: A paired phone. Attributes: name, Tailscale IP, listening port, cert fingerprint, client cert path (optional), last seen timestamp, pairing source (nix-declared or runtime).
@@ -612,6 +643,9 @@ These are things nix-key deliberately does NOT do, even though users might reaso
 - **SC-020**: Config fail-fast on invalid input, age encryption for all mTLS private keys at rest, decryption into memory only [validates FR-098 through FR-104]
 - **SC-021**: Cold-start creates dirs with correct permissions, warm-start reuses state, pairing is idempotent [validates T-CS-01 through T-CS-03]
 - **SC-022**: All Makefile targets work correctly (test, lint, build, bench, security-scan, validate, cover, proto, generate-fixtures, clean) [validates T-DX-01 through T-DX-11]
+- **SC-023**: No CI job can report 0 passed / 0 failed and exit green [validates FR-201, FR-202]
+- **SC-024**: Every successful CI run on develop produces downloadable debug APK and Go binary artifacts [validates FR-203, FR-204]
+- **SC-025**: All 5 README badges render valid status after merging develop to main [validates FR-207, FR-208]
 
 ---
 

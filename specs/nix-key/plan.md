@@ -139,11 +139,14 @@ nix-key/
 │   ├── module.nix                  # NixOS module (services.nix-key)
 │   ├── package.nix                 # Go binary derivation
 │   ├── phonesim.nix                # Phone simulator derivation
+│   ├── android-apk.nix             # Android APK build
+│   ├── android-emulator.nix        # Android emulator for CI E2E
+│   ├── jaeger.nix                  # Jaeger v2 package (GitHub releases)
+│   ├── infer.nix                   # Facebook Infer (Android static analysis)
 │   └── tests/
 │       ├── service-test.nix        # Service lifecycle, config, SSH_AUTH_SOCK
 │       ├── pairing-test.nix        # Pairing over headscale
-│       ├── signing-test.nix        # Signing over headscale
-│       └── android-e2e-test.nix    # Android emulator E2E
+│       └── signing-test.nix        # Signing over headscale
 ├── flake.nix
 ├── flake.lock
 ├── Makefile
@@ -154,6 +157,7 @@ nix-key/
     └── workflows/
         ├── ci.yml                  # lint + test-host + test-android + security
         ├── e2e.yml                 # Android emulator E2E (KVM)
+        ├── fuzz.yml                # Generative fuzzing on develop push
         └── release.yml             # Build + tag + SBOM (on push to main)
 ```
 
@@ -305,6 +309,9 @@ stateDiagram-v2
 | SC-020 | Integration + NixOS VM | Age identity, test certs | Keys encrypted on disk, decrypted in memory only, ageKeyFile works | Age identity |
 | SC-021 | Integration + NixOS VM | Empty state dirs, existing state | Dirs created with 0700, warm start reuses state, pair is idempotent | Filesystem |
 | SC-022 | Integration | Working project | All Makefile targets exit 0, produce expected output | Nix devshell |
+| SC-023 | CI | N/A | test-android and test-host fail when 0 tests reported | GitHub Actions |
+| SC-024 | CI | N/A | debug-apk and nix-key-binary artifacts uploaded on develop | GitHub Actions |
+| SC-025 | Post-merge | N/A | All 5 README badges render valid status | curl + SVG parsing |
 
 ## Critical Path (User Perspective)
 
@@ -338,6 +345,40 @@ Install flake → enable service → rebuild → `nix-key pair` → scan QR on p
 | Age decrypt (startup, not per-request) | < 50ms | `BenchmarkAgeDecrypt` | > 300% regression → fail |
 | Phone signing (including unlock + prompt) | < 1500ms | E2E latency test | p95 > 2s → fail |
 | Margin | 150ms | — | — |
+
+## CI Hardening & Observable Output Validation (Phase 18-19)
+
+### Problem Statement
+
+The CI pipeline has a class of silent failures where jobs exit green despite producing no results:
+- **test-android**: Gradle exit codes swallowed by pipe-to-tee (`cmd | tee log.txt` succeeds if `tee` succeeds). Job reports 0 passed / 0 failed as success.
+- **Default branch gap**: `main` contains only `.claude/`, `.specify/`, `.gitignore` — no source code, workflows, or LICENSE. This causes: workflow badges 404, license badge "not specified", E2E badge failing (GitHub uses main's stale `e2e.yml` for `workflow_run` triggers), release automation broken.
+
+### Architecture
+
+All changes are in `.github/workflows/ci.yml` (additive steps within existing jobs):
+
+**test-android job**:
+1. Add `set -o pipefail` before Gradle commands
+2. Add "Verify tests ran" step (`if: always()`) — count JUnit XML files, extract test count, exit 1 if 0
+3. Add "Upload debug APK" step — `actions/upload-artifact@v4` with `debug-apk` name
+
+**test-host job**:
+1. Add "Verify tests ran" step (`if: always()`) — check `summary.json` exists, assert `passed + failed > 0`
+2. Add "Upload Go binary" step — `nix build` + `actions/upload-artifact@v4` with `nix-key-binary` name
+
+**security job**:
+1. Add "Verify scanners ran" step (`if: always()`) — check each scanner's JSON output exists and >10 bytes, advisory `::warning::` (not hard failure)
+
+**Post-CI observable output validation**:
+1. Verify artifacts uploaded via `gh run view --json artifacts`
+2. Verify default branch readiness before PR to main (workflows, LICENSE, README, release config)
+3. Verify `workflow_run` triggers reference workflows that exist on the default branch
+4. Fetch all README badge URLs, verify HTTP 200 and valid SVG content post-merge
+
+### Test Plan
+
+SC-023 through SC-025 are included in the main Test Plan Matrix above.
 
 ## Complexity Tracking
 

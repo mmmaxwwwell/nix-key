@@ -1,0 +1,34 @@
+package com.nixkey.di
+
+import android.content.Context
+import androidx.biometric.BiometricManager
+import com.nixkey.tailscale.TailscaleBackend
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideContext(@ApplicationContext context: Context): Context = context
+
+    @Provides
+    @Singleton
+    fun provideBiometricManager(@ApplicationContext context: Context): BiometricManager =
+        BiometricManager.from(context)
+
+    @Provides
+    @Singleton
+    fun provideTailscaleBackend(): TailscaleBackend = object : TailscaleBackend {
+        override fun start(authKey: String?, dataDir: String): String? = null
+        override fun stop() {}
+        override fun getIp(): String? = null
+        override fun isRunning(): Boolean = false
+    }
+}

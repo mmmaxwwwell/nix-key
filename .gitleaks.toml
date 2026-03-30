@@ -12,4 +12,6 @@ paths = [
   # Go sum and lock files
   '''go\.sum''',
   '''flake\.lock''',
+  # Vendored third-party code (not our secrets)
+  '''vendor/.*''',
 ]
