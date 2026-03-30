@@ -4,9 +4,13 @@ logs/
 validate/
 BLOCKED.md
 DEFER-*.md
-specs/nix-key/attempts/
+ci-debug/
+REVIEW-TODO.md
+**/validate/
+**/attempts/
 specs/nix-key/benchark_prompt.md
-.claude/
+specs/nix-key/learnings.md
+.claude/settings.json
 
 # Environment
 .env
