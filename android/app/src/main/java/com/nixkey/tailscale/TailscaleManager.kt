@@ -207,6 +207,27 @@ class TailscaleManager @Inject constructor(
         return dir.absolutePath
     }
 
+    /**
+     * Handle stale authentication (FR-115).
+     *
+     * When the Tailscale node is running but cannot obtain an IP
+     * (e.g., auth key expired or revoked), this method stops the node,
+     * clears stored credentials, and transitions to DISCONNECTED so
+     * the UI can present a re-auth flow instead of crashing.
+     *
+     * @return true if stale auth was detected and handled
+     */
+    fun handleStaleAuth(): Boolean {
+        if (!running.get()) return false
+        val ip = backend.getIp()
+        if (ip != null) return false
+
+        Timber.w("TailscaleManager: stale auth detected, triggering re-auth flow")
+        stop()
+        clearAuthKey()
+        return true
+    }
+
     companion object {
         private const val PREFS_FILE = "nixkey_tailscale"
         private const val KEY_AUTH_KEY = "tailscale_auth_key"

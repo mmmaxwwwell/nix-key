@@ -29,6 +29,7 @@ data class PairingState(
     val otelAccepted: Boolean = false,
     val error: String? = null,
     val isPairing: Boolean = false,
+    val pairingStatusText: String = "",
 )
 
 enum class PairingPhase {
@@ -109,6 +110,7 @@ class PairingViewModel @Inject constructor(
                 phase = PairingPhase.PAIRING,
                 isPairing = true,
                 otelAccepted = otelAccepted,
+                pairingStatusText = "Connecting to host...",
             )
         }
 
@@ -120,6 +122,8 @@ class PairingViewModel @Inject constructor(
 
                 // Determine phone server cert alias: reuse if one exists, else use default
                 val serverCertAlias = getOrCreateServerCertAlias()
+
+                _state.update { it.copy(pairingStatusText = "Waiting for host approval...") }
 
                 // POST to host pairing endpoint
                 val response = pairingClient.pair(

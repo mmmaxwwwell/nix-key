@@ -123,7 +123,7 @@ fun PairingScreen(
                     )
                 }
                 PairingPhase.PAIRING -> {
-                    PairingProgressContent()
+                    PairingProgressContent(statusText = state.pairingStatusText)
                 }
                 PairingPhase.SUCCESS -> {
                     // LaunchedEffect above handles navigation
@@ -257,14 +257,24 @@ fun CameraPreviewWithScanner(
             modifier = Modifier.fillMaxSize(),
         )
 
-        Text(
-            text = "Point camera at the QR code",
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(32.dp),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "Scanning...",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Point camera at the QR code",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }
 
@@ -319,7 +329,7 @@ fun ConfirmOtelDialog(
 }
 
 @Composable
-private fun PairingProgressContent() {
+private fun PairingProgressContent(statusText: String) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
@@ -328,7 +338,7 @@ private fun PairingProgressContent() {
             CircularProgressIndicator(modifier = Modifier.size(48.dp))
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Pairing with host...",
+                text = statusText.ifEmpty { "Pairing with host..." },
                 style = MaterialTheme.typography.bodyLarge,
             )
         }

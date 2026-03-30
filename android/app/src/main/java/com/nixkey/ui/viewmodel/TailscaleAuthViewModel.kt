@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.nixkey.tailscale.TailscaleManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +37,7 @@ class TailscaleAuthViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(TailscaleAuthState())
     val state: StateFlow<TailscaleAuthState> = _state.asStateFlow()
+    private var connectJob: Job? = null
 
     fun onAuthKeyChanged(key: String) {
         _state.update { it.copy(authKey = key) }
@@ -54,9 +57,23 @@ class TailscaleAuthViewModel @Inject constructor(
             )
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
+        connectJob?.cancel()
+        connectJob = viewModelScope.launch(Dispatchers.IO) {
             try {
+                val timeoutJob = launch {
+                    delay(CONNECTION_TIMEOUT_MS)
+                    if (_state.value.phase == TailscaleAuthPhase.CONNECTING) {
+                        Timber.w("Tailscale auth key connection timed out")
+                        _state.update {
+                            it.copy(
+                                phase = TailscaleAuthPhase.ERROR,
+                                error = "Connection timed out. Check your network and try again.",
+                            )
+                        }
+                    }
+                }
                 val oauthUrl = tailscaleManager.start(key)
+                timeoutJob.cancel()
                 if (oauthUrl != null) {
                     _state.update {
                         it.copy(
@@ -88,9 +105,23 @@ class TailscaleAuthViewModel @Inject constructor(
             )
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
+        connectJob?.cancel()
+        connectJob = viewModelScope.launch(Dispatchers.IO) {
             try {
+                val timeoutJob = launch {
+                    delay(CONNECTION_TIMEOUT_MS)
+                    if (_state.value.phase == TailscaleAuthPhase.CONNECTING) {
+                        Timber.w("Tailscale OAuth connection timed out")
+                        _state.update {
+                            it.copy(
+                                phase = TailscaleAuthPhase.ERROR,
+                                error = "Connection timed out. Check your network and try again.",
+                            )
+                        }
+                    }
+                }
                 val oauthUrl = tailscaleManager.start(null)
+                timeoutJob.cancel()
                 if (oauthUrl != null) {
                     _state.update {
                         it.copy(
@@ -121,6 +152,8 @@ class TailscaleAuthViewModel @Inject constructor(
     }
 
     fun retry() {
+        connectJob?.cancel()
+        connectJob = null
         // Stop if still running from a failed attempt
         if (tailscaleManager.isRunning()) {
             tailscaleManager.stop()
@@ -128,5 +161,9 @@ class TailscaleAuthViewModel @Inject constructor(
         _state.update {
             TailscaleAuthState(authKey = it.authKey)
         }
+    }
+
+    companion object {
+        private const val CONNECTION_TIMEOUT_MS = 30_000L
     }
 }

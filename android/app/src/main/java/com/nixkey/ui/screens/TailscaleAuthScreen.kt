@@ -129,7 +129,7 @@ fun TailscaleAuthContent(
                     CircularProgressIndicator(modifier = Modifier.size(48.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Joining Tailnet...",
+                        text = "Connecting to Tailnet...",
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }

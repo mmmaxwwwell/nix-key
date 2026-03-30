@@ -230,7 +230,7 @@
 - [x] T088 Implement persistent Tailnet connection indicator across all screens (FR-110): green/Connected, yellow/Connecting, red/Disconnected. Implement per-key lock/unlock indicator on key list reflecting runtime decrypt state (FR-111). [T-UI-01, T-UI-02, SC-014]
   **Done**: Indicators visible on all screens, correct states.
 
-- [ ] T089 Implement loading states for all async operations. Tailscale auth: "Connecting to Tailnet..." with spinner, error+retry on failure/timeout (FR-112). Pairing: "Scanning...", "Connecting to host...", "Waiting for host approval..." with error+retry (FR-113). gRPC startup: "Starting nix-key..." notification, "nix-key active" only when listening (FR-114). Stale auth: re-auth flow instead of crash (FR-115). Port conflict: specific error notification (FR-E19). [T-UI-03, T-UI-04, SC-014]
+- [x] T089 Implement loading states for all async operations. Tailscale auth: "Connecting to Tailnet..." with spinner, error+retry on failure/timeout (FR-112). Pairing: "Scanning...", "Connecting to host...", "Waiting for host approval..." with error+retry (FR-113). gRPC startup: "Starting nix-key..." notification, "nix-key active" only when listening (FR-114). Stale auth: re-auth flow instead of crash (FR-115). Port conflict: specific error notification (FR-E19). [T-UI-03, T-UI-04, SC-014]
   **Done**: All async ops show loading→ready or loading→error states, never premature "ready".
 
 - [ ] T090 Add `@GuardedBy`/`@ThreadSafe` annotations to all concurrent Kotlin code: GoPhoneServer, GrpcServerService, KeyManager, HostRepository, TailscaleManager. Add Infer/RacerD to Nix devshell. Run `infer run --racerd-only -- ./gradlew assembleDebug`. Add to CI lint job. Fix any races found. [Concurrency, Security]

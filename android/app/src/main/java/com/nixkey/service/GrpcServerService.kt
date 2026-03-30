@@ -15,6 +15,7 @@ import com.nixkey.data.SettingsRepository
 import com.nixkey.tailscale.TailscaleManager
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
+import java.net.BindException
 import javax.inject.Inject
 
 /**
@@ -52,7 +53,7 @@ class GrpcServerService : Service() {
             }
         }
 
-        startForeground(NOTIFICATION_ID, buildNotification("Starting..."))
+        startForeground(NOTIFICATION_ID, buildNotification("Starting nix-key..."))
         startServer()
         return START_STICKY
     }
@@ -78,8 +79,14 @@ class GrpcServerService : Service() {
 
             val ip = tailscaleManager.getIp()
             if (ip == null) {
-                Timber.e("GrpcServerService: no Tailscale IP available")
-                updateNotification("No Tailscale IP")
+                // FR-115: detect stale auth and trigger re-auth instead of staying stuck
+                if (tailscaleManager.handleStaleAuth()) {
+                    Timber.w("GrpcServerService: stale Tailscale auth, re-authentication required")
+                    updateNotification("Tailscale re-auth required")
+                } else {
+                    Timber.e("GrpcServerService: no Tailscale IP available")
+                    updateNotification("No Tailscale IP")
+                }
                 return
             }
 
@@ -97,9 +104,20 @@ class GrpcServerService : Service() {
             goPhoneServer.start(address, otelEndpoint)
             Timber.i("GrpcServerService: gRPC server started on %s", address)
             updateNotification("nix-key active")
+        } catch (e: BindException) {
+            Timber.e(e, "GrpcServerService: port %d already in use", settingsRepository.listenPort)
+            updateNotification("Port ${settingsRepository.listenPort} already in use")
         } catch (e: Exception) {
-            Timber.e(e, "GrpcServerService: failed to start server")
-            updateNotification("Server error")
+            val isPortConflict = e.cause is BindException ||
+                e.message?.contains("address already in use", ignoreCase = true) == true ||
+                e.message?.contains("EADDRINUSE", ignoreCase = true) == true
+            if (isPortConflict) {
+                Timber.e(e, "GrpcServerService: port conflict on %s", address)
+                updateNotification("Port ${settingsRepository.listenPort} already in use")
+            } else {
+                Timber.e(e, "GrpcServerService: failed to start server")
+                updateNotification("Server error: ${e.message}")
+            }
         }
     }
 
