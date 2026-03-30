@@ -134,3 +134,8 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 
 - `make proto` fails if `gen/` directory doesn't exist (e.g., after `make clean-all`). Fix: add `mkdir -p $(GEN_DIR)/nixkey/v1` before `protoc`.
 - `make clean-all` with `rm -rf gen/` deletes tracked fuzz test files (`gen/nixkey/v1/fuzz_test.go` and `testdata/`). Fix: use `find gen/ -name '*.pb.go' -delete` to only remove generated protobuf files.
+
+## T085 — Cold-start and idempotency tests
+
+- The control server command for status is `"get-status"`, not `"status"`. The `handleCommand` switch uses `"get-status"`. Using `"status"` returns `{status: "error", error: "unknown command: status"}`.
+- Pairing-level tests that need access to unexported functions (`processPairingResult`, `generateClientCertPair`, `ensureAgeIdentity`) must live in the `pairing` package. Go's `export_test.go` pattern only works within the same package's test build, not for external test packages.
