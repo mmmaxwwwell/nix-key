@@ -267,7 +267,7 @@
 - [x] T100 [P] Fix exit code swallowing in test-android Gradle step: add `set -o pipefail` before `./gradlew assembleDebug testDebugUnitTest` in `.github/workflows/ci.yml` [FR-200]
   **Done when**: Gradle failures cause the step to exit non-zero even when piped through tee.
 
-- [ ] T101 [P] Add "Verify tests ran" step to test-android job in `.github/workflows/ci.yml`: count JUnit XML files in `android/app/build/test-results/`, extract total test count, exit non-zero if 0 files or 0 tests, use `if: always()` with `::error::` annotation [FR-201, FR-206]
+- [x] T101 [P] Add "Verify tests ran" step to test-android job in `.github/workflows/ci.yml`: count JUnit XML files in `android/app/build/test-results/`, extract total test count, exit non-zero if 0 files or 0 tests, use `if: always()` with `::error::` annotation [FR-201, FR-206]
   **Done when**: test-android job fails with clear error when no tests ran.
 
 - [x] T102 [P] Add "Verify tests ran" step to test-host job in `.github/workflows/ci.yml`: check `test-logs/ci/latest/summary.json` exists, parse `passed + failed` with jq, exit non-zero if total is 0 or file missing, use `if: always()` with `::error::` annotation [FR-202, FR-206]
