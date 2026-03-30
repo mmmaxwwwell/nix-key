@@ -130,6 +130,9 @@
             // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/tracing-e2e-test.nix")) {
               tracing-e2e-test = callTest (testDir + "/tracing-e2e-test.nix");
             }
+            // nixpkgs.lib.optionalAttrs (builtins.pathExists (testDir + "/adversarial-test.nix")) {
+              adversarial-test = callTest (testDir + "/adversarial-test.nix");
+            }
           );
       }
     );

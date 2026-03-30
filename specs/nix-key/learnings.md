@@ -91,3 +91,9 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 
 - Go gRPC server port binding errors from gomobile may be wrapped in a generic `Exception` rather than `BindException`. Check both `e.cause is BindException` and message substring matching for "address already in use" / "EADDRINUSE" to reliably detect port conflicts.
 - For connection timeout in ViewModels, use a child coroutine with `delay()` + state check rather than `withTimeout()`, because `withTimeout` would cancel the parent coroutine and prevent clean error state updates. The child timeout job is cancelled on success.
+
+## T081 — Adversarial VM Test
+
+- The rogue node running `openssl s_server` with adversarial certs needs firewall ports opened on the `tailscale0` interface. Without this, the host daemon cannot reach the TLS servers, causing connection timeout instead of cert-validation rejection.
+- `grpc.NewClient` (gRPC-go v1.67+) is lazy — it does not dial on creation. TLS cert verification via `VerifyPeerCertificate` only runs when the first RPC (e.g., `Ping`) triggers the actual connection. So `mtls.DialMTLS` returns successfully; the cert failure appears as a Ping RPC error.
+- In NixOS VM tests with 3 nodes (host, phone, rogue) all joining headscale, create a separate preauthkey for each node. Reusing the same key works but makes debugging harder when tailnet issues arise.
