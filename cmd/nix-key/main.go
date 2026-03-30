@@ -21,8 +21,11 @@ var daemonCmd = &cobra.Command{
 	Use:   "daemon",
 	Short: "Run the nix-key SSH agent daemon",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("daemon: not yet implemented")
-		return nil
+		configPath, _ := cmd.Flags().GetString("config")
+		if configPath == "" {
+			configPath = defaultConfigPath()
+		}
+		return runDaemon(configPath)
 	},
 }
 
