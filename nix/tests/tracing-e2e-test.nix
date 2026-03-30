@@ -264,9 +264,12 @@ in
     # ── Phase 5: Start nix-key daemon with OTEL ──
 
     with subtest("start nix-key daemon with OTEL"):
+        # Stop the auto-started systemd user service (it booted with no devices)
+        host.succeed("systemctl --user -M testuser@ stop nix-key-agent.service || true")
         host.succeed(
             "su - testuser -c '"
             "NIXKEY_OTEL_ENDPOINT=localhost:4317 "
+            "NIXKEY_CONTROL_SOCKET_PATH=/tmp/nix-key-test/control.sock "
             "${pkgs.nix-key}/bin/nix-key daemon "
             "--config /home/testuser/.config/nix-key/config.json "
             ">/tmp/nix-key-daemon.log 2>&1 &'"

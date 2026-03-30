@@ -261,8 +261,11 @@ in
     # ── Phase 5: Start nix-key daemon ──
 
     with subtest("start nix-key daemon"):
+        # Stop the auto-started systemd user service (it booted with no devices)
+        host.succeed("systemctl --user -M testuser@ stop nix-key-agent.service || true")
         host.succeed(
             "su - testuser -c '"
+            "NIXKEY_CONTROL_SOCKET_PATH=/tmp/nix-key-test/control.sock "
             "${pkgs.nix-key}/bin/nix-key daemon "
             "--config /home/testuser/.config/nix-key/config.json "
             ">/tmp/nix-key-daemon.log 2>&1 &'"
@@ -276,6 +279,8 @@ in
     # ── Phase 6: Test ssh-add -L lists phonesim keys ──
 
     with subtest("ssh-add -L lists phonesim keys"):
+        # Capture daemon log for diagnostics if listing fails
+        daemon_log = host.succeed("cat /tmp/nix-key-daemon.log 2>/dev/null || true")
         keys_output = host.succeed(
             "su - testuser -c 'SSH_AUTH_SOCK=${agentSocketPath} ssh-add -L'"
         ).strip()
@@ -326,6 +331,7 @@ in
         host.succeed(
             "su - testuser -c '"
             "NIXKEY_SIGN_TIMEOUT=5 "
+            "NIXKEY_CONTROL_SOCKET_PATH=/tmp/nix-key-test/control.sock "
             "${pkgs.nix-key}/bin/nix-key daemon "
             "--config /home/testuser/.config/nix-key/config.json "
             ">/tmp/nix-key-daemon-timeout.log 2>&1 &'"
@@ -370,6 +376,7 @@ in
         )
         host.succeed(
             "su - testuser -c '"
+            "NIXKEY_CONTROL_SOCKET_PATH=/tmp/nix-key-test/control.sock "
             "${pkgs.nix-key}/bin/nix-key daemon "
             "--config /home/testuser/.config/nix-key/config.json "
             ">/tmp/nix-key-daemon-deny.log 2>&1 &'"
