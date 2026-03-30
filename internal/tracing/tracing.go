@@ -7,9 +7,11 @@ package tracing
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -53,10 +55,13 @@ func Init(ctx context.Context, endpoint *string) (*Provider, error) {
 	}
 
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exp),
+		sdktrace.WithBatcher(exp, sdktrace.WithBatchTimeout(2*time.Second)),
 		sdktrace.WithResource(res),
 	)
 
+	// Set W3C trace context propagator so otelgrpc handlers inject/extract
+	// traceparent headers for distributed tracing across host and phone.
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 	otel.SetTracerProvider(tp)
 
 	return &Provider{

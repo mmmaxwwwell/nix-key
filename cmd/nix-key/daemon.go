@@ -89,6 +89,9 @@ func runDaemon(configPath string) error {
 	if err != nil {
 		return fmt.Errorf("initializing tracing: %w", err)
 	}
+	if cfg.OtelEndpoint != nil && *cfg.OtelEndpoint != "" {
+		fmt.Fprintf(os.Stderr, "nix-key: tracing enabled, endpoint=%s\n", *cfg.OtelEndpoint)
+	}
 
 	// Set up shutdown manager
 	sm := daemon.NewShutdownManager(30 * time.Second)
