@@ -129,7 +129,13 @@ func main() {
 	fmt.Println("Generating age identity and encrypted file...")
 	generateAgeFixtures(outDir)
 
-	// 7. Print fixture summary
+	// 7. Adversarial cert fixtures
+	fmt.Println("\nGenerating adversarial cert fixtures...")
+	advDir := filepath.Join(outDir, "adversarial")
+	must(os.MkdirAll(advDir, 0o755))
+	generateAdversarialFixtures(advDir, caCert, caPriv)
+
+	// 8. Print fixture summary
 	printSummary(caCert, hostCert, phoneCert, ed25519Pub, ecdsaPub)
 
 	fmt.Println("\nAll fixtures generated in", outDir)
@@ -284,6 +290,141 @@ func extractAgeRecipient(content string) string {
 		}
 	}
 	panic("could not extract age recipient from identity file")
+}
+
+func generateAdversarialFixtures(advDir string, caCert *x509.Certificate, caKey ed25519.PrivateKey) {
+	// 1. Expired client cert — valid from 2020 to 2021 (already expired)
+	fmt.Println("  [ADV-01] Expired client cert...")
+	expiredCert, expiredKey := generateAdversarialLeafCert(
+		deterministicReader("adv-expired"),
+		caCert, caKey, "adv-expired-client",
+		[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	writePEM(filepath.Join(advDir, "expired-client-cert.pem"), "CERTIFICATE", expiredCert.Raw)
+	expiredKeyBytes, err := x509.MarshalPKCS8PrivateKey(expiredKey)
+	must(err)
+	writePEM(filepath.Join(advDir, "expired-client-key.pem"), "PRIVATE KEY", expiredKeyBytes)
+
+	// 2. Not-yet-valid cert — valid from 2099 to 2100
+	fmt.Println("  [ADV-02] Not-yet-valid cert...")
+	futureCert, futureKey := generateAdversarialLeafCert(
+		deterministicReader("adv-future"),
+		caCert, caKey, "adv-future-client",
+		[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	writePEM(filepath.Join(advDir, "future-client-cert.pem"), "CERTIFICATE", futureCert.Raw)
+	futureKeyBytes, err := x509.MarshalPKCS8PrivateKey(futureKey)
+	must(err)
+	writePEM(filepath.Join(advDir, "future-client-key.pem"), "PRIVATE KEY", futureKeyBytes)
+
+	// 3. Cert signed by a different (rogue) CA
+	fmt.Println("  [ADV-03] Wrong-CA cert...")
+	rogueCA, rogueCAKey := generateRogueCA(deterministicReader("adv-rogue-ca"))
+	writePEM(filepath.Join(advDir, "rogue-ca-cert.pem"), "CERTIFICATE", rogueCA.Raw)
+	rogueCAKeyBytes, err := x509.MarshalPKCS8PrivateKey(rogueCAKey)
+	must(err)
+	writePEM(filepath.Join(advDir, "rogue-ca-key.pem"), "PRIVATE KEY", rogueCAKeyBytes)
+
+	wrongCACert, wrongCAKey := generateAdversarialLeafCert(
+		deterministicReader("adv-wrong-ca"),
+		rogueCA, rogueCAKey, "adv-wrong-ca-client",
+		[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2035, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	writePEM(filepath.Join(advDir, "wrong-ca-client-cert.pem"), "CERTIFICATE", wrongCACert.Raw)
+	wrongCAKeyBytes, err := x509.MarshalPKCS8PrivateKey(wrongCAKey)
+	must(err)
+	writePEM(filepath.Join(advDir, "wrong-ca-client-key.pem"), "PRIVATE KEY", wrongCAKeyBytes)
+
+	// 4. Cert with wrong EKU (server auth instead of client auth)
+	fmt.Println("  [ADV-04] Wrong-EKU cert...")
+	wrongEKUCert, wrongEKUKey := generateAdversarialLeafCert(
+		deterministicReader("adv-wrong-eku"),
+		caCert, caKey, "adv-wrong-eku-client",
+		[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, // should be ClientAuth
+		time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2035, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	writePEM(filepath.Join(advDir, "wrong-eku-client-cert.pem"), "CERTIFICATE", wrongEKUCert.Raw)
+	wrongEKUKeyBytes, err := x509.MarshalPKCS8PrivateKey(wrongEKUKey)
+	must(err)
+	writePEM(filepath.Join(advDir, "wrong-eku-client-key.pem"), "PRIVATE KEY", wrongEKUKeyBytes)
+
+	// 5. Valid cert not in trust store (unpaired device) — signed by legitimate CA
+	//    but represents a device that was never registered/paired
+	fmt.Println("  [ADV-05] Unpaired device cert...")
+	unpairedCert, unpairedKey := generateAdversarialLeafCert(
+		deterministicReader("adv-unpaired"),
+		caCert, caKey, "adv-unpaired-device",
+		[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2035, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	writePEM(filepath.Join(advDir, "unpaired-client-cert.pem"), "CERTIFICATE", unpairedCert.Raw)
+	unpairedKeyBytes, err := x509.MarshalPKCS8PrivateKey(unpairedKey)
+	must(err)
+	writePEM(filepath.Join(advDir, "unpaired-client-key.pem"), "PRIVATE KEY", unpairedKeyBytes)
+
+	fmt.Printf("  All adversarial fixtures generated in %s\n", advDir)
+}
+
+func generateRogueCA(rng io.Reader) (*x509.Certificate, ed25519.PrivateKey) {
+	pub, priv, err := ed25519.GenerateKey(rng)
+	must(err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(99),
+		Subject: pkix.Name{
+			Organization: []string{"rogue-org"},
+			CommonName:   "Rogue CA",
+		},
+		NotBefore:             time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		NotAfter:              time.Date(2035, 1, 1, 0, 0, 0, 0, time.UTC),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            1,
+	}
+
+	certDER, err := x509.CreateCertificate(rng, template, template, pub, priv)
+	must(err)
+
+	cert, err := x509.ParseCertificate(certDER)
+	must(err)
+
+	return cert, priv
+}
+
+// generateAdversarialLeafCert creates a leaf certificate with custom validity and EKU.
+func generateAdversarialLeafCert(rng io.Reader, caCert *x509.Certificate, caKey ed25519.PrivateKey, cn string, ekus []x509.ExtKeyUsage, notBefore, notAfter time.Time) (*x509.Certificate, ed25519.PrivateKey) {
+	pub, priv, err := ed25519.GenerateKey(rng)
+	must(err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(100), // distinct from normal fixtures
+		Subject: pkix.Name{
+			Organization: []string{"nix-key-test"},
+			CommonName:   cn,
+		},
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           ekus,
+		BasicConstraintsValid: true,
+	}
+
+	certDER, err := x509.CreateCertificate(rng, template, caCert, pub, caKey)
+	must(err)
+
+	cert, err := x509.ParseCertificate(certDER)
+	must(err)
+
+	return cert, priv
 }
 
 func printSummary(caCert, hostCert, phoneCert *x509.Certificate, ed25519Pub, ecdsaPub ssh.PublicKey) {

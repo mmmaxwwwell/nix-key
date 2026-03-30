@@ -197,7 +197,7 @@
 
 ### 15c: Adversarial VM Tests [P with 15a, 15b, 15d]
 
-- [ ] T080 Add adversarial cert fixtures to `test/fixtures/gen/`: deterministic adversarial certificates — (1) expired client cert, (2) not-yet-valid cert, (3) cert signed by different CA, (4) cert with wrong EKU, (5) valid cert not in trust store (unpaired device). All from fixed seeds. Add to `make generate-fixtures`. [T-ADV-01 through T-ADV-06] [produces: adversarial cert fixtures]
+- [x] T080 Add adversarial cert fixtures to `test/fixtures/gen/`: deterministic adversarial certificates — (1) expired client cert, (2) not-yet-valid cert, (3) cert signed by different CA, (4) cert with wrong EKU, (5) valid cert not in trust store (unpaired device). All from fixed seeds. Add to `make generate-fixtures`. [T-ADV-01 through T-ADV-06] [produces: adversarial cert fixtures]
   **Done**: `test/fixtures/adversarial/` contains all 5 cert types.
 
 - [ ] T081 Write `nix/tests/adversarial-test.nix`: NixOS VM test with `rogue` node alongside legitimate host and phonesim. Tests: (1) expired cert → rejected, (2) wrong-CA cert → rejected, (3) unpaired cert → rejected, (4) connection on non-Tailscale interface (raw eth0) → rejected, (5) replayed pairing token → rejected, (6) error responses leak no internal details. Use `host.fail(...)` for adversarial assertions. Enable firewall. [T-ADV-01 through T-ADV-06, SC-011] [consumes: adversarial cert fixtures]

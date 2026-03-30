@@ -76,3 +76,7 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 - The existing `ConfirmationPolicy` enum becomes the "signing policy" (per-sign behavior), while the new `UnlockPolicy` enum controls unlock-to-use behavior. Both are independent per-key settings stored separately in EncryptedSharedPreferences.
 - `KeyUnlockManager` uses `ConcurrentHashMap` for thread-safe unlock state — no lock contention with the sign request queue. State is exposed as `StateFlow<Set<String>>` of fingerprints for reactive UI updates.
 - `combinedClickable` (from `foundation`) requires `@OptIn(ExperimentalFoundationApi::class)` — don't import `clickable` alongside it or lint will flag unused imports.
+
+## T080 — Adversarial Cert Fixtures
+
+- The existing `generateCA` function hardcodes `CommonName: "nix-key Test CA"`. For the rogue CA fixture, a separate `generateRogueCA` function is needed with a distinct CN and serial number, otherwise tests asserting the rogue CA differs from the legitimate one will fail.

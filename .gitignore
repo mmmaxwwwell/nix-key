@@ -36,6 +36,7 @@ credentials.json
 
 # Allow test fixture certs (not real secrets)
 !test/fixtures/*.pem
+!test/fixtures/adversarial/*.pem
 
 # Build
 /nix-key
