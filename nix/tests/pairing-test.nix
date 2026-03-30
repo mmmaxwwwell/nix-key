@@ -33,22 +33,19 @@ in
       };
 
       # Minimal static DERP map for headscale (offline VM, no internet)
-      environment.etc."headscale/derp.json".text = builtins.toJSON {
-        Regions = {
-          "900" = {
-            RegionID = 900;
-            RegionCode = "test";
-            RegionName = "Test DERP";
-            Nodes = [{
-              Name = "test-derp";
-              RegionID = 900;
-              HostName = "127.0.0.1";
-              STUNPort = -1;
-              DERPPort = 0;
-            }];
-          };
-        };
-      };
+      environment.etc."headscale/derp.yaml".text = ''
+        regions:
+          900:
+            regionid: 900
+            regioncode: test
+            regionname: "Test DERP"
+            nodes:
+              - name: test-derp
+                regionid: 900
+                hostname: 127.0.0.1
+                stunport: -1
+                derpport: 0
+      '';
 
       # Headscale server on this node
       services.headscale = {
@@ -66,7 +63,7 @@ in
           };
           derp = {
             urls = [ ];
-            paths = [ "/etc/headscale/derp.json" ];
+            paths = [ "/etc/headscale/derp.yaml" ];
             auto_update_enabled = false;
             update_frequency = "1h";
           };
@@ -140,7 +137,7 @@ in
         # Fail fast if headscale crash-loops instead of waiting 900s default timeout.
         host.succeed(
             "for i in $(seq 1 30); do "
-            "  state=$(systemctl is-active headscale.service); "
+            "  state=$(systemctl is-active headscale.service || true); "
             "  if [ \"$state\" = \"active\" ]; then exit 0; fi; "
             "  if [ \"$state\" = \"failed\" ]; then "
             "    echo 'headscale.service entered failed state:'; "
@@ -159,12 +156,17 @@ in
         # Create a user (namespace) for our test nodes
         host.succeed("headscale users create nixkey-test")
 
+        # Retrieve numeric user ID (headscale v0.28+ requires uint, not username)
+        user_id = host.succeed(
+            "headscale users list -o json | jq -r '.[0].id'"
+        ).strip()
+
         # Create pre-auth keys for host and phone
         host_key = host.succeed(
-            "headscale preauthkeys create --user nixkey-test --reusable --expiration 1h 2>/dev/null"
+            f"headscale preauthkeys create --user {user_id} --reusable --expiration 1h"
         ).strip()
         phone_key = host.succeed(
-            "headscale preauthkeys create --user nixkey-test --reusable --expiration 1h 2>/dev/null"
+            f"headscale preauthkeys create --user {user_id} --reusable --expiration 1h"
         ).strip()
 
         # Store keys for later use
