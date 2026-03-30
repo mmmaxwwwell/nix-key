@@ -3,6 +3,7 @@ package com.nixkey.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import com.nixkey.data.SettingsRepository
 import com.nixkey.keystore.ConfirmationPolicy
+import com.nixkey.keystore.UnlockPolicy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +13,8 @@ import javax.inject.Inject
 
 data class SettingsState(
     val allowKeyListing: Boolean = true,
-    val defaultConfirmationPolicy: ConfirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
+    val defaultUnlockPolicy: UnlockPolicy = UnlockPolicy.PASSWORD,
+    val defaultConfirmationPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC,
     val otelEnabled: Boolean = false,
     val otelEndpoint: String = "",
 )
@@ -32,6 +34,7 @@ class SettingsViewModel @Inject constructor(
     private fun loadSettings() {
         _state.value = SettingsState(
             allowKeyListing = settingsRepository.allowKeyListing,
+            defaultUnlockPolicy = settingsRepository.defaultUnlockPolicy,
             defaultConfirmationPolicy = settingsRepository.defaultConfirmationPolicy,
             otelEnabled = settingsRepository.otelEnabled,
             otelEndpoint = settingsRepository.otelEndpoint,
@@ -41,6 +44,11 @@ class SettingsViewModel @Inject constructor(
     fun setAllowKeyListing(allow: Boolean) {
         settingsRepository.allowKeyListing = allow
         _state.update { it.copy(allowKeyListing = allow) }
+    }
+
+    fun setDefaultUnlockPolicy(policy: UnlockPolicy) {
+        settingsRepository.defaultUnlockPolicy = policy
+        _state.update { it.copy(defaultUnlockPolicy = policy) }
     }
 
     fun setDefaultConfirmationPolicy(policy: ConfirmationPolicy) {

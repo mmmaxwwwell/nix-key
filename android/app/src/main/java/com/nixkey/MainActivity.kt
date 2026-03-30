@@ -10,6 +10,9 @@ import androidx.compose.runtime.setValue
 import com.nixkey.bridge.GoPhoneServer
 import com.nixkey.keystore.AuthResult
 import com.nixkey.keystore.BiometricHelper
+import com.nixkey.keystore.KeyManager
+import com.nixkey.keystore.KeyUnlockManager
+import com.nixkey.keystore.SignRequest
 import com.nixkey.keystore.SignRequestQueue
 import com.nixkey.keystore.SignRequestStatus
 import com.nixkey.service.GrpcServerService
@@ -18,6 +21,7 @@ import com.nixkey.ui.NixKeyAppUi
 import com.nixkey.ui.screens.SignRequestDialog
 import com.nixkey.ui.theme.NixKeyTheme
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -35,6 +39,12 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     @Inject
     lateinit var biometricHelper: BiometricHelper
 
+    @Inject
+    lateinit var keyManager: KeyManager
+
+    @Inject
+    lateinit var keyUnlockManager: KeyUnlockManager
+
     private var deepLinkPayload by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,6 +52,10 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         enableEdgeToEdge()
         deepLinkPayload = extractPairPayload(intent)
         val needsAuth = !tailscaleManager.hasStoredAuthKey() && !tailscaleManager.isRunning()
+
+        // Eager unlock for keys with NONE unlock policy (FR-116)
+        keyUnlockManager.eagerUnlockNoneKeys(keyManager.listKeys())
+
         setContent {
             NixKeyTheme {
                 NixKeyAppUi(
@@ -51,24 +65,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                 )
                 SignRequestDialog(
                     queue = signRequestQueue,
-                    onApprove = { request ->
-                        biometricHelper.authenticate(
-                            activity = this@MainActivity,
-                            policy = request.confirmationPolicy,
-                            title = "Sign Request",
-                            subtitle = "Key: ${request.keyName} for ${request.hostName}",
-                        ) { result ->
-                            val status = when (result) {
-                                is AuthResult.Success -> SignRequestStatus.APPROVED
-                                else -> SignRequestStatus.DENIED
-                            }
-                            signRequestQueue.complete(request.requestId, status)
-                            goPhoneServer.confirmerAdapter.notifyCompletion(
-                                request.requestId,
-                                status,
-                            )
-                        }
-                    },
+                    onApprove = { request -> handleApprove(request) },
                     onDeny = { request ->
                         signRequestQueue.complete(request.requestId, SignRequestStatus.DENIED)
                         goPhoneServer.confirmerAdapter.notifyCompletion(
@@ -78,6 +75,68 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     },
                 )
             }
+        }
+    }
+
+    /**
+     * Handle approve for a sign request. If the key is locked, trigger unlock first,
+     * then proceed to signing confirmation. If unlock fails, deny the request and
+     * let queued requests retry their own unlock (FR-053).
+     */
+    private fun handleApprove(request: SignRequest) {
+        if (request.needsUnlock && !keyUnlockManager.isUnlocked(request.keyFingerprint)) {
+            // Step 1: Unlock the key first
+            biometricHelper.authenticateForUnlock(
+                activity = this@MainActivity,
+                policy = request.unlockPolicy,
+                title = "Unlock Key",
+                subtitle = "Key: ${request.keyName} for ${request.hostName}",
+            ) { unlockResult ->
+                when (unlockResult) {
+                    is AuthResult.Success -> {
+                        // Mark key as unlocked
+                        val keyInfo = keyManager.listKeys().find {
+                            it.fingerprint == request.keyFingerprint
+                        }
+                        if (keyInfo != null) {
+                            keyUnlockManager.unlock(keyInfo)
+                        }
+                        // Step 2: Now do signing confirmation
+                        proceedWithSigningConfirmation(request)
+                    }
+                    else -> {
+                        // Unlock failed or cancelled — deny this request
+                        Timber.w("Unlock failed for request=%s", request.requestId)
+                        signRequestQueue.complete(request.requestId, SignRequestStatus.DENIED)
+                        goPhoneServer.confirmerAdapter.notifyCompletion(
+                            request.requestId,
+                            SignRequestStatus.DENIED,
+                        )
+                    }
+                }
+            }
+        } else {
+            // Key already unlocked or doesn't need unlock
+            proceedWithSigningConfirmation(request)
+        }
+    }
+
+    private fun proceedWithSigningConfirmation(request: SignRequest) {
+        biometricHelper.authenticate(
+            activity = this@MainActivity,
+            policy = request.confirmationPolicy,
+            title = "Sign Request",
+            subtitle = "Key: ${request.keyName} for ${request.hostName}",
+        ) { result ->
+            val status = when (result) {
+                is AuthResult.Success -> SignRequestStatus.APPROVED
+                else -> SignRequestStatus.DENIED
+            }
+            signRequestQueue.complete(request.requestId, status)
+            goPhoneServer.confirmerAdapter.notifyCompletion(
+                request.requestId,
+                status,
+            )
         }
     }
 

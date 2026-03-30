@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.KeyType
+import com.nixkey.keystore.UnlockPolicy
 import com.nixkey.ui.viewmodel.KeyDetailViewModel
 import kotlinx.coroutines.launch
 
@@ -72,6 +73,13 @@ fun KeyDetailScreen(
         AutoApproveWarningDialog(
             onConfirm = viewModel::confirmAutoApprove,
             onDismiss = viewModel::dismissAutoApproveWarning,
+        )
+    }
+
+    if (state.showNoneUnlockWarning) {
+        NoneUnlockWarningDialog(
+            onConfirm = viewModel::confirmNoneUnlock,
+            onDismiss = viewModel::dismissNoneUnlockWarning,
         )
     }
 
@@ -143,10 +151,28 @@ fun KeyDetailScreen(
                     text = state.keyInfo?.fingerprint ?: "",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+
+                // Lock status
+                Text("Lock status", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = if (state.isUnlocked) "Unlocked" else "Locked",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (state.isUnlocked) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
             }
 
-            // Confirmation policy picker
-            ConfirmationPolicyPicker(
+            // Unlock policy picker
+            UnlockPolicyPicker(
+                selected = state.unlockPolicy,
+                onSelected = viewModel::setUnlockPolicy,
+            )
+
+            // Signing policy picker
+            SigningPolicyPicker(
                 selected = state.confirmationPolicy,
                 onSelected = viewModel::setConfirmationPolicy,
             )
@@ -196,6 +222,16 @@ fun KeyDetailScreen(
                     }
                 }
 
+                // Lock/Unlock button
+                if (state.isUnlocked) {
+                    OutlinedButton(
+                        onClick = viewModel::lockKey,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Lock Key")
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Delete button
@@ -215,13 +251,53 @@ fun KeyDetailScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ConfirmationPolicyPicker(
+private fun UnlockPolicyPicker(
+    selected: UnlockPolicy,
+    onSelected: (UnlockPolicy) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Text("Unlock policy", style = MaterialTheme.typography.labelLarge)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+    ) {
+        OutlinedTextField(
+            value = selected.displayLabel(),
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            UnlockPolicy.entries.forEach { policy ->
+                DropdownMenuItem(
+                    text = { Text(policy.displayLabel()) },
+                    onClick = {
+                        onSelected(policy)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SigningPolicyPicker(
     selected: ConfirmationPolicy,
     onSelected: (ConfirmationPolicy) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Text("Confirmation policy", style = MaterialTheme.typography.labelLarge)
+    Text("Signing policy", style = MaterialTheme.typography.labelLarge)
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -279,6 +355,41 @@ private fun AutoApproveWarningDialog(
             }
         },
     )
+}
+
+@Composable
+private fun NoneUnlockWarningDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Security Warning") },
+        text = {
+            Text(
+                "Disabling unlock means key material will be decrypted automatically on app start " +
+                    "without any authentication. Combined with auto-approve signing, this allows " +
+                    "completely silent signing operations. Are you sure?",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Disable Unlock")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+private fun UnlockPolicy.displayLabel(): String = when (this) {
+    UnlockPolicy.NONE -> "None (auto-unlock)"
+    UnlockPolicy.BIOMETRIC -> "Biometric only"
+    UnlockPolicy.PASSWORD -> "Password only"
+    UnlockPolicy.BIOMETRIC_PASSWORD -> "Biometric + Password"
 }
 
 private fun ConfirmationPolicy.displayLabel(): String = when (this) {

@@ -42,13 +42,14 @@ class KeyManager @Inject constructor(
     fun createKey(
         name: String,
         type: KeyType,
-        policy: ConfirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
+        unlockPolicy: UnlockPolicy = UnlockPolicy.PASSWORD,
+        signingPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC,
     ): SshKeyInfo {
         val alias = "nixkey_${type.name.lowercase()}_${System.nanoTime()}"
 
         return when (type) {
-            KeyType.ECDSA_P256 -> createEcdsaKey(alias, name, policy)
-            KeyType.ED25519 -> createEd25519Key(alias, name, policy)
+            KeyType.ECDSA_P256 -> createEcdsaKey(alias, name, unlockPolicy, signingPolicy)
+            KeyType.ED25519 -> createEd25519Key(alias, name, unlockPolicy, signingPolicy)
         }
     }
 
@@ -80,13 +81,28 @@ class KeyManager @Inject constructor(
         }
     }
 
-    fun updateKey(alias: String, displayName: String, policy: ConfirmationPolicy) {
+    fun updateKey(
+        alias: String,
+        displayName: String,
+        unlockPolicy: UnlockPolicy,
+        signingPolicy: ConfirmationPolicy,
+    ) {
         val info = loadKeyInfo(alias)
             ?: throw IllegalArgumentException("Key not found: $alias")
 
-        val updated = info.copy(displayName = displayName, confirmationPolicy = policy)
+        val updated = info.copy(
+            displayName = displayName,
+            unlockPolicy = unlockPolicy,
+            confirmationPolicy = signingPolicy,
+        )
         saveKeyInfo(updated)
-        Timber.i("Updated key alias=%s name=%s policy=%s", alias, displayName, policy)
+        Timber.i(
+            "Updated key alias=%s name=%s unlock=%s signing=%s",
+            alias,
+            displayName,
+            unlockPolicy,
+            signingPolicy,
+        )
     }
 
     fun getKey(alias: String): SshKeyInfo? = loadKeyInfo(alias)
@@ -115,7 +131,8 @@ class KeyManager @Inject constructor(
     private fun createEcdsaKey(
         alias: String,
         name: String,
-        policy: ConfirmationPolicy,
+        unlockPolicy: UnlockPolicy,
+        signingPolicy: ConfirmationPolicy,
     ): SshKeyInfo {
         val builder = KeyGenParameterSpec.Builder(
             alias,
@@ -165,7 +182,8 @@ class KeyManager @Inject constructor(
             displayName = name,
             keyType = KeyType.ECDSA_P256,
             fingerprint = fingerprint,
-            confirmationPolicy = policy,
+            unlockPolicy = unlockPolicy,
+            confirmationPolicy = signingPolicy,
             createdAt = Instant.now(),
             wrappingKeyAlias = null,
         )
@@ -194,7 +212,8 @@ class KeyManager @Inject constructor(
     private fun createEd25519Key(
         alias: String,
         name: String,
-        policy: ConfirmationPolicy,
+        unlockPolicy: UnlockPolicy,
+        signingPolicy: ConfirmationPolicy,
     ): SshKeyInfo {
         val wrappingAlias = "${alias}_wrap"
 
@@ -241,7 +260,8 @@ class KeyManager @Inject constructor(
             displayName = name,
             keyType = KeyType.ED25519,
             fingerprint = fingerprint,
-            confirmationPolicy = policy,
+            unlockPolicy = unlockPolicy,
+            confirmationPolicy = signingPolicy,
             createdAt = Instant.now(),
             wrappingKeyAlias = wrappingAlias,
         )
@@ -383,6 +403,7 @@ class KeyManager @Inject constructor(
             .putString("${info.alias}_name", info.displayName)
             .putString("${info.alias}_type", info.keyType.name)
             .putString("${info.alias}_fingerprint", info.fingerprint)
+            .putString("${info.alias}_unlock_policy", info.unlockPolicy.name)
             .putString("${info.alias}_policy", info.confirmationPolicy.name)
             .putString("${info.alias}_created", info.createdAt.toString())
             .putString("${info.alias}_wrapping", info.wrappingKeyAlias)
@@ -397,8 +418,15 @@ class KeyManager @Inject constructor(
                 displayName = prefs.getString("${alias}_name", "") ?: "",
                 keyType = KeyType.valueOf(typeName),
                 fingerprint = prefs.getString("${alias}_fingerprint", "") ?: "",
+                unlockPolicy = try {
+                    UnlockPolicy.valueOf(
+                        prefs.getString("${alias}_unlock_policy", "PASSWORD") ?: "PASSWORD",
+                    )
+                } catch (_: IllegalArgumentException) {
+                    UnlockPolicy.PASSWORD
+                },
                 confirmationPolicy = ConfirmationPolicy.valueOf(
-                    prefs.getString("${alias}_policy", "ALWAYS_ASK") ?: "ALWAYS_ASK",
+                    prefs.getString("${alias}_policy", "BIOMETRIC") ?: "BIOMETRIC",
                 ),
                 createdAt = Instant.parse(
                     prefs.getString("${alias}_created", Instant.EPOCH.toString()),
@@ -421,6 +449,7 @@ class KeyManager @Inject constructor(
             .remove("${alias}_name")
             .remove("${alias}_type")
             .remove("${alias}_fingerprint")
+            .remove("${alias}_unlock_policy")
             .remove("${alias}_policy")
             .remove("${alias}_created")
             .remove("${alias}_wrapping")

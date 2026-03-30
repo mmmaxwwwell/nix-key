@@ -7,7 +7,10 @@ data class SshKeyInfo(
     val displayName: String,
     val keyType: KeyType,
     val fingerprint: String,
-    val confirmationPolicy: ConfirmationPolicy,
+    /** Per-key unlock policy (default: PASSWORD). Controls how the key is unlocked. */
+    val unlockPolicy: UnlockPolicy = UnlockPolicy.PASSWORD,
+    /** Per-key signing policy (default: BIOMETRIC). Controls per-sign confirmation. */
+    val confirmationPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC,
     val createdAt: Instant,
     val wrappingKeyAlias: String?,
 )

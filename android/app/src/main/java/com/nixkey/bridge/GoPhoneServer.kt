@@ -3,9 +3,11 @@ package com.nixkey.bridge
 import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.KeyManager
 import com.nixkey.keystore.KeyType
+import com.nixkey.keystore.KeyUnlockManager
 import com.nixkey.keystore.SignRequest
 import com.nixkey.keystore.SignRequestQueue
 import com.nixkey.keystore.SignRequestStatus
+import com.nixkey.keystore.UnlockPolicy
 import phoneserver.Confirmer
 import phoneserver.Key
 import phoneserver.KeyList
@@ -73,10 +75,15 @@ class KeyStoreAdapter(
  * The Go gRPC server calls [requestConfirmation] from a background thread.
  * This adapter enqueues a [SignRequest] into the queue (observed by the
  * Compose UI) and blocks until the user responds or a timeout occurs.
+ *
+ * If the key is locked, the request is enqueued with [SignRequest.needsUnlock]
+ * set to true. The UI layer handles the unlock prompt first, then proceeds
+ * to the signing confirmation.
  */
 class ConfirmerAdapter(
     private val signRequestQueue: SignRequestQueue,
     private val keyManager: KeyManager,
+    private val keyUnlockManager: KeyUnlockManager,
     private val confirmationTimeoutSeconds: Long = 60,
 ) : Confirmer {
 
@@ -92,19 +99,25 @@ class ConfirmerAdapter(
         val approved = AtomicBoolean(false)
         val requestIdRef = AtomicReference<String>()
 
-        // Look up the key's confirmation policy from KeyManager
+        // Look up the key's policies from KeyManager
         val keyInfo = keyManager.listKeys().find {
             it.displayName == key || it.fingerprint == key
         }
-        val policy = keyInfo?.confirmationPolicy ?: ConfirmationPolicy.ALWAYS_ASK
+        val signingPolicy = keyInfo?.confirmationPolicy ?: ConfirmationPolicy.BIOMETRIC
+        val unlockPolicy = keyInfo?.unlockPolicy ?: UnlockPolicy.PASSWORD
         val fingerprint = keyInfo?.fingerprint ?: ""
+
+        // Check if key needs unlock
+        val needsUnlock = keyInfo != null && !keyUnlockManager.isUnlocked(fingerprint)
 
         val request = SignRequest(
             keyFingerprint = fingerprint,
             hostName = host,
             keyName = key,
             dataToSign = hash.toByteArray(Charsets.UTF_8),
-            confirmationPolicy = policy,
+            unlockPolicy = unlockPolicy,
+            confirmationPolicy = signingPolicy,
+            needsUnlock = needsUnlock,
         )
         requestIdRef.set(request.requestId)
 
@@ -120,10 +133,11 @@ class ConfirmerAdapter(
         addObserver(observer)
 
         Timber.i(
-            "Confirmer: enqueuing request id=%s host=%s key=%s",
+            "Confirmer: enqueuing request id=%s host=%s key=%s needsUnlock=%s",
             request.requestId,
             host,
             key,
+            needsUnlock,
         )
         signRequestQueue.enqueue(request)
 
@@ -182,13 +196,16 @@ class ConfirmerAdapter(
 class GoPhoneServer @Inject constructor(
     private val keyManager: KeyManager,
     private val signRequestQueue: SignRequestQueue,
+    private val keyUnlockManager: KeyUnlockManager,
 ) {
     private var phoneServer: PhoneServer? = null
     private var serverThread: Thread? = null
     private val running = AtomicBoolean(false)
 
     val keyStoreAdapter: KeyStoreAdapter by lazy { KeyStoreAdapter(keyManager) }
-    val confirmerAdapter: ConfirmerAdapter by lazy { ConfirmerAdapter(signRequestQueue, keyManager) }
+    val confirmerAdapter: ConfirmerAdapter by lazy {
+        ConfirmerAdapter(signRequestQueue, keyManager, keyUnlockManager)
+    }
 
     /**
      * Start the gRPC server on the given address (e.g., "0.0.0.0:50051").

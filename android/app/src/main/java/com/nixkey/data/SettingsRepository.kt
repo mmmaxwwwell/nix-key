@@ -3,6 +3,7 @@ package com.nixkey.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.nixkey.keystore.ConfirmationPolicy
+import com.nixkey.keystore.UnlockPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,13 +20,24 @@ class SettingsRepository @Inject constructor(
         get() = prefs.getBoolean(KEY_ALLOW_KEY_LISTING, true)
         set(value) = prefs.edit().putBoolean(KEY_ALLOW_KEY_LISTING, value).apply()
 
+    var defaultUnlockPolicy: UnlockPolicy
+        get() {
+            val name = prefs.getString(KEY_DEFAULT_UNLOCK_POLICY, UnlockPolicy.PASSWORD.name)
+            return try {
+                UnlockPolicy.valueOf(name ?: UnlockPolicy.PASSWORD.name)
+            } catch (_: IllegalArgumentException) {
+                UnlockPolicy.PASSWORD
+            }
+        }
+        set(value) = prefs.edit().putString(KEY_DEFAULT_UNLOCK_POLICY, value.name).apply()
+
     var defaultConfirmationPolicy: ConfirmationPolicy
         get() {
-            val name = prefs.getString(KEY_DEFAULT_POLICY, ConfirmationPolicy.ALWAYS_ASK.name)
+            val name = prefs.getString(KEY_DEFAULT_POLICY, ConfirmationPolicy.BIOMETRIC.name)
             return try {
-                ConfirmationPolicy.valueOf(name ?: ConfirmationPolicy.ALWAYS_ASK.name)
+                ConfirmationPolicy.valueOf(name ?: ConfirmationPolicy.BIOMETRIC.name)
             } catch (_: IllegalArgumentException) {
-                ConfirmationPolicy.ALWAYS_ASK
+                ConfirmationPolicy.BIOMETRIC
             }
         }
         set(value) = prefs.edit().putString(KEY_DEFAULT_POLICY, value.name).apply()
@@ -46,6 +58,7 @@ class SettingsRepository @Inject constructor(
         const val DEFAULT_LISTEN_PORT = 29418
         private const val PREFS_FILE = "nixkey_settings"
         private const val KEY_ALLOW_KEY_LISTING = "allow_key_listing"
+        private const val KEY_DEFAULT_UNLOCK_POLICY = "default_unlock_policy"
         private const val KEY_DEFAULT_POLICY = "default_confirmation_policy"
         private const val KEY_OTEL_ENABLED = "otel_enabled"
         private const val KEY_OTEL_ENDPOINT = "otel_endpoint"

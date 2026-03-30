@@ -66,7 +66,7 @@ fun SignRequestDialogContent(
         onDismissRequest = { /* Sign requests cannot be dismissed by tapping outside */ },
         modifier = Modifier.testTag("sign_request_dialog"),
         title = {
-            Text("Sign Request")
+            Text(if (request.needsUnlock) "Unlock & Sign Request" else "Sign Request")
         },
         text = {
             Column(
@@ -80,6 +80,14 @@ fun SignRequestDialogContent(
                     value = request.dataHashTruncated(),
                     monospace = true,
                 )
+                if (request.needsUnlock) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Key is locked. Approving will prompt to unlock first.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
                 if (queueSize > 0) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

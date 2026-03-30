@@ -116,10 +116,67 @@ class BiometricHelper @Inject constructor(
     }
 
     /**
+     * Authenticate according to the given unlock policy.
+     *
+     * @param activity The FragmentActivity required by BiometricPrompt
+     * @param policy The unlock policy to enforce
+     * @param title Title for the prompt dialog
+     * @param subtitle Subtitle for the prompt dialog
+     * @param callback Called with the authentication result
+     */
+    fun authenticateForUnlock(
+        activity: FragmentActivity,
+        policy: UnlockPolicy,
+        title: String,
+        subtitle: String = "",
+        callback: (AuthResult) -> Unit,
+    ) {
+        when (policy) {
+            UnlockPolicy.NONE -> {
+                callback(AuthResult.Success)
+            }
+            UnlockPolicy.BIOMETRIC -> {
+                showPrompt(
+                    activity = activity,
+                    authenticators = Authenticators.BIOMETRIC_STRONG,
+                    title = title,
+                    subtitle = subtitle,
+                    negativeButtonText = "Cancel",
+                    callback = callback,
+                )
+            }
+            UnlockPolicy.PASSWORD -> {
+                showPrompt(
+                    activity = activity,
+                    authenticators = Authenticators.DEVICE_CREDENTIAL,
+                    title = title,
+                    subtitle = subtitle,
+                    callback = callback,
+                )
+            }
+            UnlockPolicy.BIOMETRIC_PASSWORD -> {
+                showPrompt(
+                    activity = activity,
+                    authenticators = Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL,
+                    title = title,
+                    subtitle = subtitle,
+                    callback = callback,
+                )
+            }
+        }
+    }
+
+    /**
      * Returns true if auto-approve should show a security warning before being enabled.
      * Always returns true per FR-046.
      */
     fun requiresAutoApproveWarning(): Boolean = true
+
+    /**
+     * Returns true if [UnlockPolicy.NONE] should show a security warning before being enabled.
+     * Always returns true per FR-046.
+     */
+    fun requiresNoneUnlockWarning(): Boolean = true
 
     private fun showPrompt(
         activity: FragmentActivity,

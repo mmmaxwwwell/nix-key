@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.keystore.ConfirmationPolicy
+import com.nixkey.keystore.UnlockPolicy
 import com.nixkey.ui.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,7 +82,12 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setAllowKeyListing,
             )
 
-            DefaultPolicyPicker(
+            DefaultUnlockPolicyPicker(
+                selected = state.defaultUnlockPolicy,
+                onSelected = viewModel::setDefaultUnlockPolicy,
+            )
+
+            DefaultSigningPolicyPicker(
                 selected = state.defaultConfirmationPolicy,
                 onSelected = viewModel::setDefaultConfirmationPolicy,
             )
@@ -144,13 +150,58 @@ private fun SettingsToggle(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DefaultPolicyPicker(
+private fun DefaultUnlockPolicyPicker(
+    selected: UnlockPolicy,
+    onSelected: (UnlockPolicy) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Text("Default unlock policy", style = MaterialTheme.typography.bodyLarge)
+    Text(
+        text = "Applied to newly created keys",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+    ) {
+        OutlinedTextField(
+            value = selected.settingsLabel(),
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            UnlockPolicy.entries.forEach { policy ->
+                DropdownMenuItem(
+                    text = { Text(policy.settingsLabel()) },
+                    onClick = {
+                        onSelected(policy)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DefaultSigningPolicyPicker(
     selected: ConfirmationPolicy,
     onSelected: (ConfirmationPolicy) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Text("Default confirmation policy", style = MaterialTheme.typography.bodyLarge)
+    Text("Default signing policy", style = MaterialTheme.typography.bodyLarge)
     Text(
         text = "Applied to newly created keys",
         style = MaterialTheme.typography.bodySmall,
@@ -185,6 +236,13 @@ private fun DefaultPolicyPicker(
             }
         }
     }
+}
+
+private fun UnlockPolicy.settingsLabel(): String = when (this) {
+    UnlockPolicy.NONE -> "None (auto-unlock)"
+    UnlockPolicy.BIOMETRIC -> "Biometric only"
+    UnlockPolicy.PASSWORD -> "Password only"
+    UnlockPolicy.BIOMETRIC_PASSWORD -> "Biometric + Password"
 }
 
 private fun ConfirmationPolicy.settingsLabel(): String = when (this) {

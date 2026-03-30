@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.KeyManager
 import com.nixkey.keystore.KeyType
+import com.nixkey.keystore.KeyUnlockManager
 import com.nixkey.keystore.SshKeyInfo
+import com.nixkey.keystore.UnlockPolicy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,18 +20,22 @@ data class KeyDetailState(
     val keyInfo: SshKeyInfo? = null,
     val displayName: String = "",
     val keyType: KeyType = KeyType.ED25519,
-    val confirmationPolicy: ConfirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
+    val unlockPolicy: UnlockPolicy = UnlockPolicy.PASSWORD,
+    val confirmationPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC,
     val publicKeyString: String = "",
     val hasUnsavedChanges: Boolean = false,
     val error: String? = null,
     val showAutoApproveWarning: Boolean = false,
+    val showNoneUnlockWarning: Boolean = false,
     val keyCreated: Boolean = false,
     val keyDeleted: Boolean = false,
+    val isUnlocked: Boolean = false,
 )
 
 @HiltViewModel
 class KeyDetailViewModel @Inject constructor(
     private val keyManager: KeyManager,
+    private val keyUnlockManager: KeyUnlockManager,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -59,8 +65,10 @@ class KeyDetailViewModel @Inject constructor(
                     keyInfo = info,
                     displayName = info.displayName,
                     keyType = info.keyType,
+                    unlockPolicy = info.unlockPolicy,
                     confirmationPolicy = info.confirmationPolicy,
                     publicKeyString = pubKey,
+                    isUnlocked = keyUnlockManager.isUnlocked(info.fingerprint),
                 )
             }
         }
@@ -70,8 +78,7 @@ class KeyDetailViewModel @Inject constructor(
         _state.update {
             it.copy(
                 displayName = name,
-                hasUnsavedChanges = !it.isCreateMode &&
-                    (name != it.keyInfo?.displayName || it.confirmationPolicy != it.keyInfo.confirmationPolicy),
+                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(displayName = name)),
             )
         }
     }
@@ -79,6 +86,32 @@ class KeyDetailViewModel @Inject constructor(
     fun setKeyType(type: KeyType) {
         if (_state.value.isCreateMode) {
             _state.update { it.copy(keyType = type) }
+        }
+    }
+
+    fun setUnlockPolicy(policy: UnlockPolicy) {
+        if (policy == UnlockPolicy.NONE) {
+            _state.update { it.copy(showNoneUnlockWarning = true) }
+            return
+        }
+        applyUnlockPolicy(policy)
+    }
+
+    fun confirmNoneUnlock() {
+        applyUnlockPolicy(UnlockPolicy.NONE)
+        _state.update { it.copy(showNoneUnlockWarning = false) }
+    }
+
+    fun dismissNoneUnlockWarning() {
+        _state.update { it.copy(showNoneUnlockWarning = false) }
+    }
+
+    private fun applyUnlockPolicy(policy: UnlockPolicy) {
+        _state.update {
+            it.copy(
+                unlockPolicy = policy,
+                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(unlockPolicy = policy)),
+            )
         }
     }
 
@@ -103,10 +136,15 @@ class KeyDetailViewModel @Inject constructor(
         _state.update {
             it.copy(
                 confirmationPolicy = policy,
-                hasUnsavedChanges = !it.isCreateMode &&
-                    (it.displayName != it.keyInfo?.displayName || policy != it.keyInfo.confirmationPolicy),
+                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(confirmationPolicy = policy)),
             )
         }
+    }
+
+    fun lockKey() {
+        val fp = _state.value.keyInfo?.fingerprint ?: return
+        keyUnlockManager.lock(fp)
+        _state.update { it.copy(isUnlocked = false) }
     }
 
     fun createKey() {
@@ -120,7 +158,12 @@ class KeyDetailViewModel @Inject constructor(
             return
         }
         try {
-            val info = keyManager.createKey(s.displayName, s.keyType, s.confirmationPolicy)
+            val info = keyManager.createKey(
+                s.displayName,
+                s.keyType,
+                s.unlockPolicy,
+                s.confirmationPolicy,
+            )
             val pubKey = keyManager.exportPublicKey(info.alias)
             _state.update {
                 it.copy(
@@ -148,7 +191,7 @@ class KeyDetailViewModel @Inject constructor(
             return
         }
         try {
-            keyManager.updateKey(alias, s.displayName, s.confirmationPolicy)
+            keyManager.updateKey(alias, s.displayName, s.unlockPolicy, s.confirmationPolicy)
             val updatedInfo = keyManager.getKey(alias)
             _state.update {
                 it.copy(
@@ -164,8 +207,10 @@ class KeyDetailViewModel @Inject constructor(
 
     fun deleteKey() {
         val alias = _state.value.keyInfo?.alias ?: return
+        val fp = _state.value.keyInfo?.fingerprint
         try {
             keyManager.deleteKey(alias)
+            if (fp != null) keyUnlockManager.lock(fp)
             _state.update { it.copy(keyDeleted = true) }
         } catch (e: Exception) {
             _state.update { it.copy(error = "Failed to delete: ${e.message}") }
@@ -174,6 +219,13 @@ class KeyDetailViewModel @Inject constructor(
 
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+
+    private fun hasChanges(state: KeyDetailState): Boolean {
+        val info = state.keyInfo ?: return false
+        return state.displayName != info.displayName ||
+            state.unlockPolicy != info.unlockPolicy ||
+            state.confirmationPolicy != info.confirmationPolicy
     }
 
     companion object {

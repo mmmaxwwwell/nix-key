@@ -32,7 +32,10 @@ data class SignRequest(
     val hostName: String,
     val keyName: String,
     val dataToSign: ByteArray,
-    val confirmationPolicy: ConfirmationPolicy,
+    val unlockPolicy: UnlockPolicy = UnlockPolicy.PASSWORD,
+    val confirmationPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC,
+    /** Whether this request needs unlock before signing can proceed. */
+    val needsUnlock: Boolean = false,
     val receivedAt: Instant = Instant.now(),
     val status: SignRequestStatus = SignRequestStatus.PENDING,
 ) {
