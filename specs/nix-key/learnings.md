@@ -38,3 +38,16 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - The `tracing.Init()` function must call `otel.SetTextMapPropagator(propagation.TraceContext{})` when initializing a real OTLP exporter. Without this, the global propagator is a no-op, and `otelgrpc.NewClientHandler()` cannot inject W3C `traceparent` headers into gRPC metadata. This breaks distributed tracing (host→phone span linking) even though local spans are created and exported. The phonesim's tracing init (`test/phonesim/main.go`) already sets this propagator correctly; the daemon's `internal/tracing/tracing.go` was missing it.
 - The default `sdktrace.WithBatcher(exp)` has a 5-second batch timeout. In VM tests where the sign operation completes quickly and traces are queried shortly after, reducing the batch timeout (e.g., `WithBatchTimeout(2*time.Second)`) improves reliability of trace appearance in Jaeger.
 - In NixOS VMs, `localhost` resolves to both `::1` (IPv6) and `127.0.0.1` (IPv4) via `/etc/hosts`. When the Go gRPC OTLP exporter connects to `localhost:4317`, gRPC's DNS resolver (default scheme in `grpc.NewClient` since gRPC-go v1.67) may try IPv6 first. If Jaeger only listens on `0.0.0.0:4317` (IPv4), the IPv6 connection fails and the batch exporter may drop spans during the resolver fallback window. Fix: use `127.0.0.1:4317` instead of `localhost:4317` for OTLP endpoints in NixOS module config to avoid IPv6 resolution entirely.
+
+### T075 CI debug summary
+
+T075 required 33+ CI attempts over multiple sessions to get all jobs green. Major categories of issues encountered:
+
+1. **NixOS headscale module changes** (attempts 2-6, 16-18): DNS nameservers assertion, TLS path type change (str→null), DERP map requirement, numeric user IDs for preauthkeys. Each new VM test file (pairing, signing, tracing-e2e) needed the same triple-fix applied.
+2. **Jaeger v2 migration** (attempts 7-12): jaeger-all-in-one removed from nixpkgs. Required custom package from GitHub releases, explicit pipeline config, discovery that `jaeger_storage_exporter` doesn't support standard OTel config fields, and that batch processor causes deadline exceeded errors.
+3. **golangci-lint v2 errcheck** (attempt 3): caught all unchecked error returns across the codebase.
+4. **Daemon stub** (attempt 16): `nix-key daemon` was never wired up — printed "not yet implemented" and exited. Required full implementation connecting agent, backend, and control servers.
+5. **VM test reliability** (attempts 17-33): pkill self-match, systemd auto-start conflicts, phonesim SIGKILL for sign-delay, OTLP IPv6 resolution, W3C trace propagator, batch timeout tuning.
+6. **CI cancellation loop** (attempts 23, 26): `cancel-in-progress: true` killed 15-20 min VM tests when new commits pushed. Fixed with `cancel-in-progress: false`.
+
+Key takeaway: NixOS VM integration tests are the highest-friction CI component. Headscale boilerplate should be extracted into a shared test module to prevent the recurring triple-fix pattern across test files.
