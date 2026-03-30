@@ -158,6 +158,22 @@ jobs:
       - name: Nix flake check (NixOS VM tests)
         run: nix flake check --print-build-logs
 
+      - name: Verify tests ran
+        if: always()
+        run: |
+          if [ ! -f test-logs/ci/latest/summary.json ]; then
+            echo "::error::test-logs/ci/latest/summary.json not found — no test results produced"
+            exit 1
+          fi
+          PASSED=$(jq -r '.passed // 0' test-logs/ci/latest/summary.json)
+          FAILED=$(jq -r '.failed // 0' test-logs/ci/latest/summary.json)
+          TOTAL=$((PASSED + FAILED))
+          echo "Tests ran: ${TOTAL} (passed=${PASSED}, failed=${FAILED})"
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::error::No tests ran (passed + failed = 0) — build may be vacuously green"
+            exit 1
+          fi
+
       - name: Job summary
         if: always()
         run: |
@@ -235,6 +251,14 @@ jobs:
           ./gradlew assembleDebug testDebugUnitTest --no-daemon 2>&1 | tee ../test-logs/android-build.log
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
 
       - name: Verify tests ran
         if: always()
