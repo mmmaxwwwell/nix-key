@@ -213,7 +213,7 @@
 
 ### 15e: DX Validation + Cold-Start [depends on 15d]
 
-- [ ] T084 Verify all Makefile targets work: `make test`, `make test-unit`, `make test-integration`, `make lint`, `make build`, `make proto`, `make bench`, `make security-scan`, `make validate`, `make cover`, `make generate-fixtures`, `make clean`, `make clean-all`. Each must exit 0 and produce expected output. [T-DX-01 through T-DX-11, SC-022]
+- [x] T084 Verify all Makefile targets work: `make test`, `make test-unit`, `make test-integration`, `make lint`, `make build`, `make proto`, `make bench`, `make security-scan`, `make validate`, `make cover`, `make generate-fixtures`, `make clean`, `make clean-all`. Each must exit 0 and produce expected output. [T-DX-01 through T-DX-11, SC-022]
   **Done**: All targets verified.
 
 - [ ] T085 Add automated cold-start and idempotency tests. Cold-start: delete all state dirs → start daemon → verify dirs created with 0700 permissions, daemon starts. Warm-start: stop/restart → reuses state, no errors. Pairing idempotency: `nix-key pair` setup twice → no corruption, age identity skip-if-exists. Secrets at rest: verify private keys on disk are age-encrypted after pairing, daemon decrypts into memory only, `ageKeyFile` option works. [T-CS-01 through T-CS-03, T-HI-19, SC-020, SC-021]

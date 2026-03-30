@@ -23,6 +23,7 @@ build:
 	go build -o $(BINARY) $(CMD)
 
 proto:
+	mkdir -p $(GEN_DIR)/nixkey/v1
 	protoc \
 		--proto_path=$(PROTO_DIR) \
 		--go_out=$(GEN_DIR) --go_opt=paths=source_relative \
@@ -61,6 +62,6 @@ clean:
 	rm -rf test-logs/
 
 clean-all: clean
-	rm -rf $(GEN_DIR)
+	find $(GEN_DIR) -name '*.pb.go' -delete 2>/dev/null || true
 	rm -rf vendor/
 	go clean -cache -testcache

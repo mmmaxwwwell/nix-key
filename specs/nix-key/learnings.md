@@ -129,3 +129,8 @@ Key takeaway: NixOS VM integration tests are the highest-friction CI component. 
 - `KeyDetailViewModel` can be instantiated in tests with a mock `KeyManager`, a real `KeyUnlockManager()`, and `SavedStateHandle(mapOf("keyId" to "new"))` for create-mode. The ViewModel's `init` block loads the key from `keyId`, so "new" triggers create-mode without KeyManager calls.
 - The None-unlock warning dialog confirm button text is "Disable Unlock" (not "Enable") — the UI text describes the action being taken, not the policy name. Always check the actual Composable source for button labels.
 - `JsonTree.log()` calls `android.util.Log.println()` which requires the Android runtime. Structured logging tests must be `androidTest` (instrumented), not plain unit tests, to exercise the real code path.
+
+## T084 — Makefile DX validation
+
+- `make proto` fails if `gen/` directory doesn't exist (e.g., after `make clean-all`). Fix: add `mkdir -p $(GEN_DIR)/nixkey/v1` before `protoc`.
+- `make clean-all` with `rm -rf gen/` deletes tracked fuzz test files (`gen/nixkey/v1/fuzz_test.go` and `testdata/`). Fix: use `find gen/ -name '*.pb.go' -delete` to only remove generated protobuf files.
