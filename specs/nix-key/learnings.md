@@ -31,10 +31,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **Android test gap**: `gradlew` is not checked into the repo, so the `Gradle build + unit tests` step in Test Android exits with "No such file or directory" but the exit code is swallowed by `| tee`. The job reports 0 tests passed/failed and concludes "success". The lint job's ktlint step handles this gracefully with `test -f ./gradlew`. This is a pre-existing condition, not a T099 regression.
 - **Sanity-check approach**: Cross-reference CI-reported test counts against on-disk test files. 425 Go test passes across 12 packages matches the 12 Go packages with `_test.go` files. 10/10 fuzz targets ran for 60s each.
 
-## T105 — Verify scanners ran
+## T099 — Gitignore vendor collisions (attempt 3)
 
-- Security scanner JSON outputs are in `test-logs/security/{trivy,semgrep,gitleaks,govulncheck}.json`. The "Verify scanners ran" step should be placed after all scanner steps but before "Generate security summary JSON" to ensure all outputs are available.
-- Scanner verification uses `::warning::` (not `::error::`) because missing scanners are advisory — some scanners (e.g., semgrep, gitleaks) use `continue-on-error: true` and may not produce output in all environments.
+- **Bare `result` pattern in `.gitignore`** matches any path component named `result`, not just the Nix build symlink at the repo root. This excluded `vendor/tailscale.com/types/result/result.go`, breaking lint/test/security. Fix: anchor with `/result`.
+- **Bare `build/` pattern** similarly excluded `vendor/github.com/tailscale/web-client-prebuilt/build/` (embedded web assets required by an `embed.go` directive). Fix: anchor with `/build/` and add `android/**/build/` for Android build output.
+- **General rule**: When ignoring common directory names (`build/`, `dist/`, `result`, `certs/`), always use root-anchored patterns (`/build/`) to avoid accidentally excluding vendor subdirectories. After any `.gitignore` change, verify with `git ls-files --others --ignored --exclude-standard vendor/`.
 
 ## T109b — Android CI local verification
 
@@ -46,11 +47,16 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **Build-tools version**: Nix SDK only has build-tools 35.0.0; AGP 8.7.3 tries to install 34.0.0 in read-only Nix store. Fix: set `buildToolsVersion = "35.0.0"` explicitly.
 - **AAPT2 ELF patching**: Downloaded AAPT2 binary has wrong dynamic linker for Nix. Use `-Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/35.0.0/aapt2` to use the SDK's pre-patched binary.
 - **protoc-gen-grpc-java ELF patching**: Downloaded from Maven, needs `patchelf --set-interpreter --set-rpath` for Nix dynamic linker and libstdc++.
-- **gomobile broken with Go 1.26**: Nix-packaged gomobile (Dec 2024) sets `GOPATH=gomobile-work` (relative path) which Go 1.26 rejects. Workaround: create stub AAR with gomobile-compatible Java classes.
-- **gomobile stub AAR classes**: Must match gomobile's type mapping exactly — Go `int32` → Java `long` (not `int`). Stub classes: `Key`, `KeyList`, `KeyStore`, `Confirmer`, `PhoneServer`, `Phoneserver`.
+- **gomobile broken with Go 1.26 — fix**: Nix-packaged gomobile (Dec 2024) sets `GOPATH=gomobile-work` (relative path) which Go 1.26 rejects. The go-wrapper approach (converting relative GOPATH to absolute) doesn't fully work because gomobile also uses relative paths for its own work directory and `-o` flags. The real fix: build gomobile from the latest `golang.org/x/mobile` source (already in go.mod) which uses `os.MkdirTemp` (absolute paths). See T110.
 - **HostnameVerifier SAM conversion**: Kotlin lambda `{ _, _ -> true }` doesn't auto-convert for `setHostnameVerifier`. Use explicit `javax.net.ssl.HostnameVerifier { _, _ -> true }`.
 - **BouncyCastle META-INF conflict**: bcpkix, bcutil, bcprov JARs all contain `META-INF/versions/9/OSGI-INF/MANIFEST.MF`. Add to packaging excludes.
 - **Hilt DI bindings**: `TailscaleBackend`, `Context`, and `BiometricManager` need explicit `@Provides` methods in a Hilt `@Module`. Created `AppModule.kt`.
 - **javax.annotation.Generated**: gRPC generated code requires `javax.annotation:javax.annotation-api:1.3.2` dependency.
 - **`BuildConfig` unresolved**: Need `buildConfig = true` in `buildFeatures`.
 - **Android build result**: `assembleDebug` produces 69MB APK; `testDebugUnitTest` runs 5 tests (TraceContextTest) with 0 failures.
+
+## T110 — Fix gomobile AAR build
+
+- **Root cause**: Nix-packaged gomobile (Dec 2024 commit) uses `GOPATH=gomobile-work` (relative) and `$WORK` (relative) internally. Go 1.26+ rejects relative GOPATH. A go-wrapper approach only fixes the GOPATH issue but not gomobile's own relative work directory for `.so` output paths.
+- **Fix**: Build gomobile + gobind from source (latest `golang.org/x/mobile` in go.mod, March 2026) which uses `os.MkdirTemp("", "gomobile-work-")` (absolute). The build is fast (~5s) and runs as part of the `build-android-apk` script.
+- **ANDROID_HOME NDK path**: gomobile requires the Android SDK to have `ndk/<version>/` directory. Multiple androidsdk store paths exist — use the one from the Nix `androidComposition` (not the first one in the store). The Nix gomobile wrapper's `$ANDROID_HOME` env var reveals the correct one.

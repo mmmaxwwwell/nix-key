@@ -31,11 +31,10 @@ proto:
 		$(PROTO_DIR)/nixkey/v1/nix_key.proto
 
 gomobile:
-	mkdir -p android/app/libs
-	gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
+	build-android-apk --aar-only
 
-android-apk: gomobile
-	cd android && ./gradlew assembleDebug --no-daemon
+android-apk:
+	build-android-apk
 	@echo "APK: android/app/build/outputs/apk/debug/app-debug.apk"
 
 cover:

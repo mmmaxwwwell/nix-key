@@ -282,7 +282,7 @@
 - [x] T105 Add "Verify scanners ran" step to security job in `.github/workflows/ci.yml`: for each scanner (trivy, semgrep, gitleaks, govulncheck), check JSON output file exists and is >10 bytes, log `::warning::` for missing scanners (advisory, not hard failure), use `if: always()` [FR-205, FR-206]
   **Done when**: Security job logs show verification output for each scanner.
 
-## Phase 19: Local CI Verification & Final CI Validation
+## Phase 19: Local CI Verification
 
 - [x] T109a [P] Verify Go CI steps locally (fix-validate loop): run `nix build` and `go test -json -race -count=1 ./...`. Verify `result/bin/nix-key` exists and `test-logs/ci/latest/summary.json` exists with `passed + failed > 0`. On failure: fix and retry. [FR-202, FR-204]
   **Done when**: Go binary builds, Go tests pass with non-zero count, artifact paths verified. Fix-validate loop, 20-iteration cap.
@@ -293,8 +293,27 @@
 - [x] T109c [P] Verify security scanner CI steps locally (fix-validate loop): run each scanner command from the security job (`trivy fs`, `semgrep scan`, `gitleaks detect`, `govulncheck`). Verify each produces JSON output >10 bytes in `test-logs/security/`. On failure: fix (missing scanner binary, wrong config) and retry. [FR-205]
   **Done when**: All 4 scanners produce non-empty JSON output. Fix-validate loop, 20-iteration cap.
 
-- [ ] T099 [needs: gh, ci-loop] Push all work to develop. Iterate until CI green (including non-vacuous validation steps, artifact uploads, fuzz, bench, adversarial, security scan, RacerD). Create PR to main. [CI validation, FR-208]
-  **Done when**: CI fully green on develop with non-vacuous test counts, artifacts uploaded, PR to main created.
+## Phase 20: Android Build & Emulator Integration Fix
+
+- [x] T110 Fix gomobile AAR build: the Nix-packaged gomobile (Dec 2024) is broken with Go 1.26.1 (`GOPATH=gomobile-work` relative path rejected). Either update gomobile in nixpkgs, patch the Nix derivation, or apply the CI workaround (`GOPATH`/`GOMODCACHE` override) to `nix/android-apk.nix`'s `build-android-apk` script and the Makefile `gomobile` target. Remove the stub AAR — the real gomobile AAR must build. [Build infra]
+  **Done when**: `nix develop --command build-android-apk` succeeds end-to-end. `jar tf android/app/libs/phoneserver.aar` shows `.so` native libraries (not just Java stub classes). `make android-apk` also works.
+
+- [ ] T111 [P] Verify gomobile AAR contains real Go code: run `jar tf android/app/libs/phoneserver.aar` and verify it contains `jni/*/libgojni.so` (ARM64, x86_64). Verify the AAR size is >1MB (stub AARs are <100KB). If the AAR is a stub, T110 is not done. [Build infra]
+  **Done when**: AAR contains native .so files, size >1MB.
+
+- [ ] T112 Run Android instrumented tests on local emulator: boot emulator via `nix develop --command start-emulator` (or `nix/android-emulator.nix` helper). Install debug APK via `adb install`. Run `./gradlew connectedDebugAndroidTest`. Parse JUnit XML results. Fix any failures — especially tests that call Go code via the bridge (GoPhoneServer, PhoneServer), which will crash if the AAR is a stub. [Android E2E]
+  **Done when**: Emulator boots, APK installs, `connectedDebugAndroidTest` passes with >0 tests, JUnit XML in `app/build/outputs/androidTest-results/` shows real results.
+
+- [ ] T113 Run E2E test script on local emulator: execute `test/e2e/android_e2e_test.sh` locally end-to-end. This orchestrates: emulator boot, APK install, nix-key daemon start, pairing via deep link, key creation, SSH sign flow. Fix any failures in the fix-validate loop. [Android E2E]
+  **Done when**: `test/e2e/android_e2e_test.sh` passes locally with all steps completing (pair, create key, sign).
+
+## Phase 21: Final CI Validation & PR
+
+- [ ] T099 [needs: gh, ci-loop] Local validation first, then push to develop and iterate until CI green. Use fix-validate subagents for each local step. Steps: (1) Spawn parallel fix-validate subagents: (a) `make validate` (test + lint + security-scan), (b) `nix flake check` (Go tests + NixOS VM tests), (c) `make android-apk` (Android debug build). Each subagent loops until its command passes. (2) Only after all three pass, push to develop. (3) Iterate on CI-only failures (fuzz, artifacts, RacerD, emulator E2E) until fully green including non-vacuous validation steps and artifact uploads. (4) Create PR to main. [CI validation, FR-208]
+  **Done when**: All local validations green (host tests, NixOS VM tests, Android build), CI fully green on develop with non-vacuous test counts, artifacts uploaded, PR to main created.
+
+- [ ] T114 [needs: gh] Verify E2E workflow_run chain fires: push to develop, wait for CI to pass, then verify `e2e.yml` is triggered via `gh run list --workflow=e2e.yml`. The E2E workflow must reach `success` conclusion (not `skipped`). If the workflow_run trigger never fires, push a follow-up commit. Fix any E2E failures in CI. [CI validation]
+  **Done when**: `gh run list --workflow=e2e.yml` shows at least one run with `success` conclusion triggered by a `workflow_run` event from CI.
 
 - [ ] T106 [needs: gh] Observable output validation: after CI passes on develop, verify all expected artifacts are listed in the workflow run (`gh run view --json artifacts`), download debug-apk and nix-key-binary to confirm non-empty [SC-024]
   **Done when**: Both artifacts verified present and non-empty.
@@ -328,9 +347,13 @@ T075 → T087-T094 (Phase 16: Android Hardening) [parallel with Phase 15]
 T086 + T094 → T095-T098 (Phase 17: Documentation & License)
 T098 → T100-T105 (Phase 18: CI Hardening) [all parallel]
 T100-T105 → T109a, T109b, T109c (Phase 19: local CI verification) [all parallel]
-T109a + T109b + T109c → T099 (Phase 19: CI loop + PR to main)
-T099 → T106-T107 (Phase 19: Observable validation) [parallel]
-T107 → T108 (Phase 19: Post-merge badge validation)
+T109a + T109b + T109c → T110-T111 (Phase 20: Android build & emulator fix) [parallel]
+T110 → T112 (emulator instrumented tests)
+T112 → T113 (E2E script locally)
+T113 → T099 (Phase 21: final CI validation & PR)
+T099 → T114 (verify workflow_run chain)
+T099 → T106-T107 (Phase 21: Observable validation) [parallel]
+T107 → T108 (Phase 21: Post-merge badge validation)
 ```
 
 ### Phase 15 Internal Dependencies

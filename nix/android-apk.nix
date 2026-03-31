@@ -15,6 +15,7 @@
 #   build-android-apk --release             # release APK
 #   build-android-apk --skip-aar            # skip gomobile AAR rebuild
 #   build-android-apk --apk-only            # alias for --skip-aar
+#   build-android-apk --aar-only            # build AAR only (no APK)
 #
 # Pinned versions (must match android/app/build.gradle.kts):
 #   compileSdk   = 35
@@ -47,6 +48,12 @@ let
   androidHome = "${androidSdk}/libexec/android-sdk";
 
   # --- gomobile configured with our Android SDK/NDK ---
+  #
+  # NOTE: The Nix-packaged gomobile (Dec 2024) uses a relative GOPATH
+  # ("gomobile-work") which Go 1.26+ rejects. The build-android-apk script
+  # below works around this by building gomobile from the latest
+  # golang.org/x/mobile source (already in go.mod) at build time. The Nix
+  # gomobile is still exported for the devshell (e.g., `gomobile version`).
   gomobile = pkgs.gomobile.override {
     withAndroidPkgs = true;
     androidPkgs = androidComposition;
@@ -61,17 +68,20 @@ let
     # --- Parse arguments ---
     BUILD_TYPE="debug"
     SKIP_AAR=false
+    AAR_ONLY=false
     for arg in "$@"; do
       case "$arg" in
         --release) BUILD_TYPE="release" ;;
         --skip-aar|--apk-only) SKIP_AAR=true ;;
+        --aar-only) AAR_ONLY=true ;;
         --help|-h)
-          echo "Usage: build-android-apk [--release] [--skip-aar] [--help]"
+          echo "Usage: build-android-apk [--release] [--skip-aar] [--aar-only] [--help]"
           echo ""
           echo "Options:"
           echo "  --release    Build release APK (default: debug)"
           echo "  --skip-aar   Skip gomobile AAR rebuild"
           echo "  --apk-only   Alias for --skip-aar"
+          echo "  --aar-only   Build gomobile AAR only (no APK)"
           exit 0
           ;;
         *)
@@ -85,7 +95,7 @@ let
     export ANDROID_HOME="${androidHome}"
     export ANDROID_SDK_ROOT="${androidHome}"
     export JAVA_HOME="${jdk}"
-    export PATH="${jdk}/bin:${pkgs.go}/bin:${gomobile}/bin:$PATH"
+    export PATH="${jdk}/bin:${pkgs.go}/bin:$PATH"
 
     REPO_ROOT="$(${pkgs.git}/bin/git rev-parse --show-toplevel 2>/dev/null || pwd)"
     ANDROID_DIR="$REPO_ROOT/android"
@@ -94,7 +104,6 @@ let
     echo "ANDROID_HOME:  $ANDROID_HOME"
     echo "JAVA_HOME:     $JAVA_HOME"
     echo "Go:            $(go version)"
-    echo "gomobile:      $(gomobile version 2>&1 || echo 'available')"
     echo "Build type:    $BUILD_TYPE"
     echo ""
 
@@ -110,15 +119,30 @@ let
 
       mkdir -p "$ANDROID_DIR/app/libs"
 
+      # Build gomobile + gobind from source (latest golang.org/x/mobile in go.mod).
+      # The Nix-packaged gomobile (Dec 2024) uses a relative GOPATH ("gomobile-work")
+      # which Go 1.26+ rejects. The latest x/mobile uses os.MkdirTemp (absolute).
+      GOMOBILE_DIR="$(mktemp -d)"
+      echo "Building gomobile from source (Go 1.26+ compatible)..."
+      (
+        cd "$REPO_ROOT"
+        GOFLAGS="-mod=mod" go build -o "$GOMOBILE_DIR/gomobile" golang.org/x/mobile/cmd/gomobile
+        GOFLAGS="-mod=mod" go build -o "$GOMOBILE_DIR/gobind" golang.org/x/mobile/cmd/gobind
+      )
+
       echo "Running: gomobile bind -target android -androidapi 29 ./pkg/phoneserver"
       (
         cd "$REPO_ROOT"
-        gomobile bind \
+        PATH="$GOMOBILE_DIR:$PATH" \
+        GOFLAGS="-mod=mod" \
+        "$GOMOBILE_DIR/gomobile" bind \
           -target android \
           -androidapi 29 \
           -o "$ANDROID_DIR/app/libs/phoneserver.aar" \
           ./pkg/phoneserver
       )
+
+      rm -rf "$GOMOBILE_DIR"
 
       echo "AAR built: $ANDROID_DIR/app/libs/phoneserver.aar"
       ls -lh "$ANDROID_DIR/app/libs/phoneserver.aar"
@@ -131,6 +155,12 @@ let
         exit 1
       fi
       echo ""
+    fi
+
+    # --- Exit early if --aar-only ---
+    if [ "$AAR_ONLY" = "true" ]; then
+      echo "=== AAR build complete (--aar-only) ==="
+      exit 0
     fi
 
     # --- Step 2: Build APK with Gradle ---
