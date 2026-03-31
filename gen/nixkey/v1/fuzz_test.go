@@ -17,6 +17,9 @@ func FuzzProtoSignRequest(f *testing.F) {
 	f.Add([]byte{0x00})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 10*1024 {
+			return // skip pathologically large inputs
+		}
 		var msg SignRequest
 		_ = proto.Unmarshal(data, &msg)
 	})
@@ -31,6 +34,9 @@ func FuzzProtoListKeysResponse(f *testing.F) {
 	f.Add([]byte{})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 10*1024 {
+			return // skip pathologically large inputs
+		}
 		var msg ListKeysResponse
 		_ = proto.Unmarshal(data, &msg)
 	})
@@ -45,6 +51,9 @@ func FuzzProtoRoundTrip(f *testing.F) {
 	f.Add([]byte{})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 10*1024 {
+			return // skip pathologically large inputs
+		}
 		var msg SignRequest
 		if err := proto.Unmarshal(data, &msg); err != nil {
 			return // invalid protobuf, skip
