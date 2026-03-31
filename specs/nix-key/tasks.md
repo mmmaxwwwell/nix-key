@@ -304,7 +304,7 @@
 - [x] T112 Run Android instrumented tests on local emulator: boot emulator via `nix develop --command start-emulator` (or `nix/android-emulator.nix` helper). Install debug APK via `adb install`. Run `./gradlew connectedDebugAndroidTest`. Parse JUnit XML results. Fix any failures — especially tests that call Go code via the bridge (GoPhoneServer, PhoneServer), which will crash if the AAR is a stub. [Android E2E]
   **Done when**: Emulator boots, APK installs, `connectedDebugAndroidTest` passes with >0 tests, JUnit XML in `app/build/outputs/androidTest-results/` shows real results.
 
-- [ ] T113 Run E2E test script on local emulator: execute `test/e2e/android_e2e_test.sh` locally end-to-end. This orchestrates: emulator boot, APK install, nix-key daemon start, pairing via deep link, key creation, SSH sign flow. Fix any failures in the fix-validate loop. [Android E2E]
+- [x] T113 Run E2E test script on local emulator: execute `test/e2e/android_e2e_test.sh` locally end-to-end. This orchestrates: emulator boot, APK install, nix-key daemon start, pairing via deep link, key creation, SSH sign flow. Fix any failures in the fix-validate loop. [Android E2E]
   **Done when**: `test/e2e/android_e2e_test.sh` passes locally with all steps completing (pair, create key, sign).
 
 ## Phase 21: Final CI Validation & PR

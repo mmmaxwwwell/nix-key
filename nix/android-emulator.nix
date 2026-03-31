@@ -55,18 +55,21 @@ let
     # Default timeout: 120s with KVM, 600s without (software emulation is ~5x slower)
     BOOT_TIMEOUT=120
     ACTION="start"
+    WIPE_DATA=false
 
     for arg in "$@"; do
       case "$arg" in
         --no-wait) ACTION="start-no-wait" ;;
         --kill)    ACTION="kill" ;;
+        --wipe-data) WIPE_DATA=true ;;
         --help|-h)
-          echo "Usage: start-emulator [--no-wait] [--kill] [--help]"
+          echo "Usage: start-emulator [--no-wait] [--kill] [--wipe-data] [--help]"
           echo ""
           echo "Options:"
-          echo "  --no-wait  Start emulator without waiting for boot"
-          echo "  --kill     Kill running emulator"
-          echo "  --help     Show this help"
+          echo "  --no-wait    Start emulator without waiting for boot"
+          echo "  --kill       Kill running emulator"
+          echo "  --wipe-data  Wipe emulator data (forces first-boot, slow without KVM)"
+          echo "  --help       Show this help"
           exit 0
           ;;
         *)
@@ -191,6 +194,11 @@ let
     fi
 
     # --- Start emulator ---
+    WIPE_FLAG=""
+    if [ "$WIPE_DATA" = "true" ]; then
+      WIPE_FLAG="-wipe-data"
+    fi
+
     echo "Starting emulator: $AVD_NAME"
     emulator @"$AVD_NAME" \
       -no-window \
@@ -200,7 +208,7 @@ let
       $KVM_FLAG \
       -memory 2048 \
       -no-snapshot \
-      -wipe-data \
+      $WIPE_FLAG \
       -verbose \
       &>"''${TMPDIR:-/tmp}/emulator-$AVD_NAME.log" &
     EMU_PID=$!

@@ -29,10 +29,10 @@ set -euo pipefail
 # --- Configuration ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEST_TIMEOUT=300  # 5 minutes total budget
+TEST_TIMEOUT=1200  # 20 minutes total budget (first boot without KVM can take ~15min)
 MAX_RETRIES=2
 SKIP_BUILD=false
-HEADSCALE_PORT=8080
+HEADSCALE_PORT=18080
 HEADSCALE_NAMESPACE="nixkey-e2e"
 EMULATOR_SERIAL="emulator-5554"
 APK_PACKAGE="com.nixkey"
@@ -48,6 +48,7 @@ DAEMON_DIR=""
 HEADSCALE_PID=""
 TAILSCALED_PID=""
 DAEMON_PID=""
+EMULATOR_STARTED_BY_US=false
 
 # --- Argument parsing ---
 for arg in "$@"; do
@@ -103,9 +104,11 @@ cleanup() {
     wait "$HEADSCALE_PID" 2>/dev/null || true
   fi
 
-  # Kill emulator
-  if adb -s "$EMULATOR_SERIAL" emu kill 2>/dev/null; then
-    log "Emulator killed"
+  # Kill emulator (only if we started it)
+  if [ "$EMULATOR_STARTED_BY_US" = "true" ]; then
+    if adb -s "$EMULATOR_SERIAL" emu kill 2>/dev/null; then
+      log "Emulator killed"
+    fi
   fi
 
   # Clean up temp directories
@@ -186,11 +189,17 @@ database:
 prefixes:
   v4: 100.64.0.0/10
   v6: fd7a:115c:a1e0::/48
+derp:
+  urls:
+    - https://controlplane.tailscale.com/derpmap/default
+  auto_update_enabled: false
 dns:
   base_domain: e2e.test
   magic_dns: false
+  override_local_dns: false
   nameservers:
-    global: []
+    global:
+      - 1.1.1.1
 log:
   level: warn
 EOF
@@ -216,32 +225,33 @@ EOF
     return 1
   fi
 
-  # Create namespace
+  # Create user (headscale >=0.28 uses "users create", older uses "namespaces create")
   headscale --config "$HEADSCALE_DIR/config.yaml" \
-    namespaces create "$HEADSCALE_NAMESPACE" 2>/dev/null || \
+    users create "$HEADSCALE_NAMESPACE" 2>/dev/null || \
   headscale --config "$HEADSCALE_DIR/config.yaml" \
-    users create "$HEADSCALE_NAMESPACE" 2>/dev/null || true
+    namespaces create "$HEADSCALE_NAMESPACE" 2>/dev/null || true
+
+  # Get user ID (headscale >=0.28 --user flag takes numeric ID, not name)
+  local user_id
+  user_id=$(headscale --config "$HEADSCALE_DIR/config.yaml" \
+    users list -o json 2>/dev/null | \
+    python3 -c "import sys,json; users=json.load(sys.stdin); print(next(u['id'] for u in users if u['name']=='$HEADSCALE_NAMESPACE'))" 2>/dev/null || echo "")
+
+  if [ -z "$user_id" ]; then
+    log_warn "Could not get numeric user ID, falling back to name-based auth"
+    user_id="$HEADSCALE_NAMESPACE"
+  fi
 
   # Create pre-auth keys (one for host, one for phone/emulator)
   HOST_AUTH_KEY=$(headscale --config "$HEADSCALE_DIR/config.yaml" \
     preauthkeys create \
-    --user "$HEADSCALE_NAMESPACE" \
-    --reusable \
-    --expiration 1h 2>/dev/null | tail -1 || \
-  headscale --config "$HEADSCALE_DIR/config.yaml" \
-    --namespace "$HEADSCALE_NAMESPACE" \
-    preauthkeys create \
+    --user "$user_id" \
     --reusable \
     --expiration 1h 2>/dev/null | tail -1)
 
   PHONE_AUTH_KEY=$(headscale --config "$HEADSCALE_DIR/config.yaml" \
     preauthkeys create \
-    --user "$HEADSCALE_NAMESPACE" \
-    --reusable \
-    --expiration 1h 2>/dev/null | tail -1 || \
-  headscale --config "$HEADSCALE_DIR/config.yaml" \
-    --namespace "$HEADSCALE_NAMESPACE" \
-    preauthkeys create \
+    --user "$user_id" \
     --reusable \
     --expiration 1h 2>/dev/null | tail -1)
 
@@ -297,10 +307,16 @@ start_host_services() {
 
   log_ok "Host tailscale IP: $HOST_TAILSCALE_IP"
 
-  # Write daemon config
-  CONTROL_SOCKET="$DAEMON_DIR/control.sock"
+  # Set up XDG dirs so nix-key daemon uses our temp directories
+  export XDG_CONFIG_HOME="$DAEMON_DIR/xdg-config"
+  export XDG_STATE_HOME="$DAEMON_DIR/xdg-state"
+  export XDG_RUNTIME_DIR="$DAEMON_DIR/xdg-runtime"
+  mkdir -p "$XDG_CONFIG_HOME/nix-key" "$XDG_STATE_HOME/nix-key" "$XDG_RUNTIME_DIR/nix-key"
+
+  # Paths derived from XDG dirs (matching daemon's defaults)
+  CONTROL_SOCKET="$XDG_RUNTIME_DIR/nix-key/control.sock"
   SSH_AUTH_SOCK="$DAEMON_DIR/agent.sock"
-  DEVICES_PATH="$DAEMON_DIR/devices.json"
+  DEVICES_PATH="$XDG_STATE_HOME/nix-key/devices.json"
   CERTS_DIR="$DAEMON_DIR/certs"
   AGE_KEY_FILE="$DAEMON_DIR/age-identity.txt"
   PAIR_INFO_FILE="$DAEMON_DIR/pair-info.json"
@@ -308,14 +324,13 @@ start_host_services() {
   # Generate age identity for cert encryption
   age-keygen -o "$AGE_KEY_FILE" 2>/dev/null
 
-  cat > "$DAEMON_DIR/config/config.json" <<EOF
+  cat > "$XDG_CONFIG_HOME/nix-key/config.json" <<EOF
 {
-  "listenPath": "${SSH_AUTH_SOCK}",
-  "controlSocket": "${CONTROL_SOCKET}",
-  "devicesPath": "${DEVICES_PATH}",
-  "certsDir": "${CERTS_DIR}",
+  "socketPath": "${SSH_AUTH_SOCK}",
+  "controlSocketPath": "${CONTROL_SOCKET}",
   "ageKeyFile": "${AGE_KEY_FILE}",
-  "signTimeout": "30s",
+  "signTimeout": 30,
+  "connectionTimeout": 10,
   "allowKeyListing": true
 }
 EOF
@@ -323,7 +338,29 @@ EOF
   # Initialize empty devices.json
   echo '[]' > "$DEVICES_PATH"
 
-  log_ok "Daemon config written to $DAEMON_DIR/config/config.json"
+  log_ok "Daemon config written to $XDG_CONFIG_HOME/nix-key/config.json"
+
+  # Start nix-key daemon
+  nix-key daemon &>"$WORK_DIR/daemon.log" &
+  DAEMON_PID=$!
+
+  # Wait for agent socket to appear
+  local elapsed=0
+  while [ $elapsed -lt 10 ]; do
+    if [ -S "$SSH_AUTH_SOCK" ]; then
+      break
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  if [ ! -S "$SSH_AUTH_SOCK" ]; then
+    log_fail "Daemon did not create agent socket within 10s"
+    cat "$WORK_DIR/daemon.log" >&2
+    return 1
+  fi
+
+  log_ok "nix-key daemon running (PID $DAEMON_PID), agent socket: $SSH_AUTH_SOCK"
 }
 
 # --- Step 3: Boot Android emulator + install APK ---
@@ -347,22 +384,106 @@ boot_emulator_and_install() {
   fi
   log "APK: $apk_path"
 
-  # Boot emulator (start-emulator from T063 handles AVD creation + boot wait)
-  log "Booting Android emulator..."
-  start-emulator 2>&1 | while IFS= read -r line; do log "  emulator: $line"; done
+  # Check if emulator is already running and booted
+  if adb -s "$EMULATOR_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '[:space:]' | grep -q "1"; then
+    log_ok "Reusing already-running emulator"
+  else
+    EMULATOR_STARTED_BY_US=true
 
-  # Verify emulator is up
-  if ! adb -s "$EMULATOR_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '[:space:]' | grep -q "1"; then
-    log_fail "Emulator not booted"
-    return 1
+    # Extract ANDROID_HOME from start-emulator script to use its SDK
+    local emu_android_home
+    emu_android_home=$(grep "^ANDROID_HOME=" "$(which start-emulator)" | head -1 | cut -d'"' -f2)
+    export ANDROID_HOME="${emu_android_home:-$ANDROID_HOME}"
+    export ANDROID_SDK_ROOT="$ANDROID_HOME"
+    export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
+
+    # Ensure AVD exists (start-emulator creates it if needed, then we kill + restart without wipe)
+    local avd_dir="${ANDROID_USER_HOME:-$HOME/.android}/avd"
+    if [ ! -d "$avd_dir/nix-key-test.avd" ]; then
+      log "Creating AVD via start-emulator..."
+      start-emulator --no-wait 2>&1 | while IFS= read -r line; do log "  emulator: $line"; done
+      # Kill the wipe-data emulator, we'll restart without it
+      sleep 2
+      adb -s "$EMULATOR_SERIAL" emu kill 2>/dev/null || true
+      sleep 3
+    fi
+
+    # Start emulator WITHOUT -wipe-data for faster subsequent boots
+    local kvm_flag="-accel off"
+    if [ -w /dev/kvm ]; then
+      kvm_flag="-accel on"
+    fi
+    log "Starting Android emulator (no wipe-data)..."
+    emulator @nix-key-test \
+      -no-window \
+      -no-audio \
+      -no-boot-anim \
+      -gpu swiftshader_indirect \
+      $kvm_flag \
+      -memory 2048 \
+      -no-snapshot \
+      -verbose \
+      &>"$WORK_DIR/emulator.log" 2>&1 &
+    log "Emulator PID: $!"
+
+    # Wait for emulator boot with generous timeout (first boot without KVM = ~15 min)
+    local boot_timeout=900
+    if [ -w /dev/kvm ]; then
+      boot_timeout=120
+    fi
+    log "Waiting for emulator boot (timeout: ${boot_timeout}s)..."
+
+    local elapsed=0
+    while [ $elapsed -lt $boot_timeout ]; do
+      if adb -s "$EMULATOR_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '[:space:]' | grep -q "1"; then
+        log_ok "Emulator booted in ${elapsed}s"
+        break
+      fi
+      sleep 5
+      elapsed=$((elapsed + 5))
+      if [ $((elapsed % 60)) -eq 0 ]; then
+        log "  Still waiting for emulator boot... (${elapsed}s)"
+      fi
+    done
+
+    if ! adb -s "$EMULATOR_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '[:space:]' | grep -q "1"; then
+      log_fail "Emulator not booted within ${boot_timeout}s"
+      return 1
+    fi
   fi
 
-  # Install APK
-  log "Installing APK on emulator..."
-  adb -s "$EMULATOR_SERIAL" install -r -t "$apk_path" 2>&1 || {
+  # Wait for package manager + storage to be fully ready (needed for APK install)
+  # After sys.boot_completed=1, system services may still be initializing.
+  log "Waiting for package manager and storage services..."
+  local pm_elapsed=0
+  while [ $pm_elapsed -lt 300 ]; do
+    # Check both that pm works AND that install doesn't throw NullPointerException
+    local pm_count
+    pm_count=$(adb -s "$EMULATOR_SERIAL" shell pm list packages 2>/dev/null | wc -l)
+    if [ "$pm_count" -gt 50 ]; then
+      # Also verify storage service is ready by attempting a dry-run
+      if adb -s "$EMULATOR_SERIAL" shell "service check mount" 2>/dev/null | grep -q "found"; then
+        break
+      fi
+    fi
+    sleep 10
+    pm_elapsed=$((pm_elapsed + 10))
+    if [ $((pm_elapsed % 60)) -eq 0 ]; then
+      log "  Still waiting for services... (${pm_elapsed}s, packages: ${pm_count:-0})"
+    fi
+  done
+
+  # Install APK (push first to avoid streaming timeout on slow emulators)
+  log "Pushing APK to emulator..."
+  adb -s "$EMULATOR_SERIAL" push "$apk_path" /data/local/tmp/app-debug.apk 2>&1
+
+  log "Installing APK from emulator storage..."
+  adb -s "$EMULATOR_SERIAL" shell pm install -r -t /data/local/tmp/app-debug.apk 2>&1 || {
     log_fail "APK install failed"
+    adb -s "$EMULATOR_SERIAL" shell rm /data/local/tmp/app-debug.apk 2>/dev/null
     return 1
   }
+  adb -s "$EMULATOR_SERIAL" shell rm /data/local/tmp/app-debug.apk 2>/dev/null
 
   # Also install test APK (androidTest) if available
   local test_apk="$REPO_ROOT/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
@@ -555,12 +676,19 @@ trigger_sign_request() {
     log_warn "No keys listed via ssh-add -L (daemon may not be running agent)"
   fi
 
+  # Extract the first public key from the agent for signing
+  ssh-add -L 2>/dev/null | head -1 > "$WORK_DIR/sign-pubkey.pub" || true
+  if [ ! -s "$WORK_DIR/sign-pubkey.pub" ]; then
+    log_fail "No public key available from agent for signing"
+    return 1
+  fi
+
   # Create a test file to sign
   echo "test data for e2e signing" > "$WORK_DIR/sign-test.txt"
 
   # Sign using ssh-keygen (this triggers a sign request to the phone)
   ssh-keygen -Y sign \
-    -f "$WORK_DIR/sign-pubkey" \
+    -f "$WORK_DIR/sign-pubkey.pub" \
     -n "e2e-test" \
     "$WORK_DIR/sign-test.txt" \
     &>"$WORK_DIR/sign.log" &
@@ -614,7 +742,7 @@ test_sign_denial() {
   echo "denial test data" > "$WORK_DIR/deny-test.txt"
 
   ssh-keygen -Y sign \
-    -f "$WORK_DIR/sign-pubkey" \
+    -f "$WORK_DIR/sign-pubkey.pub" \
     -n "e2e-test" \
     "$WORK_DIR/deny-test.txt" \
     &>"$WORK_DIR/deny-sign.log" &

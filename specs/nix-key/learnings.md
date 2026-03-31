@@ -72,3 +72,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **No KVM = slow emulator**: Without `/dev/kvm`, the Android emulator boots in ~8 min (vs ~20s with KVM). The `start-emulator` timeout must be 600s (not 120s). Services (package manager) take additional minutes to initialize after `sys.boot_completed=1`.
 - **gomobile `int32` → Java `int`**: Go `int32` maps to Java `int` in gomobile (not `long`). The `KeyStore.sign()` flags parameter changed from `Long` to `Int` when the Go interface was updated to use `int32`.
 - **FGS connectedDevice permission**: Android 14+ requires `CHANGE_NETWORK_STATE` (or similar) in addition to `FOREGROUND_SERVICE_CONNECTED_DEVICE` for foreground services with `connectedDevice` type. Missing this causes `SecurityException` at runtime.
+
+## T113 — E2E test script fixes
+
+- **headscale v0.28 preauthkeys require numeric user ID**: `--user` takes a uint, not a string name. Use `users list -o json | python3 -c "..."` to extract the numeric `id` field. Also requires `derp.urls` section and `dns.nameservers.global` with a real nameserver (not empty) when `override_local_dns: false`.
+- **nix-key daemon config field names**: The config JSON uses `socketPath`, `controlSocketPath`, and integer `signTimeout` (not `listenPath`, `controlSocket`, `"30s"`). The daemon finds config at `$XDG_CONFIG_HOME/nix-key/config.json` and devices at `$XDG_STATE_HOME/nix-key/devices.json`.
+- **APK install on slow emulators**: Use push-then-install (`adb push` + `adb shell pm install`) instead of streaming `adb install`, which times out on slow software-emulated devices. After `sys.boot_completed=1`, wait for `pm list packages` to show 50+ packages AND `service check mount` to report "found" before attempting install.
