@@ -59,6 +59,7 @@ jobs:
         run: |
           cd android
           nix develop --command bash -c '
+            unset ANDROID_SDK_ROOT
             NIX_AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
             ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon \
               -Dorg.gradle.java.home="$JAVA_HOME" \
