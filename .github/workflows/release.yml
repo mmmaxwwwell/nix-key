@@ -124,20 +124,11 @@ jobs:
 
       - name: Build gomobile AAR
         run: |
-          nix develop --command bash -c '
-            export GOPATH="$HOME/go"
-            export GOMODCACHE="$GOPATH/pkg/mod"
-            mkdir -p android/app/libs "$GOMODCACHE"
-            go get golang.org/x/mobile/bind@latest || true
-            gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
-          '
+          nix develop --command build-android-apk --aar-only
 
       - name: Build release APK
         run: |
-          cd android
-          ./gradlew assembleRelease --no-daemon
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          nix develop --command build-android-apk --skip-aar --release
 
       - name: Find and rename APK
         run: |

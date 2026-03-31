@@ -53,18 +53,17 @@ jobs:
 
       - name: Build gomobile AAR
         run: |
-          nix develop --command bash -c '
-            export GOPATH="$HOME/go"
-            export GOMODCACHE="$GOPATH/pkg/mod"
-            mkdir -p android/app/libs "$GOMODCACHE"
-            go get golang.org/x/mobile/bind@latest || true
-            gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
-          '
+          nix develop --command build-android-apk --aar-only
 
       - name: Build debug APK + test APK
         run: |
           cd android
-          nix develop --command bash -c './gradlew assembleDebug assembleDebugAndroidTest --no-daemon'
+          nix develop --command bash -c '
+            NIX_AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+            ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon \
+              -Dorg.gradle.java.home="$JAVA_HOME" \
+              -Pandroid.aapt2FromMavenOverride="$NIX_AAPT2"
+          '
 
       - name: Run E2E with retry (attempt 1 of 3)
         id: attempt1
