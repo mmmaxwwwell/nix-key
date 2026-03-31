@@ -1,0 +1,170 @@
+name: E2E
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [develop, main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------- Android Emulator E2E ----------
+  # Runs after CI completes (via workflow_run) or when called as a reusable workflow
+  e2e:
+    name: Android Emulator E2E
+    if: >-
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event_name == 'workflow_call'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # workflow_run events point to default branch HEAD; use the triggering commit
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build gomobile AAR
+        run: |
+          nix develop --command bash -c '
+            export GOPATH="$HOME/go"
+            export GOMODCACHE="$GOPATH/pkg/mod"
+            mkdir -p android/app/libs "$GOMODCACHE"
+            go get golang.org/x/mobile/bind@latest || true
+            gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
+          '
+
+      - name: Build debug APK + test APK
+        run: |
+          cd android
+          nix develop --command bash -c './gradlew assembleDebug assembleDebugAndroidTest --no-daemon'
+
+      - name: Run E2E with retry (attempt 1 of 3)
+        id: attempt1
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          mkdir -p test-logs
+          nix develop --command bash -c '
+            export ANDROID_USER_HOME="${{ runner.temp }}/.android"
+            mkdir -p "$ANDROID_USER_HOME"
+            ./test/e2e/android_e2e_test.sh --skip-build --retry=1 2>&1 | tee test-logs/e2e-attempt-1.log
+          '
+
+      - name: Capture logcat (attempt 1)
+        if: steps.attempt1.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          adb -s emulator-5554 logcat -d > test-logs/logcat-attempt-1.txt 2>/dev/null || true
+
+      - name: Cooldown before retry 2
+        if: steps.attempt1.outcome == 'failure'
+        run: sleep 60
+
+      - name: Run E2E with retry (attempt 2 of 3)
+        id: attempt2
+        if: steps.attempt1.outcome == 'failure'
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          nix develop --command bash -c '
+            export ANDROID_USER_HOME="${{ runner.temp }}/.android"
+            mkdir -p "$ANDROID_USER_HOME"
+            ./test/e2e/android_e2e_test.sh --skip-build --retry=1 2>&1 | tee test-logs/e2e-attempt-2.log
+          '
+
+      - name: Capture logcat (attempt 2)
+        if: steps.attempt2.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          adb -s emulator-5554 logcat -d > test-logs/logcat-attempt-2.txt 2>/dev/null || true
+
+      - name: Cooldown before retry 3
+        if: steps.attempt2.outcome == 'failure'
+        run: sleep 60
+
+      - name: Run E2E with retry (attempt 3 of 3)
+        id: attempt3
+        if: steps.attempt2.outcome == 'failure'
+        timeout-minutes: 15
+        run: |
+          nix develop --command bash -c '
+            export ANDROID_USER_HOME="${{ runner.temp }}/.android"
+            mkdir -p "$ANDROID_USER_HOME"
+            ./test/e2e/android_e2e_test.sh --skip-build --retry=1 2>&1 | tee test-logs/e2e-attempt-3.log
+          '
+
+      - name: Capture logcat (final)
+        if: always()
+        continue-on-error: true
+        run: |
+          adb -s emulator-5554 logcat -d > test-logs/logcat-final.txt 2>/dev/null || true
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          ATTEMPT1="${{ steps.attempt1.outcome }}"
+          ATTEMPT2="${{ steps.attempt2.outcome }}"
+          ATTEMPT3="${{ steps.attempt3.outcome }}"
+          echo "| Attempt | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 1 | ${ATTEMPT1} |" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ATTEMPT1" = "failure" ]; then
+            echo "| 2 | ${ATTEMPT2:-skipped} |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$ATTEMPT2" = "failure" ]; then
+            echo "| 3 | ${ATTEMPT3:-skipped} |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ATTEMPT1" = "success" ] || [ "$ATTEMPT2" = "success" ] || [ "$ATTEMPT3" = "success" ]; then
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test-logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-logs
+          path: |
+            test-logs/
+          if-no-files-found: ignore
+
+      - name: Upload emulator logcat on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-emulator-logcat
+          path: |
+            test-logs/logcat-*.txt
+          if-no-files-found: ignore
