@@ -188,7 +188,9 @@ class SecurityWarningTest {
 
     @Test
     fun biometricHelper_warningFlags() {
-        val helper = BiometricHelper()
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val biometricManager = androidx.biometric.BiometricManager.from(context)
+        val helper = BiometricHelper(biometricManager)
         assertTrue("Auto-approve should always require warning", helper.requiresAutoApproveWarning())
         assertTrue("None-unlock should always require warning", helper.requiresNoneUnlockWarning())
     }

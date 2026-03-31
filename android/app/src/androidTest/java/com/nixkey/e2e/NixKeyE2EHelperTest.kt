@@ -43,13 +43,13 @@ class NixKeyE2EHelperTest {
 
     @Test
     fun waitForApp_launchesAndFindsApp() {
-        val result = helper.waitForApp(timeout = 15_000L)
+        val result = helper.waitForApp(timeout = 60_000L)
         assertTrue("App should be visible after launch", result)
     }
 
     @Test
     fun waitForElement_findsExistingElement() {
-        helper.waitForApp(timeout = 15_000L)
+        helper.waitForApp(timeout = 60_000L)
         // After launching, the app shows either TailscaleAuthScreen or ServerListScreen.
         // Both have recognizable text elements.
         val foundTailscale = helper.waitForElement(
@@ -68,7 +68,7 @@ class NixKeyE2EHelperTest {
 
     @Test
     fun waitForElement_returnsFalseForMissingElement() {
-        helper.waitForApp(timeout = 15_000L)
+        helper.waitForApp(timeout = 60_000L)
         val result = helper.waitForElement(
             By.text("THIS_ELEMENT_DOES_NOT_EXIST_ANYWHERE_12345"),
             1_000L,
@@ -78,7 +78,7 @@ class NixKeyE2EHelperTest {
 
     @Test
     fun pairWithHost_showsConfirmationDialog() {
-        helper.waitForApp(timeout = 15_000L)
+        helper.waitForApp(timeout = 60_000L)
         // Send a deep link intent — the confirmation dialog should appear
         val payload = createBase64Payload("e2e-test-host", 8443)
 
@@ -107,7 +107,7 @@ class NixKeyE2EHelperTest {
 
     @Test
     fun enterTailscaleAuthKey_findsInputField() {
-        helper.waitForApp(timeout = 15_000L)
+        helper.waitForApp(timeout = 60_000L)
         // This test is only meaningful when the app starts on TailscaleAuthScreen
         val onAuthScreen = helper.waitForElement(
             By.text("Connect to Tailscale"),
@@ -127,7 +127,7 @@ class NixKeyE2EHelperTest {
 
     @Test
     fun approveSignRequest_returnsFalseWhenNoDialog() {
-        helper.waitForApp(timeout = 15_000L)
+        helper.waitForApp(timeout = 60_000L)
         // No sign request is pending, so approveSignRequest should return false
         val shortHelper = NixKeyE2EHelper(device = device, maxRetries = 1)
         val result = shortHelper.approveSignRequest(timeout = 2_000L)
@@ -136,7 +136,7 @@ class NixKeyE2EHelperTest {
 
     @Test
     fun denySignRequest_returnsFalseWhenNoDialog() {
-        helper.waitForApp(timeout = 15_000L)
+        helper.waitForApp(timeout = 60_000L)
         val shortHelper = NixKeyE2EHelper(device = device, maxRetries = 1)
         val result = shortHelper.denySignRequest()
         assertFalse("Should return false when no sign request dialog is shown", result)

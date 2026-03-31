@@ -130,13 +130,13 @@ let
         GOFLAGS="-mod=mod" go build -o "$GOMOBILE_DIR/gobind" golang.org/x/mobile/cmd/gobind
       )
 
-      echo "Running: gomobile bind -target android -androidapi 29 ./pkg/phoneserver"
+      echo "Running: gomobile bind -target android/arm64,android/amd64 -androidapi 29 ./pkg/phoneserver"
       (
         cd "$REPO_ROOT"
         PATH="$GOMOBILE_DIR:$PATH" \
         GOFLAGS="-mod=mod" \
         "$GOMOBILE_DIR/gomobile" bind \
-          -target android \
+          -target android/arm64,android/amd64 \
           -androidapi 29 \
           -o "$ANDROID_DIR/app/libs/phoneserver.aar" \
           ./pkg/phoneserver
@@ -178,9 +178,29 @@ let
       exit 1
     fi
 
+    # On NixOS, pre-compiled binaries from Maven (protoc-gen-grpc-java, aapt2)
+    # have the wrong dynamic linker. Patch any cached binaries before building.
+    GRADLE_CACHE="''${GRADLE_USER_HOME:-$HOME/.gradle}/caches"
+    if [ -d "$GRADLE_CACHE" ]; then
+      # Patch protoc-gen-grpc-java binaries
+      for bin in $(${pkgs.findutils}/bin/find "$GRADLE_CACHE/modules-2" -name 'protoc-gen-grpc-java-*-linux-x86_64.exe' -type f 2>/dev/null); do
+        if ${pkgs.file}/bin/file "$bin" | ${pkgs.gnugrep}/bin/grep -q "ELF.*dynamically linked.*interpreter /lib64"; then
+          echo "Patching NixOS interpreter: $bin"
+          ${pkgs.patchelf}/bin/patchelf \
+            --set-interpreter "${pkgs.stdenv.cc.libc}/lib/ld-linux-x86-64.so.2" \
+            --set-rpath "${pkgs.stdenv.cc.cc.lib}/lib" \
+            "$bin" 2>/dev/null || true
+        fi
+      done
+    fi
+
+    # Use AAPT2 from the Nix Android SDK (already patched for NixOS)
+    NIX_AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+
     ./gradlew "$GRADLE_TASK" \
       --no-daemon \
-      -Dorg.gradle.java.home="${jdk}"
+      -Dorg.gradle.java.home="${jdk}" \
+      -Pandroid.aapt2FromMavenOverride="$NIX_AAPT2"
 
     # --- Output ---
     APK_DIR="$ANDROID_DIR/app/build/outputs/apk/$BUILD_TYPE"

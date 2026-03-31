@@ -159,7 +159,7 @@ class ExpiredCertTest {
         keyUnlockManager.unlock(key)
 
         goPhoneServer.start("127.0.0.1:0")
-        Thread.sleep(500)
+        waitForServerReady()
         assertTrue("Server should be running", goPhoneServer.isRunning())
 
         val channel = ManagedChannelBuilder
@@ -206,7 +206,7 @@ class ExpiredCertTest {
         keyUnlockManager.unlock(key)
 
         goPhoneServer.start("127.0.0.1:0")
-        Thread.sleep(500)
+        waitForServerReady()
 
         val channel = ManagedChannelBuilder
             .forAddress("127.0.0.1", goPhoneServer.port())
@@ -279,5 +279,14 @@ class ExpiredCertTest {
             Thread.sleep(100)
             attempts++
         }
+    }
+
+    private fun waitForServerReady(timeoutMs: Long = 10_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (goPhoneServer.port() > 0) return
+            Thread.sleep(200)
+        }
+        assertTrue("Server should have a port within ${timeoutMs}ms", goPhoneServer.port() > 0)
     }
 }

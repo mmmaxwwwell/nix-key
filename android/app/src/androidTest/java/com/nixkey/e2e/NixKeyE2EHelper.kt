@@ -216,8 +216,11 @@ class NixKeyE2EHelper(
             // Wait for the auth screen to transition away (either success -> ServerListScreen,
             // or the "Joining Tailnet..." progress indicator)
             val joinedOrList = device.wait(
-                Until.hasObject(By.text("nix-key").or(By.text("Joining Tailnet..."))),
+                Until.hasObject(By.textStartsWith("nix-key")),
                 DEFAULT_TIMEOUT_MS,
+            ) ?: device.wait(
+                Until.hasObject(By.text("Joining Tailnet...")),
+                DEFAULT_TIMEOUT_MS / 2,
             ) ?: false
             joinedOrList
         }

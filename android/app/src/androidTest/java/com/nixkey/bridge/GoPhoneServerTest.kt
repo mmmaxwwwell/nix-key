@@ -7,6 +7,7 @@ import com.nixkey.keystore.KeyManager
 import com.nixkey.keystore.KeyType
 import com.nixkey.keystore.SignRequestQueue
 import com.nixkey.keystore.SignRequestStatus
+import com.nixkey.keystore.KeyUnlockManager
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -47,7 +48,8 @@ class GoPhoneServerTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         keyManager = KeyManager(context)
         signRequestQueue = SignRequestQueue()
-        goPhoneServer = GoPhoneServer(keyManager, signRequestQueue)
+        val keyUnlockManager = KeyUnlockManager()
+        goPhoneServer = GoPhoneServer(keyManager, signRequestQueue, keyUnlockManager)
     }
 
     @After
@@ -58,7 +60,7 @@ class GoPhoneServerTest {
     @Test
     fun serverStartsAndStops() {
         goPhoneServer.start("127.0.0.1:0")
-        Thread.sleep(500)
+        waitForServerReady()
         assertTrue("Server should be running", goPhoneServer.isRunning())
         assertTrue("Port should be assigned", goPhoneServer.port() > 0)
 
@@ -69,14 +71,14 @@ class GoPhoneServerTest {
     @Test(expected = IllegalStateException::class)
     fun doubleStartThrows() {
         goPhoneServer.start("127.0.0.1:0")
-        Thread.sleep(500)
+        waitForServerReady()
         goPhoneServer.start("127.0.0.1:0")
     }
 
     @Test
     fun pingRpcReturnsTimestamp() {
         goPhoneServer.start("127.0.0.1:0")
-        Thread.sleep(500)
+        waitForServerReady()
 
         val channel = ManagedChannelBuilder
             .forAddress("127.0.0.1", goPhoneServer.port())
@@ -103,7 +105,7 @@ class GoPhoneServerTest {
 
         try {
             goPhoneServer.start("127.0.0.1:0")
-            Thread.sleep(500)
+            waitForServerReady()
 
             val channel = ManagedChannelBuilder
                 .forAddress("127.0.0.1", goPhoneServer.port())
@@ -129,12 +131,12 @@ class GoPhoneServerTest {
         val keyInfo = keyManager.createKey(
             "test-sign-key",
             KeyType.ECDSA_P256,
-            ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
         )
 
         try {
             goPhoneServer.start("127.0.0.1:0")
-            Thread.sleep(500)
+            waitForServerReady()
 
             // Auto-approve the sign request from a background thread
             val approveThread = Thread {
@@ -177,12 +179,12 @@ class GoPhoneServerTest {
         val keyInfo = keyManager.createKey(
             "test-deny-key",
             KeyType.ECDSA_P256,
-            ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
         )
 
         try {
             goPhoneServer.start("127.0.0.1:0")
-            Thread.sleep(500)
+            waitForServerReady()
 
             // Deny the sign request from a background thread
             val denyThread = Thread {
@@ -232,12 +234,12 @@ class GoPhoneServerTest {
         val keyInfo = keyManager.createKey(
             "test-timeout-key",
             KeyType.ECDSA_P256,
-            ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
         )
 
         try {
             goPhoneServer.start("127.0.0.1:0")
-            Thread.sleep(500)
+            waitForServerReady()
 
             // Do NOT approve or deny — let the request hang until client deadline expires
             val channel = ManagedChannelBuilder
@@ -285,12 +287,12 @@ class GoPhoneServerTest {
         val keyInfo = keyManager.createKey(
             "test-policy-key",
             KeyType.ECDSA_P256,
-            ConfirmationPolicy.BIOMETRIC,
+            signingPolicy = ConfirmationPolicy.BIOMETRIC,
         )
 
         try {
             goPhoneServer.start("127.0.0.1:0")
-            Thread.sleep(500)
+            waitForServerReady()
 
             // Approve from background, but capture the policy from the SignRequest
             val policyRef = AtomicReference<ConfirmationPolicy>()
@@ -347,5 +349,18 @@ class GoPhoneServerTest {
             Thread.sleep(100)
             attempts++
         }
+    }
+
+    /**
+     * Wait for the Go gRPC server to start and assign a port.
+     * On emulators without KVM, the server may take several seconds to bind.
+     */
+    private fun waitForServerReady(timeoutMs: Long = 10_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (goPhoneServer.port() > 0) return
+            Thread.sleep(200)
+        }
+        assertTrue("Server should have a port within ${timeoutMs}ms", goPhoneServer.port() > 0)
     }
 }

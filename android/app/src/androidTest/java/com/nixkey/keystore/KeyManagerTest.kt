@@ -81,7 +81,7 @@ class KeyManagerTest {
         val info = keyManager.createKey(
             "test-policy",
             KeyType.ED25519,
-            ConfirmationPolicy.BIOMETRIC,
+            signingPolicy = ConfirmationPolicy.BIOMETRIC,
         )
         createdAliases.add(info.alias)
 

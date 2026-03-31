@@ -66,3 +66,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **AAR verification**: The AAR is 9.5MB compressed with `jni/arm64-v8a/libgojni.so` (20.7MB). This confirms real Go native code, not a stub (<100KB).
 - **x86_64 missing**: `-target android` only produced ARM64; x86_64 was not built. For emulator tests on x86_64 hosts, either use ARM64 translation (Android 11+) or add explicit `-target android/arm64,android/amd64` to the gomobile bind command.
 - **`jar` not in devshell**: Use `unzip -l` instead of `jar tf` to inspect AAR contents in the Nix environment.
+
+## T112 — Android instrumented tests on local emulator
+
+- **No KVM = slow emulator**: Without `/dev/kvm`, the Android emulator boots in ~8 min (vs ~20s with KVM). The `start-emulator` timeout must be 600s (not 120s). Services (package manager) take additional minutes to initialize after `sys.boot_completed=1`.
+- **gomobile `int32` → Java `int`**: Go `int32` maps to Java `int` in gomobile (not `long`). The `KeyStore.sign()` flags parameter changed from `Long` to `Int` when the Go interface was updated to use `int32`.
+- **FGS connectedDevice permission**: Android 14+ requires `CHANGE_NETWORK_STATE` (or similar) in addition to `FOREGROUND_SERVICE_CONNECTED_DEVICE` for foreground services with `connectedDevice` type. Missing this causes `SecurityException` at runtime.

@@ -52,6 +52,7 @@ let
     export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
 
     AVD_NAME="nix-key-test"
+    # Default timeout: 120s with KVM, 600s without (software emulation is ~5x slower)
     BOOT_TIMEOUT=120
     ACTION="start"
 
@@ -185,6 +186,8 @@ let
     else
       echo "Warning: /dev/kvm not accessible, emulator will be slow" >&2
       KVM_FLAG="-accel off"
+      # Without KVM, boot takes 5-10 minutes; extend timeout
+      BOOT_TIMEOUT=600
     fi
 
     # --- Start emulator ---
