@@ -36,7 +36,7 @@ import timber.log.Timber
 @ThreadSafe
 @Singleton
 class KeyManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @ApplicationContext private val context: Context
 ) {
     private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
     private val prefs: SharedPreferences by lazy { createEncryptedPrefs() }
@@ -45,7 +45,7 @@ class KeyManager @Inject constructor(
         name: String,
         type: KeyType,
         unlockPolicy: UnlockPolicy = UnlockPolicy.PASSWORD,
-        signingPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC,
+        signingPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC
     ): SshKeyInfo {
         val alias = "nixkey_${type.name.lowercase()}_${System.nanoTime()}"
 
@@ -83,19 +83,14 @@ class KeyManager @Inject constructor(
         }
     }
 
-    fun updateKey(
-        alias: String,
-        displayName: String,
-        unlockPolicy: UnlockPolicy,
-        signingPolicy: ConfirmationPolicy,
-    ) {
+    fun updateKey(alias: String, displayName: String, unlockPolicy: UnlockPolicy, signingPolicy: ConfirmationPolicy) {
         val info = loadKeyInfo(alias)
             ?: throw IllegalArgumentException("Key not found: $alias")
 
         val updated = info.copy(
             displayName = displayName,
             unlockPolicy = unlockPolicy,
-            confirmationPolicy = signingPolicy,
+            confirmationPolicy = signingPolicy
         )
         saveKeyInfo(updated)
         Timber.i(
@@ -103,7 +98,7 @@ class KeyManager @Inject constructor(
             alias,
             displayName,
             unlockPolicy,
-            signingPolicy,
+            signingPolicy
         )
     }
 
@@ -134,11 +129,11 @@ class KeyManager @Inject constructor(
         alias: String,
         name: String,
         unlockPolicy: UnlockPolicy,
-        signingPolicy: ConfirmationPolicy,
+        signingPolicy: ConfirmationPolicy
     ): SshKeyInfo {
         val builder = KeyGenParameterSpec.Builder(
             alias,
-            KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
+            KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
         )
             .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
             .setDigests(KeyProperties.DIGEST_SHA256)
@@ -155,7 +150,7 @@ class KeyManager @Inject constructor(
 
         val kpg = KeyPairGenerator.getInstance(
             KeyProperties.KEY_ALGORITHM_EC,
-            ANDROID_KEYSTORE,
+            ANDROID_KEYSTORE
         )
         try {
             kpg.initialize(builder.build())
@@ -165,7 +160,7 @@ class KeyManager @Inject constructor(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val fallbackBuilder = KeyGenParameterSpec.Builder(
                     alias,
-                    KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
+                    KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
                 )
                     .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
                     .setDigests(KeyProperties.DIGEST_SHA256)
@@ -187,7 +182,7 @@ class KeyManager @Inject constructor(
             unlockPolicy = unlockPolicy,
             confirmationPolicy = signingPolicy,
             createdAt = Instant.now(),
-            wrappingKeyAlias = null,
+            wrappingKeyAlias = null
         )
         saveKeyInfo(info)
         Timber.i("Created ECDSA-P256 key alias=%s fingerprint=%s", alias, fingerprint)
@@ -215,14 +210,14 @@ class KeyManager @Inject constructor(
         alias: String,
         name: String,
         unlockPolicy: UnlockPolicy,
-        signingPolicy: ConfirmationPolicy,
+        signingPolicy: ConfirmationPolicy
     ): SshKeyInfo {
         val wrappingAlias = "${alias}_wrap"
 
         // Generate AES-256 wrapping key in Keystore
         val aesSpec = KeyGenParameterSpec.Builder(
             wrappingAlias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
         )
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
@@ -231,7 +226,7 @@ class KeyManager @Inject constructor(
 
         val aesGen = KeyGenerator.getInstance(
             KeyProperties.KEY_ALGORITHM_AES,
-            ANDROID_KEYSTORE,
+            ANDROID_KEYSTORE
         )
         aesGen.init(aesSpec)
         aesGen.generateKey()
@@ -265,7 +260,7 @@ class KeyManager @Inject constructor(
             unlockPolicy = unlockPolicy,
             confirmationPolicy = signingPolicy,
             createdAt = Instant.now(),
-            wrappingKeyAlias = wrappingAlias,
+            wrappingKeyAlias = wrappingAlias
         )
         saveKeyInfo(info)
         Timber.i("Created Ed25519 key alias=%s fingerprint=%s", alias, fingerprint)
@@ -422,18 +417,18 @@ class KeyManager @Inject constructor(
                 fingerprint = prefs.getString("${alias}_fingerprint", "") ?: "",
                 unlockPolicy = try {
                     UnlockPolicy.valueOf(
-                        prefs.getString("${alias}_unlock_policy", "PASSWORD") ?: "PASSWORD",
+                        prefs.getString("${alias}_unlock_policy", "PASSWORD") ?: "PASSWORD"
                     )
                 } catch (_: IllegalArgumentException) {
                     UnlockPolicy.PASSWORD
                 },
                 confirmationPolicy = ConfirmationPolicy.valueOf(
-                    prefs.getString("${alias}_policy", "BIOMETRIC") ?: "BIOMETRIC",
+                    prefs.getString("${alias}_policy", "BIOMETRIC") ?: "BIOMETRIC"
                 ),
                 createdAt = Instant.parse(
-                    prefs.getString("${alias}_created", Instant.EPOCH.toString()),
+                    prefs.getString("${alias}_created", Instant.EPOCH.toString())
                 ),
-                wrappingKeyAlias = prefs.getString("${alias}_wrapping", null),
+                wrappingKeyAlias = prefs.getString("${alias}_wrapping", null)
             )
         } catch (e: Exception) {
             Timber.e(e, "Failed to load key info for alias=%s", alias)
@@ -470,7 +465,7 @@ class KeyManager @Inject constructor(
             PREFS_FILE,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     }
 

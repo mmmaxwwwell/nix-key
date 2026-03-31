@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,9 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
@@ -62,7 +61,7 @@ fun PairingScreen(
     onBack: () -> Unit,
     onPairingComplete: () -> Unit,
     initialPayload: String? = null,
-    viewModel: PairingViewModel = hiltViewModel(),
+    viewModel: PairingViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val tailnetState by LocalTailnetConnectionState.current.collectAsState()
@@ -93,33 +92,33 @@ fun PairingScreen(
                 },
                 actions = {
                     TailnetIndicator(state = tailnetState)
-                },
+                }
             )
-        },
+        }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
         ) {
             when (state.phase) {
                 PairingPhase.SCANNING -> {
                     QrScannerContent(
-                        onQrScanned = { viewModel.onQrScanned(it) },
+                        onQrScanned = { viewModel.onQrScanned(it) }
                     )
                 }
                 PairingPhase.CONFIRM_HOST -> {
                     ConfirmHostDialog(
                         hostName = state.payload?.host ?: "",
                         onConfirm = { viewModel.onHostConfirmed() },
-                        onDeny = { viewModel.onHostDenied() },
+                        onDeny = { viewModel.onHostDenied() }
                     )
                 }
                 PairingPhase.CONFIRM_OTEL -> {
                     ConfirmOtelDialog(
                         otelEndpoint = state.payload?.otel ?: "",
                         onAccept = { viewModel.onOtelAccepted() },
-                        onDeny = { viewModel.onOtelDenied() },
+                        onDeny = { viewModel.onOtelDenied() }
                     )
                 }
                 PairingPhase.PAIRING -> {
@@ -132,7 +131,7 @@ fun PairingScreen(
                     ErrorContent(
                         error = state.error ?: "Unknown error",
                         onRetry = { viewModel.resetState() },
-                        onBack = onBack,
+                        onBack = onBack
                     )
                 }
             }
@@ -141,19 +140,17 @@ fun PairingScreen(
 }
 
 @Composable
-fun QrScannerContent(
-    onQrScanned: (String) -> Unit,
-) {
+fun QrScannerContent(onQrScanned: (String) -> Unit) {
     val context = LocalContext.current
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                == PackageManager.PERMISSION_GRANTED,
+                == PackageManager.PERMISSION_GRANTED
         )
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
+        ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasCameraPermission = granted
     }
@@ -169,7 +166,7 @@ fun QrScannerContent(
     } else {
         Box(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Camera permission is required to scan QR codes")
@@ -184,9 +181,7 @@ fun QrScannerContent(
 
 @Composable
 @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
-fun CameraPreviewWithScanner(
-    onQrScanned: (String) -> Unit,
-) {
+fun CameraPreviewWithScanner(onQrScanned: (String) -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var scanned by remember { mutableStateOf(false) }
@@ -216,7 +211,7 @@ fun CameraPreviewWithScanner(
                                 if (mediaImage != null && !scanned) {
                                     val inputImage = InputImage.fromMediaImage(
                                         mediaImage,
-                                        imageProxy.imageInfo.rotationDegrees,
+                                        imageProxy.imageInfo.rotationDegrees
                                     )
                                     barcodeScanner.process(inputImage)
                                         .addOnSuccessListener { barcodes ->
@@ -245,7 +240,7 @@ fun CameraPreviewWithScanner(
                             lifecycleOwner,
                             CameraSelector.DEFAULT_BACK_CAMERA,
                             preview,
-                            imageAnalysis,
+                            imageAnalysis
                         )
                     } catch (e: Exception) {
                         // Camera binding can fail on devices without a camera
@@ -254,36 +249,32 @@ fun CameraPreviewWithScanner(
 
                 previewView
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize()
         )
 
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "Scanning...",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Point camera at the QR code",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
 }
 
 @Composable
-fun ConfirmHostDialog(
-    hostName: String,
-    onConfirm: () -> Unit,
-    onDeny: () -> Unit,
-) {
+fun ConfirmHostDialog(hostName: String, onConfirm: () -> Unit, onDeny: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDeny,
         title = { Text("Pair with host?") },
@@ -299,16 +290,12 @@ fun ConfirmHostDialog(
             OutlinedButton(onClick = onDeny) {
                 Text("Deny")
             }
-        },
+        }
     )
 }
 
 @Composable
-fun ConfirmOtelDialog(
-    otelEndpoint: String,
-    onAccept: () -> Unit,
-    onDeny: () -> Unit,
-) {
+fun ConfirmOtelDialog(otelEndpoint: String, onAccept: () -> Unit, onDeny: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDeny,
         title = { Text("Enable tracing?") },
@@ -324,7 +311,7 @@ fun ConfirmOtelDialog(
             OutlinedButton(onClick = onDeny) {
                 Text("Deny")
             }
-        },
+        }
     )
 }
 
@@ -332,42 +319,38 @@ fun ConfirmOtelDialog(
 private fun PairingProgressContent(statusText: String) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(modifier = Modifier.size(48.dp))
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = statusText.ifEmpty { "Pairing with host..." },
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge
             )
         }
     }
 }
 
 @Composable
-private fun ErrorContent(
-    error: String,
-    onRetry: () -> Unit,
-    onBack: () -> Unit,
-) {
+private fun ErrorContent(error: String, onRetry: () -> Unit, onBack: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp),
+            modifier = Modifier.padding(32.dp)
         ) {
             Text(
                 text = "Pairing Failed",
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.error,
+                color = MaterialTheme.colorScheme.error
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = error,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium
             )
             Spacer(modifier = Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {

@@ -3,16 +3,16 @@ package com.nixkey.tailscale
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import timber.log.Timber
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import timber.log.Timber
 
 /**
  * Tailnet connection state for UI display (FR-110).
@@ -20,7 +20,7 @@ import javax.inject.Singleton
 enum class TailnetConnectionState {
     CONNECTED,
     CONNECTING,
-    DISCONNECTED,
+    DISCONNECTED
 }
 
 /**
@@ -39,7 +39,7 @@ enum class TailnetConnectionState {
 @Singleton
 class TailscaleManager @Inject constructor(
     private val backend: TailscaleBackend,
-    private val context: Context,
+    private val context: Context
 ) {
     private val running = AtomicBoolean(false)
     private val tailscaleIp = AtomicReference<String?>(null)
@@ -59,7 +59,7 @@ class TailscaleManager @Inject constructor(
             PREFS_FILE,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     }
 

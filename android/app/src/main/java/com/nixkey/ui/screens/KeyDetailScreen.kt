@@ -58,10 +58,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KeyDetailScreen(
-    onBack: () -> Unit,
-    viewModel: KeyDetailViewModel = hiltViewModel(),
-) {
+fun KeyDetailScreen(onBack: () -> Unit, viewModel: KeyDetailViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -75,14 +72,14 @@ fun KeyDetailScreen(
     if (state.showAutoApproveWarning) {
         AutoApproveWarningDialog(
             onConfirm = viewModel::confirmAutoApprove,
-            onDismiss = viewModel::dismissAutoApproveWarning,
+            onDismiss = viewModel::dismissAutoApproveWarning
         )
     }
 
     if (state.showNoneUnlockWarning) {
         NoneUnlockWarningDialog(
             onConfirm = viewModel::confirmNoneUnlock,
-            onDismiss = viewModel::dismissNoneUnlockWarning,
+            onDismiss = viewModel::dismissNoneUnlockWarning
         )
     }
 
@@ -97,10 +94,10 @@ fun KeyDetailScreen(
                 },
                 actions = {
                     TailnetIndicator(state = tailnetState)
-                },
+                }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -108,7 +105,7 @@ fun KeyDetailScreen(
                 .padding(padding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Key name
             OutlinedTextField(
@@ -118,20 +115,20 @@ fun KeyDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 isError = state.error != null,
-                supportingText = state.error?.let { error -> { Text(error) } },
+                supportingText = state.error?.let { error -> { Text(error) } }
             )
 
             // Key type
             if (state.isCreateMode) {
                 Text("Key type", style = MaterialTheme.typography.labelLarge)
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     KeyType.entries.forEach { type ->
                         FilterChip(
                             selected = state.keyType == type,
                             onClick = { viewModel.setKeyType(type) },
-                            label = { Text(type.name.replace("_", "-")) },
+                            label = { Text(type.name.replace("_", "-")) }
                         )
                     }
                 }
@@ -141,21 +138,21 @@ fun KeyDetailScreen(
                         KeyType.ECDSA_P256 -> "Hardware-backed via Android Keystore (TEE/StrongBox)"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 // Read-only key type
                 Text("Key type", style = MaterialTheme.typography.labelLarge)
                 Text(
                     text = state.keyType.name.replace("_", "-"),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge
                 )
 
                 // Fingerprint
                 Text("Fingerprint", style = MaterialTheme.typography.labelLarge)
                 Text(
                     text = state.keyInfo?.fingerprint ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium
                 )
 
                 // Lock status
@@ -167,26 +164,26 @@ fun KeyDetailScreen(
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    }
                 )
             }
 
             // Unlock policy picker
             UnlockPolicyPicker(
                 selected = state.unlockPolicy,
-                onSelected = viewModel::setUnlockPolicy,
+                onSelected = viewModel::setUnlockPolicy
             )
 
             // Signing policy picker
             SigningPolicyPicker(
                 selected = state.confirmationPolicy,
-                onSelected = viewModel::setConfirmationPolicy,
+                onSelected = viewModel::setConfirmationPolicy
             )
 
             if (state.isCreateMode) {
                 Button(
                     onClick = viewModel::createKey,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Create")
                 }
@@ -194,25 +191,25 @@ fun KeyDetailScreen(
                 // Export section
                 Text("Export Public Key", style = MaterialTheme.typography.labelLarge)
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = {
                             copyToClipboard(context, state.publicKeyString)
                             scope.launch { snackbarHostState.showSnackbar("Copied to clipboard") }
-                        },
+                        }
                     ) {
                         Text("Copy")
                     }
                     OutlinedButton(
-                        onClick = { sharePublicKey(context, state.publicKeyString) },
+                        onClick = { sharePublicKey(context, state.publicKeyString) }
                     ) {
                         Text("Share")
                     }
                     OutlinedButton(
                         onClick = {
                             scope.launch { snackbarHostState.showSnackbar("QR code display not yet implemented") }
-                        },
+                        }
                     ) {
                         Text("QR Code")
                     }
@@ -222,7 +219,7 @@ fun KeyDetailScreen(
                 if (state.hasUnsavedChanges) {
                     Button(
                         onClick = viewModel::saveChanges,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Save")
                     }
@@ -232,7 +229,7 @@ fun KeyDetailScreen(
                 if (state.isUnlocked) {
                     OutlinedButton(
                         onClick = viewModel::lockKey,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Lock Key")
                     }
@@ -245,8 +242,8 @@ fun KeyDetailScreen(
                     onClick = viewModel::deleteKey,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                    ),
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
                     Text("Delete Key")
                 }
@@ -257,17 +254,14 @@ fun KeyDetailScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UnlockPolicyPicker(
-    selected: UnlockPolicy,
-    onSelected: (UnlockPolicy) -> Unit,
-) {
+private fun UnlockPolicyPicker(selected: UnlockPolicy, onSelected: (UnlockPolicy) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
 
     Text("Unlock policy", style = MaterialTheme.typography.labelLarge)
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
+        onExpandedChange = { expanded = !expanded }
     ) {
         OutlinedTextField(
             value = selected.displayLabel(),
@@ -276,11 +270,11 @@ private fun UnlockPolicyPicker(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
+                .fillMaxWidth()
         )
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = { expanded = false }
         ) {
             UnlockPolicy.entries.forEach { policy ->
                 DropdownMenuItem(
@@ -288,7 +282,7 @@ private fun UnlockPolicyPicker(
                     onClick = {
                         onSelected(policy)
                         expanded = false
-                    },
+                    }
                 )
             }
         }
@@ -297,17 +291,14 @@ private fun UnlockPolicyPicker(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SigningPolicyPicker(
-    selected: ConfirmationPolicy,
-    onSelected: (ConfirmationPolicy) -> Unit,
-) {
+private fun SigningPolicyPicker(selected: ConfirmationPolicy, onSelected: (ConfirmationPolicy) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
 
     Text("Signing policy", style = MaterialTheme.typography.labelLarge)
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
+        onExpandedChange = { expanded = !expanded }
     ) {
         OutlinedTextField(
             value = selected.displayLabel(),
@@ -316,11 +307,11 @@ private fun SigningPolicyPicker(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
+                .fillMaxWidth()
         )
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = { expanded = false }
         ) {
             ConfirmationPolicy.entries.forEach { policy ->
                 DropdownMenuItem(
@@ -328,7 +319,7 @@ private fun SigningPolicyPicker(
                     onClick = {
                         onSelected(policy)
                         expanded = false
-                    },
+                    }
                 )
             }
         }
@@ -336,10 +327,7 @@ private fun SigningPolicyPicker(
 }
 
 @Composable
-private fun AutoApproveWarningDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
+private fun AutoApproveWarningDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Security Warning") },
@@ -347,7 +335,7 @@ private fun AutoApproveWarningDialog(
             Text(
                 "Auto-approve allows sign requests to be processed without your confirmation. " +
                     "Any host with a valid mTLS certificate can trigger signing operations silently. " +
-                    "Are you sure?",
+                    "Are you sure?"
             )
         },
         confirmButton = {
@@ -359,15 +347,12 @@ private fun AutoApproveWarningDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        },
+        }
     )
 }
 
 @Composable
-private fun NoneUnlockWarningDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
+private fun NoneUnlockWarningDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Security Warning") },
@@ -375,7 +360,7 @@ private fun NoneUnlockWarningDialog(
             Text(
                 "Disabling unlock means key material will be decrypted automatically on app start " +
                     "without any authentication. Combined with auto-approve signing, this allows " +
-                    "completely silent signing operations. Are you sure?",
+                    "completely silent signing operations. Are you sure?"
             )
         },
         confirmButton = {
@@ -387,7 +372,7 @@ private fun NoneUnlockWarningDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        },
+        }
     )
 }
 

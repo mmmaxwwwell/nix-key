@@ -1,14 +1,14 @@
 package com.nixkey.keystore
 
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import timber.log.Timber
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.annotation.concurrent.GuardedBy
 import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import timber.log.Timber
 
 /**
  * FIFO queue for concurrent sign requests. Shows one request at a time.
@@ -47,7 +47,7 @@ class SignRequestQueue @Inject constructor() {
             "Sign request enqueued: id=%s host=%s key=%s",
             request.requestId,
             request.hostName,
-            request.keyName,
+            request.keyName
         )
         synchronized(lock) {
             queue.add(request)
@@ -76,7 +76,7 @@ class SignRequestQueue @Inject constructor() {
             Timber.i(
                 "Sign request completed: id=%s status=%s",
                 requestId,
-                status,
+                status
             )
             advanceQueue()
             return completed

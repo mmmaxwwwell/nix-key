@@ -12,5 +12,5 @@ data class SshKeyInfo(
     /** Per-key signing policy (default: BIOMETRIC). Controls per-sign confirmation. */
     val confirmationPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC,
     val createdAt: Instant,
-    val wrappingKeyAlias: String?,
+    val wrappingKeyAlias: String?
 )

@@ -25,10 +25,7 @@ import com.nixkey.tailscale.TailnetConnectionState
  * - Red / "Disconnected"
  */
 @Composable
-fun TailnetIndicator(
-    state: TailnetConnectionState,
-    modifier: Modifier = Modifier,
-) {
+fun TailnetIndicator(state: TailnetConnectionState, modifier: Modifier = Modifier) {
     val (color, label) = when (state) {
         TailnetConnectionState.CONNECTED -> Color(0xFF4CAF50) to "Connected"
         TailnetConnectionState.CONNECTING -> Color(0xFFFFC107) to "Connecting"
@@ -37,18 +34,18 @@ fun TailnetIndicator(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.padding(end = 8.dp),
+        modifier = modifier.padding(end = 8.dp)
     ) {
         Surface(
             shape = CircleShape,
             color = color,
-            modifier = Modifier.size(8.dp),
+            modifier = Modifier.size(8.dp)
         ) {}
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

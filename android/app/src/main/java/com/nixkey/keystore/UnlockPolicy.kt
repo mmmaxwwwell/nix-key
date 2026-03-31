@@ -21,5 +21,5 @@ enum class UnlockPolicy {
     PASSWORD,
 
     /** Either biometric or password. */
-    BIOMETRIC_PASSWORD,
+    BIOMETRIC_PASSWORD
 }

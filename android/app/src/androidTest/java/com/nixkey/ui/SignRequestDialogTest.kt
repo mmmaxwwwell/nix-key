@@ -27,13 +27,13 @@ class SignRequestDialogTest {
         hostName: String = "dev-workstation",
         keyName: String = "my-ed25519-key",
         data: ByteArray = "test data to sign".toByteArray(),
-        policy: ConfirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
+        policy: ConfirmationPolicy = ConfirmationPolicy.ALWAYS_ASK
     ) = SignRequest(
         keyFingerprint = "SHA256:abc123",
         hostName = hostName,
         keyName = keyName,
         dataToSign = data,
-        confirmationPolicy = policy,
+        confirmationPolicy = policy
     )
 
     @Test
@@ -45,7 +45,7 @@ class SignRequestDialogTest {
                 SignRequestDialogContent(
                     request = request,
                     onApprove = {},
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -67,7 +67,7 @@ class SignRequestDialogTest {
                 SignRequestDialogContent(
                     request = request,
                     onApprove = {},
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -85,7 +85,7 @@ class SignRequestDialogTest {
                     request = request,
                     queueSize = 3,
                     onApprove = {},
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -103,7 +103,7 @@ class SignRequestDialogTest {
                     request = request,
                     queueSize = 1,
                     onApprove = {},
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -121,7 +121,7 @@ class SignRequestDialogTest {
                     request = request,
                     queueSize = 0,
                     onApprove = {},
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -139,7 +139,7 @@ class SignRequestDialogTest {
                 SignRequestDialogContent(
                     request = request,
                     onApprove = { approved = true },
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -158,7 +158,7 @@ class SignRequestDialogTest {
                 SignRequestDialogContent(
                     request = request,
                     onApprove = {},
-                    onDeny = { denied = true },
+                    onDeny = { denied = true }
                 )
             }
         }
@@ -176,7 +176,7 @@ class SignRequestDialogTest {
                 SignRequestDialog(
                     queue = queue,
                     onApprove = {},
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -194,7 +194,7 @@ class SignRequestDialogTest {
                 SignRequestDialog(
                     queue = queue,
                     onApprove = {},
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -288,7 +288,7 @@ class SignRequestDialogTest {
                     onApprove = { req ->
                         queue.complete(req.requestId, SignRequestStatus.APPROVED)
                     },
-                    onDeny = {},
+                    onDeny = {}
                 )
             }
         }
@@ -321,7 +321,7 @@ class SignRequestDialogTest {
                     onApprove = {},
                     onDeny = { req ->
                         queue.complete(req.requestId, SignRequestStatus.DENIED)
-                    },
+                    }
                 )
             }
         }

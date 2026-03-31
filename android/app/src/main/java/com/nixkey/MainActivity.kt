@@ -21,8 +21,8 @@ import com.nixkey.ui.NixKeyAppUi
 import com.nixkey.ui.screens.SignRequestDialog
 import com.nixkey.ui.theme.NixKeyTheme
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
 import javax.inject.Inject
+import timber.log.Timber
 
 @AndroidEntryPoint
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -62,7 +62,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                     needsTailscaleAuth = needsAuth,
                     deepLinkPayload = deepLinkPayload,
                     onDeepLinkConsumed = { deepLinkPayload = null },
-                    tailnetConnectionState = tailscaleManager.connectionState,
+                    tailnetConnectionState = tailscaleManager.connectionState
                 )
                 SignRequestDialog(
                     queue = signRequestQueue,
@@ -71,9 +71,9 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                         signRequestQueue.complete(request.requestId, SignRequestStatus.DENIED)
                         goPhoneServer.confirmerAdapter.notifyCompletion(
                             request.requestId,
-                            SignRequestStatus.DENIED,
+                            SignRequestStatus.DENIED
                         )
-                    },
+                    }
                 )
             }
         }
@@ -91,7 +91,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                 activity = this@MainActivity,
                 policy = request.unlockPolicy,
                 title = "Unlock Key",
-                subtitle = "Key: ${request.keyName} for ${request.hostName}",
+                subtitle = "Key: ${request.keyName} for ${request.hostName}"
             ) { unlockResult ->
                 when (unlockResult) {
                     is AuthResult.Success -> {
@@ -111,7 +111,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                         signRequestQueue.complete(request.requestId, SignRequestStatus.DENIED)
                         goPhoneServer.confirmerAdapter.notifyCompletion(
                             request.requestId,
-                            SignRequestStatus.DENIED,
+                            SignRequestStatus.DENIED
                         )
                     }
                 }
@@ -127,7 +127,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             activity = this@MainActivity,
             policy = request.confirmationPolicy,
             title = "Sign Request",
-            subtitle = "Key: ${request.keyName} for ${request.hostName}",
+            subtitle = "Key: ${request.keyName} for ${request.hostName}"
         ) { result ->
             val status = when (result) {
                 is AuthResult.Success -> SignRequestStatus.APPROVED
@@ -136,7 +136,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             signRequestQueue.complete(request.requestId, status)
             goPhoneServer.confirmerAdapter.notifyCompletion(
                 request.requestId,
-                status,
+                status
             )
         }
     }

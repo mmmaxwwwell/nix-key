@@ -50,7 +50,7 @@ fun KeyListScreen(
     onBack: () -> Unit,
     onNavigateToKeyDetail: (keyAlias: String) -> Unit,
     onNavigateToCreateKey: () -> Unit,
-    viewModel: KeyListViewModel = hiltViewModel(),
+    viewModel: KeyListViewModel = hiltViewModel()
 ) {
     val keys by viewModel.keys.collectAsState()
     val unlockedFingerprints by viewModel.unlockedFingerprints.collectAsState()
@@ -67,32 +67,32 @@ fun KeyListScreen(
                 },
                 actions = {
                     TailnetIndicator(state = tailnetState)
-                },
+                }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onNavigateToCreateKey) {
                 Icon(Icons.Default.Add, contentDescription = "Create Key")
             }
-        },
+        }
     ) { padding ->
         if (keys.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentAlignment = Alignment.Center,
+                contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "No keys yet",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Create one to get started",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -100,14 +100,14 @@ fun KeyListScreen(
             LazyColumn(
                 modifier = Modifier.padding(padding),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(16.dp)
             ) {
                 items(keys) { key ->
                     KeyCard(
                         key = key,
                         isUnlocked = unlockedFingerprints.contains(key.fingerprint),
                         onClick = { onNavigateToKeyDetail(key.alias) },
-                        onLongClick = { viewModel.lockKey(key.fingerprint) },
+                        onLongClick = { viewModel.lockKey(key.fingerprint) }
                     )
                 }
             }
@@ -117,33 +117,28 @@ fun KeyListScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun KeyCard(
-    key: SshKeyInfo,
-    isUnlocked: Boolean,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-) {
+private fun KeyCard(key: SshKeyInfo, isUnlocked: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongClick,
-            ),
+                onLongClick = onLongClick
+            )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
                 ) {
                     // Lock/unlock indicator dot
                     Surface(
@@ -153,25 +148,25 @@ private fun KeyCard(
                         } else {
                             MaterialTheme.colorScheme.outlineVariant
                         },
-                        modifier = Modifier.size(8.dp),
+                        modifier = Modifier.size(8.dp)
                     ) {}
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = key.displayName,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
                 Text(
                     text = key.keyType.sshName.removePrefix("ssh-").removePrefix("ecdsa-sha2-"),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = key.fingerprint,
@@ -179,7 +174,7 @@ private fun KeyCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -189,7 +184,7 @@ private fun KeyCard(
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    }
                 )
             }
         }

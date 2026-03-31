@@ -11,7 +11,7 @@ enum class SignRequestStatus {
     PENDING,
     APPROVED,
     DENIED,
-    TIMEOUT,
+    TIMEOUT
 }
 
 /**
@@ -37,7 +37,7 @@ data class SignRequest(
     /** Whether this request needs unlock before signing can proceed. */
     val needsUnlock: Boolean = false,
     val receivedAt: Instant = Instant.now(),
-    val status: SignRequestStatus = SignRequestStatus.PENDING,
+    val status: SignRequestStatus = SignRequestStatus.PENDING
 ) {
     /**
      * Returns a truncated SHA-256 hash of the data to sign, for display purposes.

@@ -45,7 +45,7 @@ class GrpcServerServiceTest {
         assertEquals(
             "Default listen port should be 29418",
             29418,
-            SettingsRepository.DEFAULT_LISTEN_PORT,
+            SettingsRepository.DEFAULT_LISTEN_PORT
         )
     }
 
@@ -54,7 +54,7 @@ class GrpcServerServiceTest {
         assertEquals(
             "SettingsRepository default port should match service default",
             SettingsRepository.DEFAULT_LISTEN_PORT,
-            settingsRepository.listenPort,
+            settingsRepository.listenPort
         )
     }
 
@@ -78,7 +78,7 @@ class GrpcServerServiceTest {
         assertEquals(
             "Address should use Tailscale IP + configured port",
             "100.64.0.99:29418",
-            address,
+            address
         )
     }
 
@@ -111,7 +111,7 @@ class GrpcServerServiceTest {
         assertEquals(
             "Server should stop before Tailscale",
             listOf("server", "tailscale"),
-            stopOrder,
+            stopOrder
         )
         assertFalse("Tailscale should not be running after stop", tailscaleManager.isRunning())
     }
@@ -122,7 +122,7 @@ class GrpcServerServiceTest {
         assertEquals(
             "Intent should target GrpcServerService",
             "com.nixkey.service.GrpcServerService",
-            intent.component?.className,
+            intent.component?.className
         )
     }
 
@@ -134,7 +134,7 @@ class GrpcServerServiceTest {
         assertEquals(
             "Stop intent should have STOP_SERVER action",
             "com.nixkey.action.STOP_SERVER",
-            intent.action,
+            intent.action
         )
     }
 }

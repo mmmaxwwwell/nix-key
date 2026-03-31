@@ -80,7 +80,7 @@ class ExpiredCertTest {
             tailscaleIp = "100.64.0.10",
             hostClientCertFingerprint = "old_expired_fp",
             hostClientCert = "-----BEGIN CERTIFICATE-----\nEXPIRED_CERT\n-----END CERTIFICATE-----",
-            pairedAt = 1000L,
+            pairedAt = 1000L
         )
         hostRepository.addHost(host)
         assertNotNull(hostRepository.getHost("expired_host"))
@@ -93,7 +93,7 @@ class ExpiredCertTest {
         val newHost = host.copy(
             hostClientCertFingerprint = "new_valid_fp",
             hostClientCert = "-----BEGIN CERTIFICATE-----\nNEW_VALID_CERT\n-----END CERTIFICATE-----",
-            pairedAt = System.currentTimeMillis(),
+            pairedAt = System.currentTimeMillis()
         )
         hostRepository.addHost(newHost)
 
@@ -109,14 +109,14 @@ class ExpiredCertTest {
             hostName = "host-one",
             tailscaleIp = "100.64.0.11",
             hostClientCertFingerprint = "fp1",
-            hostClientCert = "CERT1",
+            hostClientCert = "CERT1"
         )
         val host2 = PairedHost(
             id = "cert_host2",
             hostName = "host-two",
             tailscaleIp = "100.64.0.12",
             hostClientCertFingerprint = "fp2",
-            hostClientCert = "CERT2",
+            hostClientCert = "CERT2"
         )
         hostRepository.addHost(host1)
         hostRepository.addHost(host2)
@@ -126,8 +126,8 @@ class ExpiredCertTest {
         hostRepository.addHost(
             host1.copy(
                 hostClientCertFingerprint = "fp1_new",
-                hostClientCert = "CERT1_NEW",
-            ),
+                hostClientCert = "CERT1_NEW"
+            )
         )
 
         // host2 should be unaffected
@@ -146,14 +146,14 @@ class ExpiredCertTest {
             hostName = "rotate-desktop",
             tailscaleIp = "100.64.0.13",
             hostClientCertFingerprint = "original_fp",
-            hostClientCert = "ORIGINAL_CERT",
+            hostClientCert = "ORIGINAL_CERT"
         )
         hostRepository.addHost(host)
 
         val key = keyManager.createKey(
             "rotate-key",
             KeyType.ECDSA_P256,
-            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK
         )
         createdAliases.add(key.alias)
         keyUnlockManager.unlock(key)
@@ -183,8 +183,8 @@ class ExpiredCertTest {
             hostRepository.addHost(
                 host.copy(
                     hostClientCertFingerprint = "rotated_fp",
-                    hostClientCert = "ROTATED_CERT",
-                ),
+                    hostClientCert = "ROTATED_CERT"
+                )
             )
 
             // Sign after cert rotation — server is still running, sign should work
@@ -200,7 +200,7 @@ class ExpiredCertTest {
         val key = keyManager.createKey(
             "deny-key",
             KeyType.ECDSA_P256,
-            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK
         )
         createdAliases.add(key.alias)
         keyUnlockManager.unlock(key)
@@ -223,7 +223,7 @@ class ExpiredCertTest {
                 signRequestQueue.complete(current.requestId, SignRequestStatus.DENIED)
                 goPhoneServer.confirmerAdapter.notifyCompletion(
                     current.requestId,
-                    SignRequestStatus.DENIED,
+                    SignRequestStatus.DENIED
                 )
             }
             denyThread.start()
@@ -249,7 +249,7 @@ class ExpiredCertTest {
     private fun signWithApproval(
         stub: NixKeyAgentGrpc.NixKeyAgentBlockingStub,
         fingerprint: String,
-        data: String,
+        data: String
     ): ByteArray {
         val approveThread = Thread {
             waitForRequest()
@@ -257,7 +257,7 @@ class ExpiredCertTest {
             signRequestQueue.complete(current.requestId, SignRequestStatus.APPROVED)
             goPhoneServer.confirmerAdapter.notifyCompletion(
                 current.requestId,
-                SignRequestStatus.APPROVED,
+                SignRequestStatus.APPROVED
             )
         }
         approveThread.start()

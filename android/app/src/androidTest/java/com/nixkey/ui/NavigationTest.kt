@@ -39,7 +39,7 @@ class NavigationTest {
                     onNavigateToSettings = {},
                     onNavigateToScanQr = {},
                     onNavigateToKeys = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -61,7 +61,7 @@ class NavigationTest {
                     onNavigateToSettings = { settingsTapped = true },
                     onNavigateToScanQr = {},
                     onNavigateToKeys = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -82,7 +82,7 @@ class NavigationTest {
                     onNavigateToSettings = {},
                     onNavigateToScanQr = { scanTapped = true },
                     onNavigateToKeys = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -94,7 +94,7 @@ class NavigationTest {
     @Test
     fun serverListScreen_hostRowCallsCallback() {
         val hosts = listOf(
-            PairedHost(id = "host1", hostName = "workstation", tailscaleIp = "100.64.0.1"),
+            PairedHost(id = "host1", hostName = "workstation", tailscaleIp = "100.64.0.1")
         )
         val viewModel = mockk<ServerListViewModel>(relaxed = true)
         every { viewModel.hosts } returns MutableStateFlow(hosts)
@@ -106,7 +106,7 @@ class NavigationTest {
                     onNavigateToSettings = {},
                     onNavigateToScanQr = {},
                     onNavigateToKeys = { navigatedHostId = it },
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -118,7 +118,7 @@ class NavigationTest {
     @Test
     fun serverListScreen_showsHostDetails() {
         val hosts = listOf(
-            PairedHost(id = "host1", hostName = "workstation", tailscaleIp = "100.64.0.1"),
+            PairedHost(id = "host1", hostName = "workstation", tailscaleIp = "100.64.0.1")
         )
         val viewModel = mockk<ServerListViewModel>(relaxed = true)
         every { viewModel.hosts } returns MutableStateFlow(hosts)
@@ -129,7 +129,7 @@ class NavigationTest {
                     onNavigateToSettings = {},
                     onNavigateToScanQr = {},
                     onNavigateToKeys = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -150,7 +150,7 @@ class NavigationTest {
                     onBack = {},
                     onNavigateToKeyDetail = {},
                     onNavigateToCreateKey = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -172,7 +172,7 @@ class NavigationTest {
                     onBack = {},
                     onNavigateToKeyDetail = {},
                     onNavigateToCreateKey = { createCalled = true },
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -194,7 +194,7 @@ class NavigationTest {
                     onBack = { backCalled = true },
                     onNavigateToKeyDetail = {},
                     onNavigateToCreateKey = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -212,7 +212,7 @@ class NavigationTest {
             NixKeyTheme {
                 SettingsScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }

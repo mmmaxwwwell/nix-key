@@ -6,6 +6,7 @@ import com.nixkey.bridge.GoPhoneServer
 import com.nixkey.keystore.KeyManager
 import com.nixkey.keystore.KeyUnlockManager
 import com.nixkey.keystore.SignRequestQueue
+import java.net.ServerSocket
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -13,7 +14,6 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.net.ServerSocket
 
 /**
  * T-AI-17: gRPC port conflict error (FR-E19).
@@ -56,7 +56,7 @@ class PortConflictTest {
         } catch (e: IllegalStateException) {
             assertTrue(
                 "Error should indicate already running",
-                e.message!!.contains("already running"),
+                e.message!!.contains("already running")
             )
         }
     }
@@ -81,7 +81,7 @@ class PortConflictTest {
                 // The server should have stopped due to bind failure
                 assertFalse(
                     "Server should not remain running on occupied port",
-                    goPhoneServer.isRunning(),
+                    goPhoneServer.isRunning()
                 )
             } catch (e: Exception) {
                 // Immediate failure is also acceptable
@@ -90,7 +90,7 @@ class PortConflictTest {
                     e.message?.contains("address already in use", ignoreCase = true) == true ||
                         e.message?.contains("EADDRINUSE", ignoreCase = true) == true ||
                         e.message?.contains("bind", ignoreCase = true) == true ||
-                        e is java.net.BindException,
+                        e is java.net.BindException
                 )
             }
         } finally {
@@ -104,7 +104,7 @@ class PortConflictTest {
         val bindException = java.net.BindException("Address already in use")
         assertTrue(
             "BindException should be detected as port conflict",
-            isPortConflict(bindException),
+            isPortConflict(bindException)
         )
     }
 
@@ -113,11 +113,11 @@ class PortConflictTest {
         // When gomobile wraps exceptions, BindException may be the cause
         val wrapped = Exception(
             "server start failed",
-            java.net.BindException("Address already in use"),
+            java.net.BindException("Address already in use")
         )
         assertTrue(
             "Wrapped BindException should be detected",
-            isPortConflict(wrapped),
+            isPortConflict(wrapped)
         )
     }
 
@@ -127,7 +127,7 @@ class PortConflictTest {
         val goError = Exception("listen tcp 100.64.0.1:29418: bind: EADDRINUSE")
         assertTrue(
             "EADDRINUSE message should be detected",
-            isPortConflict(goError),
+            isPortConflict(goError)
         )
     }
 
@@ -136,7 +136,7 @@ class PortConflictTest {
         val unrelated = Exception("network unreachable")
         assertFalse(
             "Unrelated error should not be detected as port conflict",
-            isPortConflict(unrelated),
+            isPortConflict(unrelated)
         )
     }
 

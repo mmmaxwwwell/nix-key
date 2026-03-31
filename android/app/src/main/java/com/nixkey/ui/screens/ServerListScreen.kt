@@ -46,7 +46,7 @@ fun ServerListScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToScanQr: () -> Unit,
     onNavigateToKeys: (hostId: String) -> Unit,
-    viewModel: ServerListViewModel = hiltViewModel(),
+    viewModel: ServerListViewModel = hiltViewModel()
 ) {
     val hosts by viewModel.hosts.collectAsState()
     val tailnetState by LocalTailnetConnectionState.current.collectAsState()
@@ -60,14 +60,14 @@ fun ServerListScreen(
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
-                },
+                }
             )
-        },
+        }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
         ) {
             if (hosts.isEmpty()) {
                 EmptyHostsState(modifier = Modifier.weight(1f))
@@ -75,7 +75,7 @@ fun ServerListScreen(
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)
                 ) {
                     items(hosts) { host ->
                         HostCard(host = host, onClick = { onNavigateToKeys(host.id) })
@@ -87,7 +87,7 @@ fun ServerListScreen(
                 onClick = onNavigateToScanQr,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(16.dp)
             ) {
                 Text("Scan QR Code")
             }
@@ -99,18 +99,18 @@ fun ServerListScreen(
 private fun EmptyHostsState(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "No paired hosts yet",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Scan a QR code to pair with a host",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -121,23 +121,23 @@ private fun HostCard(host: PairedHost, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = host.hostName,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Text(
                     text = host.tailscaleIp,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             StatusDot(status = host.status)
@@ -155,6 +155,6 @@ private fun StatusDot(status: ConnectionStatus) {
     Surface(
         modifier = Modifier.size(12.dp),
         shape = CircleShape,
-        color = color,
+        color = color
     ) {}
 }

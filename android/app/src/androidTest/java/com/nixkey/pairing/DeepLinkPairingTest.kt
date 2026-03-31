@@ -101,7 +101,7 @@ class DeepLinkPairingTest {
             hostRepository = hostRepository,
             settingsRepository = settingsRepository,
             tailscaleManager = tailscaleManager,
-            pairingClient = pairingClient,
+            pairingClient = pairingClient
         )
 
         composeTestRule.setContent {
@@ -110,7 +110,7 @@ class DeepLinkPairingTest {
                     onBack = {},
                     onPairingComplete = {},
                     initialPayload = payload,
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -140,7 +140,7 @@ class DeepLinkPairingTest {
             hostRepository = hostRepository,
             settingsRepository = settingsRepository,
             tailscaleManager = tailscaleManager,
-            pairingClient = pairingClient,
+            pairingClient = pairingClient
         )
 
         composeTestRule.setContent {
@@ -149,7 +149,7 @@ class DeepLinkPairingTest {
                     onBack = {},
                     onPairingComplete = {},
                     initialPayload = payload,
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -174,7 +174,7 @@ class DeepLinkPairingTest {
             hostRepository = hostRepository,
             settingsRepository = settingsRepository,
             tailscaleManager = tailscaleManager,
-            pairingClient = pairingClient,
+            pairingClient = pairingClient
         )
 
         composeTestRule.setContent {
@@ -183,7 +183,7 @@ class DeepLinkPairingTest {
                     onBack = {},
                     onPairingComplete = {},
                     initialPayload = null,
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -199,7 +199,7 @@ class DeepLinkPairingTest {
         port: Int,
         cert: String = "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
         token: String = "test-token-abc123",
-        otel: String? = null,
+        otel: String? = null
     ): String {
         val json = JSONObject().apply {
             put("v", 1)

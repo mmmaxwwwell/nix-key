@@ -10,13 +10,13 @@ import com.nixkey.keystore.KeyUnlockManager
 import com.nixkey.keystore.SshKeyInfo
 import com.nixkey.keystore.UnlockPolicy
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import javax.inject.Inject
 
 data class KeyDetailState(
     val isCreateMode: Boolean = true,
@@ -32,14 +32,14 @@ data class KeyDetailState(
     val showNoneUnlockWarning: Boolean = false,
     val keyCreated: Boolean = false,
     val keyDeleted: Boolean = false,
-    val isUnlocked: Boolean = false,
+    val isUnlocked: Boolean = false
 )
 
 @HiltViewModel
 class KeyDetailViewModel @Inject constructor(
     private val keyManager: KeyManager,
     private val keyUnlockManager: KeyUnlockManager,
-    savedStateHandle: SavedStateHandle,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val keyId: String? = savedStateHandle.get<String>("keyId")
@@ -80,7 +80,7 @@ class KeyDetailViewModel @Inject constructor(
                     unlockPolicy = info.unlockPolicy,
                     confirmationPolicy = info.confirmationPolicy,
                     publicKeyString = pubKey,
-                    isUnlocked = keyUnlockManager.isUnlocked(info.fingerprint),
+                    isUnlocked = keyUnlockManager.isUnlocked(info.fingerprint)
                 )
             }
         }
@@ -90,7 +90,7 @@ class KeyDetailViewModel @Inject constructor(
         _state.update {
             it.copy(
                 displayName = name,
-                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(displayName = name)),
+                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(displayName = name))
             )
         }
     }
@@ -122,7 +122,7 @@ class KeyDetailViewModel @Inject constructor(
         _state.update {
             it.copy(
                 unlockPolicy = policy,
-                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(unlockPolicy = policy)),
+                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(unlockPolicy = policy))
             )
         }
     }
@@ -148,7 +148,7 @@ class KeyDetailViewModel @Inject constructor(
         _state.update {
             it.copy(
                 confirmationPolicy = policy,
-                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(confirmationPolicy = policy)),
+                hasUnsavedChanges = !it.isCreateMode && hasChanges(it.copy(confirmationPolicy = policy))
             )
         }
     }
@@ -174,7 +174,7 @@ class KeyDetailViewModel @Inject constructor(
                 s.displayName,
                 s.keyType,
                 s.unlockPolicy,
-                s.confirmationPolicy,
+                s.confirmationPolicy
             )
             val pubKey = keyManager.exportPublicKey(info.alias)
             _state.update {
@@ -183,7 +183,7 @@ class KeyDetailViewModel @Inject constructor(
                     keyInfo = info,
                     publicKeyString = pubKey,
                     error = null,
-                    keyCreated = true,
+                    keyCreated = true
                 )
             }
         } catch (e: Exception) {
@@ -209,7 +209,7 @@ class KeyDetailViewModel @Inject constructor(
                 it.copy(
                     keyInfo = updatedInfo,
                     hasUnsavedChanges = false,
-                    error = null,
+                    error = null
                 )
             }
         } catch (e: Exception) {

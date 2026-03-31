@@ -34,7 +34,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -55,7 +55,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -75,7 +75,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -95,7 +95,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -122,9 +122,9 @@ class KeyDetailScreenTest {
                     fingerprint = "SHA256:abc123",
                     confirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
                     createdAt = java.time.Instant.now(),
-                    wrappingKeyAlias = null,
-                ),
-            ),
+                    wrappingKeyAlias = null
+                )
+            )
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state
@@ -134,7 +134,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -159,9 +159,9 @@ class KeyDetailScreenTest {
                     fingerprint = "SHA256:abc123",
                     confirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
                     createdAt = java.time.Instant.now(),
-                    wrappingKeyAlias = null,
-                ),
-            ),
+                    wrappingKeyAlias = null
+                )
+            )
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state
@@ -171,7 +171,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -184,8 +184,8 @@ class KeyDetailScreenTest {
         val state = MutableStateFlow(
             KeyDetailState(
                 isCreateMode = true,
-                showAutoApproveWarning = true,
-            ),
+                showAutoApproveWarning = true
+            )
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state
@@ -195,7 +195,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -210,8 +210,8 @@ class KeyDetailScreenTest {
         val state = MutableStateFlow(
             KeyDetailState(
                 isCreateMode = true,
-                showAutoApproveWarning = true,
-            ),
+                showAutoApproveWarning = true
+            )
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state
@@ -221,7 +221,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -245,9 +245,9 @@ class KeyDetailScreenTest {
                     fingerprint = "SHA256:abc123",
                     confirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
                     createdAt = java.time.Instant.now(),
-                    wrappingKeyAlias = null,
-                ),
-            ),
+                    wrappingKeyAlias = null
+                )
+            )
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state
@@ -257,7 +257,7 @@ class KeyDetailScreenTest {
             NixKeyTheme {
                 KeyDetailScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }

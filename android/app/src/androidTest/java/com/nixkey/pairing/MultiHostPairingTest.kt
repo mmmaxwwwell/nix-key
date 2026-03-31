@@ -85,7 +85,7 @@ class MultiHostPairingTest {
             phoneServerCertAlias = "nixkey_phone_server_cert",
             otelEndpoint = null,
             otelEnabled = false,
-            pairedAt = 1000L,
+            pairedAt = 1000L
         )
         hostRepository.addHost(host1)
 
@@ -98,7 +98,7 @@ class MultiHostPairingTest {
             phoneServerCertAlias = "nixkey_phone_server_cert",
             otelEndpoint = "100.64.0.99:4317",
             otelEnabled = true,
-            pairedAt = 2000L,
+            pairedAt = 2000L
         )
         hostRepository.addHost(host2)
 
@@ -121,14 +121,14 @@ class MultiHostPairingTest {
         val key1 = keyManager.createKey(
             "desktop-key",
             KeyType.ECDSA_P256,
-            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK
         )
         createdKeyAliases.add(key1.alias)
 
         val key2 = keyManager.createKey(
             "laptop-key",
             KeyType.ECDSA_P256,
-            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK
         )
         createdKeyAliases.add(key2.alias)
 
@@ -168,7 +168,7 @@ class MultiHostPairingTest {
             // Signatures for different data/keys should differ
             assertTrue(
                 "Signatures from different keys/data should differ",
-                !sig1.contentEquals(sig2),
+                !sig1.contentEquals(sig2)
             )
 
             // --- Phase 3: Verify hosts are still intact after signing ---
@@ -188,14 +188,14 @@ class MultiHostPairingTest {
             hostName = "host-alpha",
             tailscaleIp = "100.64.1.1",
             hostClientCertFingerprint = "fp_alpha",
-            hostClientCert = "CERT_A",
+            hostClientCert = "CERT_A"
         )
         val host2 = PairedHost(
             id = "host_remove_b",
             hostName = "host-beta",
             tailscaleIp = "100.64.1.2",
             hostClientCertFingerprint = "fp_beta",
-            hostClientCert = "CERT_B",
+            hostClientCert = "CERT_B"
         )
         hostRepository.addHost(host1)
         hostRepository.addHost(host2)
@@ -216,7 +216,7 @@ class MultiHostPairingTest {
         stub: NixKeyAgentGrpc.NixKeyAgentBlockingStub,
         fingerprint: String,
         data: String,
-        capturedHostName: AtomicReference<String>,
+        capturedHostName: AtomicReference<String>
     ): ByteArray {
         val approveThread = Thread {
             waitForRequest()
@@ -225,7 +225,7 @@ class MultiHostPairingTest {
             signRequestQueue.complete(current.requestId, SignRequestStatus.APPROVED)
             goPhoneServer.confirmerAdapter.notifyCompletion(
                 current.requestId,
-                SignRequestStatus.APPROVED,
+                SignRequestStatus.APPROVED
             )
         }
         approveThread.start()

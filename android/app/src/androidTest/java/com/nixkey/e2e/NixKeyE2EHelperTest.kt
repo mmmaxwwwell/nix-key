@@ -54,15 +54,15 @@ class NixKeyE2EHelperTest {
         // Both have recognizable text elements.
         val foundTailscale = helper.waitForElement(
             By.text("Connect to Tailscale"),
-            NixKeyE2EHelper.SHORT_TIMEOUT_MS,
+            NixKeyE2EHelper.SHORT_TIMEOUT_MS
         )
         val foundServerList = helper.waitForElement(
             By.text("nix-key"),
-            NixKeyE2EHelper.SHORT_TIMEOUT_MS,
+            NixKeyE2EHelper.SHORT_TIMEOUT_MS
         )
         assertTrue(
             "Should find either Tailscale auth screen or server list",
-            foundTailscale || foundServerList,
+            foundTailscale || foundServerList
         )
     }
 
@@ -71,7 +71,7 @@ class NixKeyE2EHelperTest {
         helper.waitForApp(timeout = 60_000L)
         val result = helper.waitForElement(
             By.text("THIS_ELEMENT_DOES_NOT_EXIST_ANYWHERE_12345"),
-            1_000L,
+            1_000L
         )
         assertFalse("Should return false for non-existent element", result)
     }
@@ -91,7 +91,7 @@ class NixKeyE2EHelperTest {
                 // Send the intent manually to verify dialog appears
                 val intent = android.content.Intent(
                     android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse("nix-key://pair?payload=$payload"),
+                    android.net.Uri.parse("nix-key://pair?payload=$payload")
                 ).apply {
                     setPackage("com.nixkey")
                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -99,7 +99,7 @@ class NixKeyE2EHelperTest {
                 InstrumentationRegistry.getInstrumentation().targetContext.startActivity(intent)
                 helper.waitForElement(
                     By.text("Pair with host?"),
-                    NixKeyE2EHelper.DEFAULT_TIMEOUT_MS,
+                    NixKeyE2EHelper.DEFAULT_TIMEOUT_MS
                 )
             }
         assertTrue("Pairing confirmation dialog should appear after deep link", found)
@@ -111,7 +111,7 @@ class NixKeyE2EHelperTest {
         // This test is only meaningful when the app starts on TailscaleAuthScreen
         val onAuthScreen = helper.waitForElement(
             By.text("Connect to Tailscale"),
-            NixKeyE2EHelper.SHORT_TIMEOUT_MS,
+            NixKeyE2EHelper.SHORT_TIMEOUT_MS
         )
         if (!onAuthScreen) {
             // App already has a stored auth key — skip this test
@@ -120,7 +120,7 @@ class NixKeyE2EHelperTest {
         // Verify the EditText (auth key field) is present
         val hasInput = helper.waitForElement(
             By.clazz("android.widget.EditText"),
-            NixKeyE2EHelper.SHORT_TIMEOUT_MS,
+            NixKeyE2EHelper.SHORT_TIMEOUT_MS
         )
         assertTrue("Auth key input field should be present", hasInput)
     }
@@ -146,7 +146,7 @@ class NixKeyE2EHelperTest {
         host: String,
         port: Int,
         cert: String = "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
-        token: String = "test-token-e2e",
+        token: String = "test-token-e2e"
     ): String {
         val json = JSONObject().apply {
             put("v", 1)

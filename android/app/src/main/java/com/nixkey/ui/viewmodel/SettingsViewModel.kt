@@ -5,23 +5,23 @@ import com.nixkey.data.SettingsRepository
 import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.UnlockPolicy
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import javax.inject.Inject
 
 data class SettingsState(
     val allowKeyListing: Boolean = true,
     val defaultUnlockPolicy: UnlockPolicy = UnlockPolicy.PASSWORD,
     val defaultConfirmationPolicy: ConfirmationPolicy = ConfirmationPolicy.BIOMETRIC,
     val otelEnabled: Boolean = false,
-    val otelEndpoint: String = "",
+    val otelEndpoint: String = ""
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -37,7 +37,7 @@ class SettingsViewModel @Inject constructor(
             defaultUnlockPolicy = settingsRepository.defaultUnlockPolicy,
             defaultConfirmationPolicy = settingsRepository.defaultConfirmationPolicy,
             otelEnabled = settingsRepository.otelEnabled,
-            otelEndpoint = settingsRepository.otelEndpoint,
+            otelEndpoint = settingsRepository.otelEndpoint
         )
     }
 

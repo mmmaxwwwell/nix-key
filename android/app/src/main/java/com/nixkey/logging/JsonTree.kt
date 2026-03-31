@@ -1,10 +1,10 @@
 package com.nixkey.logging
 
 import android.util.Log
-import org.json.JSONObject
-import timber.log.Timber
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import org.json.JSONObject
+import timber.log.Timber
 
 /**
  * Timber tree that outputs structured JSON log lines to logcat.

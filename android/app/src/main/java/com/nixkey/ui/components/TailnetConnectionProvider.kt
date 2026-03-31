@@ -1,9 +1,9 @@
 package com.nixkey.ui.components
 
 import androidx.compose.runtime.compositionLocalOf
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import com.nixkey.tailscale.TailnetConnectionState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * CompositionLocal providing the Tailnet connection state flow.

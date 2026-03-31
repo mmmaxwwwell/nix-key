@@ -4,14 +4,14 @@ import androidx.lifecycle.ViewModel
 import com.nixkey.data.HostRepository
 import com.nixkey.data.PairedHost
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import javax.inject.Inject
 
 @HiltViewModel
 class ServerListViewModel @Inject constructor(
-    private val hostRepository: HostRepository,
+    private val hostRepository: HostRepository
 ) : ViewModel() {
 
     private val _hosts = MutableStateFlow<List<PairedHost>>(emptyList())

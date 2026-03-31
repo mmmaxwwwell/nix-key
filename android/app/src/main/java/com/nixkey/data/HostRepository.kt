@@ -10,7 +10,7 @@ import javax.inject.Singleton
 @ThreadSafe
 @Singleton
 class HostRepository @Inject constructor(
-    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) {
     private val prefs by lazy {
         val masterKey = MasterKey.Builder(context)
@@ -21,7 +21,7 @@ class HostRepository @Inject constructor(
             PREFS_FILE,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     }
 
@@ -40,7 +40,7 @@ class HostRepository @Inject constructor(
                 otelEndpoint = prefs.getString("${id}_otelEndpoint", null),
                 otelEnabled = prefs.getBoolean("${id}_otelEnabled", false),
                 pairedAt = prefs.getLong("${id}_pairedAt", 0L),
-                status = ConnectionStatus.UNKNOWN,
+                status = ConnectionStatus.UNKNOWN
             )
         }
     }
@@ -60,7 +60,7 @@ class HostRepository @Inject constructor(
             otelEndpoint = prefs.getString("${hostId}_otelEndpoint", null),
             otelEnabled = prefs.getBoolean("${hostId}_otelEnabled", false),
             pairedAt = prefs.getLong("${hostId}_pairedAt", 0L),
-            status = ConnectionStatus.UNKNOWN,
+            status = ConnectionStatus.UNKNOWN
         )
     }
 

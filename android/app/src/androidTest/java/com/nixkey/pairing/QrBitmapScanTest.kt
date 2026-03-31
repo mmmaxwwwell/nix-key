@@ -103,13 +103,7 @@ class QrBitmapScanTest {
         assertEquals(token, decoded.token)
     }
 
-    private fun createQrPayload(
-        host: String,
-        port: Int,
-        cert: String,
-        token: String,
-        otel: String?,
-    ): String {
+    private fun createQrPayload(host: String, port: Int, cert: String, token: String, otel: String?): String {
         val json = JSONObject().apply {
             put("v", 1)
             put("host", host)

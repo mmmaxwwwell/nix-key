@@ -8,13 +8,6 @@ import com.nixkey.keystore.SignRequest
 import com.nixkey.keystore.SignRequestQueue
 import com.nixkey.keystore.SignRequestStatus
 import com.nixkey.keystore.UnlockPolicy
-import phoneserver.Confirmer
-import phoneserver.Key
-import phoneserver.KeyList
-import phoneserver.KeyStore
-import phoneserver.PhoneServer
-import phoneserver.Phoneserver
-import timber.log.Timber
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -23,6 +16,13 @@ import javax.annotation.concurrent.GuardedBy
 import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
+import phoneserver.Confirmer
+import phoneserver.Key
+import phoneserver.KeyList
+import phoneserver.KeyStore
+import phoneserver.PhoneServer
+import phoneserver.Phoneserver
+import timber.log.Timber
 
 /**
  * Kotlin adapter that implements the gomobile-generated [KeyStore] interface
@@ -33,7 +33,7 @@ import javax.inject.Singleton
  * world (KeyManager, SshKeyInfo).
  */
 class KeyStoreAdapter(
-    private val keyManager: KeyManager,
+    private val keyManager: KeyManager
 ) : KeyStore {
 
     override fun listKeys(): KeyList {
@@ -87,14 +87,10 @@ class ConfirmerAdapter(
     private val signRequestQueue: SignRequestQueue,
     private val keyManager: KeyManager,
     private val keyUnlockManager: KeyUnlockManager,
-    private val confirmationTimeoutSeconds: Long = 60,
+    private val confirmationTimeoutSeconds: Long = 60
 ) : Confirmer {
 
-    override fun requestConfirmation(
-        hostName: String?,
-        keyName: String?,
-        dataHash: String?,
-    ): Boolean {
+    override fun requestConfirmation(hostName: String?, keyName: String?, dataHash: String?): Boolean {
         val host = hostName ?: "unknown"
         val key = keyName ?: "unknown"
         val hash = dataHash ?: ""
@@ -120,7 +116,7 @@ class ConfirmerAdapter(
             dataToSign = hash.toByteArray(Charsets.UTF_8),
             unlockPolicy = unlockPolicy,
             confirmationPolicy = signingPolicy,
-            needsUnlock = needsUnlock,
+            needsUnlock = needsUnlock
         )
         requestIdRef.set(request.requestId)
 
@@ -140,7 +136,7 @@ class ConfirmerAdapter(
             request.requestId,
             host,
             key,
-            needsUnlock,
+            needsUnlock
         )
         signRequestQueue.enqueue(request)
 
@@ -201,7 +197,7 @@ class ConfirmerAdapter(
 class GoPhoneServer @Inject constructor(
     private val keyManager: KeyManager,
     private val signRequestQueue: SignRequestQueue,
-    private val keyUnlockManager: KeyUnlockManager,
+    private val keyUnlockManager: KeyUnlockManager
 ) {
     @Volatile
     private var phoneServer: PhoneServer? = null

@@ -5,9 +5,9 @@ import androidx.test.runner.AndroidJUnit4
 import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.KeyManager
 import com.nixkey.keystore.KeyType
+import com.nixkey.keystore.KeyUnlockManager
 import com.nixkey.keystore.SignRequestQueue
 import com.nixkey.keystore.SignRequestStatus
-import com.nixkey.keystore.KeyUnlockManager
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -92,7 +92,7 @@ class GoPhoneServerTest {
 
             assertTrue(
                 "Timestamp should be in range [$before, $after], got ${resp.timestampMs}",
-                resp.timestampMs in before..after,
+                resp.timestampMs in before..after
             )
         } finally {
             channel.shutdownNow()
@@ -131,7 +131,7 @@ class GoPhoneServerTest {
         val keyInfo = keyManager.createKey(
             "test-sign-key",
             KeyType.ECDSA_P256,
-            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK
         )
 
         try {
@@ -145,7 +145,7 @@ class GoPhoneServerTest {
                 signRequestQueue.complete(current.requestId, SignRequestStatus.APPROVED)
                 goPhoneServer.confirmerAdapter.notifyCompletion(
                     current.requestId,
-                    SignRequestStatus.APPROVED,
+                    SignRequestStatus.APPROVED
                 )
             }
             approveThread.start()
@@ -179,7 +179,7 @@ class GoPhoneServerTest {
         val keyInfo = keyManager.createKey(
             "test-deny-key",
             KeyType.ECDSA_P256,
-            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK
         )
 
         try {
@@ -193,7 +193,7 @@ class GoPhoneServerTest {
                 signRequestQueue.complete(current.requestId, SignRequestStatus.DENIED)
                 goPhoneServer.confirmerAdapter.notifyCompletion(
                     current.requestId,
-                    SignRequestStatus.DENIED,
+                    SignRequestStatus.DENIED
                 )
             }
             denyThread.start()
@@ -217,7 +217,7 @@ class GoPhoneServerTest {
                     assertEquals(
                         "Should be PERMISSION_DENIED",
                         Status.PERMISSION_DENIED.code,
-                        e.status.code,
+                        e.status.code
                     )
                 }
             } finally {
@@ -234,7 +234,7 @@ class GoPhoneServerTest {
         val keyInfo = keyManager.createKey(
             "test-timeout-key",
             KeyType.ECDSA_P256,
-            signingPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            signingPolicy = ConfirmationPolicy.ALWAYS_ASK
         )
 
         try {
@@ -262,7 +262,7 @@ class GoPhoneServerTest {
                     assertEquals(
                         "Should be DEADLINE_EXCEEDED",
                         Status.DEADLINE_EXCEEDED.code,
-                        e.status.code,
+                        e.status.code
                     )
                 }
             } finally {
@@ -273,7 +273,7 @@ class GoPhoneServerTest {
                     signRequestQueue.complete(pending.requestId, SignRequestStatus.TIMEOUT)
                     goPhoneServer.confirmerAdapter.notifyCompletion(
                         pending.requestId,
-                        SignRequestStatus.TIMEOUT,
+                        SignRequestStatus.TIMEOUT
                     )
                 }
             }
@@ -287,7 +287,7 @@ class GoPhoneServerTest {
         val keyInfo = keyManager.createKey(
             "test-policy-key",
             KeyType.ECDSA_P256,
-            signingPolicy = ConfirmationPolicy.BIOMETRIC,
+            signingPolicy = ConfirmationPolicy.BIOMETRIC
         )
 
         try {
@@ -305,7 +305,7 @@ class GoPhoneServerTest {
                 signRequestQueue.complete(current.requestId, SignRequestStatus.APPROVED)
                 goPhoneServer.confirmerAdapter.notifyCompletion(
                     current.requestId,
-                    SignRequestStatus.APPROVED,
+                    SignRequestStatus.APPROVED
                 )
             }
             approveThread.start()
@@ -327,12 +327,12 @@ class GoPhoneServerTest {
                 assertEquals(
                     "SignRequest should carry the key's BIOMETRIC policy",
                     ConfirmationPolicy.BIOMETRIC,
-                    policyRef.get(),
+                    policyRef.get()
                 )
                 assertEquals(
                     "SignRequest should carry the key's fingerprint",
                     keyInfo.fingerprint,
-                    fingerprintRef.get(),
+                    fingerprintRef.get()
                 )
             } finally {
                 channel.shutdownNow()

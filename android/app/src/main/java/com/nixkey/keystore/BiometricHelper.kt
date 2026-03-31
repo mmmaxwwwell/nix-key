@@ -5,9 +5,9 @@ import androidx.biometric.BiometricManager.Authenticators
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import timber.log.Timber
 
 /**
  * Result of a biometric/confirmation authentication attempt.
@@ -30,7 +30,7 @@ sealed class AuthResult {
  */
 @Singleton
 class BiometricHelper @Inject constructor(
-    private val biometricManager: BiometricManager,
+    private val biometricManager: BiometricManager
 ) {
     /**
      * Authenticate according to the given confirmation policy.
@@ -46,7 +46,7 @@ class BiometricHelper @Inject constructor(
         policy: ConfirmationPolicy,
         title: String,
         subtitle: String = "",
-        callback: (AuthResult) -> Unit,
+        callback: (AuthResult) -> Unit
     ) {
         when (policy) {
             ConfirmationPolicy.AUTO_APPROVE -> {
@@ -59,7 +59,7 @@ class BiometricHelper @Inject constructor(
                     authenticators = Authenticators.DEVICE_CREDENTIAL,
                     title = title,
                     subtitle = subtitle,
-                    callback = callback,
+                    callback = callback
                 )
             }
             ConfirmationPolicy.BIOMETRIC -> {
@@ -69,7 +69,7 @@ class BiometricHelper @Inject constructor(
                     title = title,
                     subtitle = subtitle,
                     negativeButtonText = "Cancel",
-                    callback = callback,
+                    callback = callback
                 )
             }
             ConfirmationPolicy.PASSWORD -> {
@@ -78,7 +78,7 @@ class BiometricHelper @Inject constructor(
                     authenticators = Authenticators.DEVICE_CREDENTIAL,
                     title = title,
                     subtitle = subtitle,
-                    callback = callback,
+                    callback = callback
                 )
             }
             ConfirmationPolicy.BIOMETRIC_PASSWORD -> {
@@ -87,7 +87,7 @@ class BiometricHelper @Inject constructor(
                     authenticators = Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL,
                     title = title,
                     subtitle = subtitle,
-                    callback = callback,
+                    callback = callback
                 )
             }
         }
@@ -110,7 +110,7 @@ class BiometricHelper @Inject constructor(
                 biometricManager.canAuthenticate(Authenticators.DEVICE_CREDENTIAL)
             ConfirmationPolicy.BIOMETRIC_PASSWORD ->
                 biometricManager.canAuthenticate(
-                    Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL,
+                    Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL
                 )
         }
     }
@@ -129,7 +129,7 @@ class BiometricHelper @Inject constructor(
         policy: UnlockPolicy,
         title: String,
         subtitle: String = "",
-        callback: (AuthResult) -> Unit,
+        callback: (AuthResult) -> Unit
     ) {
         when (policy) {
             UnlockPolicy.NONE -> {
@@ -142,7 +142,7 @@ class BiometricHelper @Inject constructor(
                     title = title,
                     subtitle = subtitle,
                     negativeButtonText = "Cancel",
-                    callback = callback,
+                    callback = callback
                 )
             }
             UnlockPolicy.PASSWORD -> {
@@ -151,7 +151,7 @@ class BiometricHelper @Inject constructor(
                     authenticators = Authenticators.DEVICE_CREDENTIAL,
                     title = title,
                     subtitle = subtitle,
-                    callback = callback,
+                    callback = callback
                 )
             }
             UnlockPolicy.BIOMETRIC_PASSWORD -> {
@@ -160,7 +160,7 @@ class BiometricHelper @Inject constructor(
                     authenticators = Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL,
                     title = title,
                     subtitle = subtitle,
-                    callback = callback,
+                    callback = callback
                 )
             }
         }
@@ -184,7 +184,7 @@ class BiometricHelper @Inject constructor(
         title: String,
         subtitle: String,
         negativeButtonText: String? = null,
-        callback: (AuthResult) -> Unit,
+        callback: (AuthResult) -> Unit
     ) {
         val executor = ContextCompat.getMainExecutor(activity)
 

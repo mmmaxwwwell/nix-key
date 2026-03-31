@@ -11,6 +11,8 @@ import com.nixkey.pairing.PairingClient
 import com.nixkey.pairing.QrPayload
 import com.nixkey.tailscale.TailscaleManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.security.MessageDigest
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,8 +21,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import timber.log.Timber
-import java.security.MessageDigest
-import javax.inject.Inject
 
 data class PairingState(
     val phase: PairingPhase = PairingPhase.SCANNING,
@@ -29,7 +29,7 @@ data class PairingState(
     val otelAccepted: Boolean = false,
     val error: String? = null,
     val isPairing: Boolean = false,
-    val pairingStatusText: String = "",
+    val pairingStatusText: String = ""
 )
 
 enum class PairingPhase {
@@ -38,7 +38,7 @@ enum class PairingPhase {
     CONFIRM_OTEL,
     PAIRING,
     SUCCESS,
-    ERROR,
+    ERROR
 }
 
 @HiltViewModel
@@ -46,7 +46,7 @@ class PairingViewModel @Inject constructor(
     private val hostRepository: HostRepository,
     private val settingsRepository: SettingsRepository,
     private val tailscaleManager: TailscaleManager,
-    private val pairingClient: PairingClient,
+    private val pairingClient: PairingClient
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PairingState())
@@ -60,7 +60,7 @@ class PairingViewModel @Inject constructor(
                 it.copy(
                     phase = PairingPhase.CONFIRM_HOST,
                     payload = payload,
-                    error = null,
+                    error = null
                 )
             }
         } catch (e: Exception) {
@@ -68,7 +68,7 @@ class PairingViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     phase = PairingPhase.ERROR,
-                    error = "Invalid QR code: ${e.message}",
+                    error = "Invalid QR code: ${e.message}"
                 )
             }
         }
@@ -110,7 +110,7 @@ class PairingViewModel @Inject constructor(
                 phase = PairingPhase.PAIRING,
                 isPairing = true,
                 otelAccepted = otelAccepted,
-                pairingStatusText = "Connecting to host...",
+                pairingStatusText = "Connecting to host..."
             )
         }
 
@@ -134,7 +134,7 @@ class PairingViewModel @Inject constructor(
                     phoneName = phoneName,
                     tailscaleIp = tsIp,
                     listenPort = listenPort,
-                    phoneServerCert = serverCertAlias,
+                    phoneServerCert = serverCertAlias
                 )
 
                 // Compute host ID from the host client cert fingerprint
@@ -150,7 +150,7 @@ class PairingViewModel @Inject constructor(
                     phoneServerCertAlias = serverCertAlias,
                     otelEndpoint = if (otelAccepted) payload.otel else null,
                     otelEnabled = otelAccepted,
-                    pairedAt = System.currentTimeMillis(),
+                    pairedAt = System.currentTimeMillis()
                 )
                 hostRepository.addHost(pairedHost)
 
@@ -165,7 +165,7 @@ class PairingViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         phase = PairingPhase.SUCCESS,
-                        isPairing = false,
+                        isPairing = false
                     )
                 }
             } catch (e: Exception) {
@@ -175,7 +175,7 @@ class PairingViewModel @Inject constructor(
                     it.copy(
                         phase = PairingPhase.ERROR,
                         isPairing = false,
-                        error = "Pairing failed: ${e.message}",
+                        error = "Pairing failed: ${e.message}"
                     )
                 }
             }
@@ -206,7 +206,7 @@ class PairingViewModel @Inject constructor(
                 port = json.getInt("port"),
                 cert = json.getString("cert"),
                 token = json.getString("token"),
-                otel = json.optString("otel", null),
+                otel = json.optString("otel", null)
             )
         }
 

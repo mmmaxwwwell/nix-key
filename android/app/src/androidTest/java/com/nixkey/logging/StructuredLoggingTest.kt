@@ -1,6 +1,7 @@
 package com.nixkey.logging
 
 import androidx.test.runner.AndroidJUnit4
+import java.util.concurrent.CopyOnWriteArrayList
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -12,7 +13,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import timber.log.Timber
-import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * T-AI-15: Android structured logging with trace correlation (FR-093, FR-094).
@@ -32,7 +32,7 @@ class StructuredLoggingTest {
         val priority: Int,
         val tag: String?,
         val message: String,
-        val throwable: Throwable?,
+        val throwable: Throwable?
     )
 
     @Before
@@ -109,13 +109,13 @@ class StructuredLoggingTest {
             android.util.Log.ERROR,
             "err-mod",
             "error happened",
-            error,
+            error
         )
 
         assertTrue("Should have error field", output.has("error"))
         assertTrue(
             "Error should contain exception message",
-            output.getString("error").contains("something broke"),
+            output.getString("error").contains("something broke")
         )
     }
 
@@ -128,7 +128,7 @@ class StructuredLoggingTest {
             android.util.Log.INFO to "INFO",
             android.util.Log.WARN to "WARN",
             android.util.Log.ERROR to "ERROR",
-            android.util.Log.ASSERT to "FATAL",
+            android.util.Log.ASSERT to "FATAL"
         )
 
         for ((priority, expectedLevel) in cases) {
@@ -222,21 +222,24 @@ class StructuredLoggingTest {
         priority: Int,
         tag: String,
         message: String,
-        throwable: Throwable? = null,
+        throwable: Throwable? = null
     ): JSONObject {
         // JsonTree builds a JSONObject internally — we reconstruct it by
         // calling the same logic
         val json = JSONObject().apply {
             put("timestamp", java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.now()))
-            put("level", when (priority) {
-                android.util.Log.VERBOSE -> "TRACE"
-                android.util.Log.DEBUG -> "DEBUG"
-                android.util.Log.INFO -> "INFO"
-                android.util.Log.WARN -> "WARN"
-                android.util.Log.ERROR -> "ERROR"
-                android.util.Log.ASSERT -> "FATAL"
-                else -> "UNKNOWN"
-            })
+            put(
+                "level",
+                when (priority) {
+                    android.util.Log.VERBOSE -> "TRACE"
+                    android.util.Log.DEBUG -> "DEBUG"
+                    android.util.Log.INFO -> "INFO"
+                    android.util.Log.WARN -> "WARN"
+                    android.util.Log.ERROR -> "ERROR"
+                    android.util.Log.ASSERT -> "FATAL"
+                    else -> "UNKNOWN"
+                }
+            )
             put("module", tag)
             put("message", message)
             TraceContext.currentTraceId()?.let { put("traceId", it) }

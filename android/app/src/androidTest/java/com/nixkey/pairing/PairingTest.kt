@@ -54,7 +54,7 @@ class PairingTest {
             port = 12345,
             cert = "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
             token = "abc123",
-            otel = null,
+            otel = null
         )
 
         val decoded = PairingViewModel.decodeQrPayload(payload)
@@ -74,7 +74,7 @@ class PairingTest {
             port = 12345,
             cert = "CERT",
             token = "token",
-            otel = "100.64.0.1:4317",
+            otel = "100.64.0.1:4317"
         )
 
         val decoded = PairingViewModel.decodeQrPayload(payload)
@@ -107,7 +107,7 @@ class PairingTest {
             phoneServerCertAlias = "nixkey_phone_server_cert",
             otelEndpoint = null,
             otelEnabled = false,
-            pairedAt = 1000L,
+            pairedAt = 1000L
         )
         hostRepository.addHost(host1)
 
@@ -121,7 +121,7 @@ class PairingTest {
             phoneServerCertAlias = "nixkey_phone_server_cert",
             otelEndpoint = "100.64.0.99:4317",
             otelEnabled = true,
-            pairedAt = 2000L,
+            pairedAt = 2000L
         )
         hostRepository.addHost(host2)
 
@@ -164,7 +164,7 @@ class PairingTest {
             phoneServerCertAlias = "alias_test",
             otelEndpoint = "endpoint",
             otelEnabled = true,
-            pairedAt = 3000L,
+            pairedAt = 3000L
         )
         hostRepository.addHost(host)
 
@@ -193,7 +193,7 @@ class PairingTest {
             hostName = "to-remove",
             tailscaleIp = "100.64.0.9",
             hostClientCertFingerprint = "fp_remove",
-            hostClientCert = "CERT_REMOVE",
+            hostClientCert = "CERT_REMOVE"
         )
         hostRepository.addHost(host)
         assertEquals(1, hostRepository.listHosts().size)
@@ -212,13 +212,7 @@ class PairingTest {
         assertEquals(64, fp1.length) // SHA-256 hex = 64 chars
     }
 
-    private fun createQrPayload(
-        host: String,
-        port: Int,
-        cert: String,
-        token: String,
-        otel: String?,
-    ): String {
+    private fun createQrPayload(host: String, port: Int, cert: String, token: String, otel: String?): String {
         val json = JSONObject().apply {
             put("v", 1)
             put("host", host)

@@ -120,7 +120,7 @@ class TailscaleManagerTest {
         assertNotNull("Data dir should be set", fakeBackend.lastDataDir)
         assertTrue(
             "Data dir should be under app files",
-            fakeBackend.lastDataDir!!.contains("tailscale"),
+            fakeBackend.lastDataDir!!.contains("tailscale")
         )
     }
 

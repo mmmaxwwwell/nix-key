@@ -1,13 +1,13 @@
 package com.nixkey.keystore
 
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import timber.log.Timber
 
 /**
  * Runtime state for an unlocked key. Key material is held in memory while unlocked
@@ -15,7 +15,7 @@ import javax.inject.Singleton
  */
 data class UnlockedKeyState(
     val alias: String,
-    val fingerprint: String,
+    val fingerprint: String
 )
 
 /**
@@ -47,7 +47,7 @@ class KeyUnlockManager @Inject constructor() {
     fun unlock(keyInfo: SshKeyInfo) {
         val state = UnlockedKeyState(
             alias = keyInfo.alias,
-            fingerprint = keyInfo.fingerprint,
+            fingerprint = keyInfo.fingerprint
         )
         unlockedKeys[keyInfo.fingerprint] = state
         publishState()

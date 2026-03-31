@@ -34,11 +34,7 @@ import com.nixkey.keystore.SignRequestQueue
  * @param onDeny Called when the user denies a request
  */
 @Composable
-fun SignRequestDialog(
-    queue: SignRequestQueue,
-    onApprove: (SignRequest) -> Unit,
-    onDeny: (SignRequest) -> Unit,
-) {
+fun SignRequestDialog(queue: SignRequestQueue, onApprove: (SignRequest) -> Unit, onDeny: (SignRequest) -> Unit) {
     val currentRequest by queue.currentRequest.collectAsState()
     val queueSize by queue.queueSize.collectAsState()
 
@@ -47,7 +43,7 @@ fun SignRequestDialog(
             request = request,
             queueSize = queueSize,
             onApprove = { onApprove(request) },
-            onDeny = { onDeny(request) },
+            onDeny = { onDeny(request) }
         )
     }
 }
@@ -56,12 +52,7 @@ fun SignRequestDialog(
  * The actual dialog content, separated for testability without needing a queue.
  */
 @Composable
-fun SignRequestDialogContent(
-    request: SignRequest,
-    queueSize: Int = 0,
-    onApprove: () -> Unit,
-    onDeny: () -> Unit,
-) {
+fun SignRequestDialogContent(request: SignRequest, queueSize: Int = 0, onApprove: () -> Unit, onDeny: () -> Unit) {
     AlertDialog(
         onDismissRequest = { /* Sign requests cannot be dismissed by tapping outside */ },
         modifier = Modifier.testTag("sign_request_dialog"),
@@ -71,21 +62,21 @@ fun SignRequestDialogContent(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 DetailRow(label = "Host", value = request.hostName)
                 DetailRow(label = "Key", value = request.keyName)
                 DetailRow(
                     label = "Data hash",
                     value = request.dataHashTruncated(),
-                    monospace = true,
+                    monospace = true
                 )
                 if (request.needsUnlock) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Key is locked. Approving will prompt to unlock first.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
                 if (queueSize > 0) {
@@ -94,7 +85,7 @@ fun SignRequestDialogContent(
                         text = "$queueSize more request${if (queueSize != 1) "s" else ""} waiting",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.testTag("queue_count"),
+                        modifier = Modifier.testTag("queue_count")
                     )
                 }
             }
@@ -102,7 +93,7 @@ fun SignRequestDialogContent(
         confirmButton = {
             Button(
                 onClick = onApprove,
-                modifier = Modifier.testTag("approve_button"),
+                modifier = Modifier.testTag("approve_button")
             ) {
                 Text("Approve")
             }
@@ -112,36 +103,32 @@ fun SignRequestDialogContent(
                 onClick = onDeny,
                 modifier = Modifier.testTag("deny_button"),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                ),
+                    contentColor = MaterialTheme.colorScheme.error
+                )
             ) {
                 Text("Deny")
             }
-        },
+        }
     )
 }
 
 @Composable
-private fun DetailRow(
-    label: String,
-    value: String,
-    monospace: Boolean = false,
-) {
+private fun DetailRow(label: String, value: String, monospace: Boolean = false) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = "$label:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default,
+            fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default
         )
     }
 }

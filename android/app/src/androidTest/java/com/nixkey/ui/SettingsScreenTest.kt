@@ -30,7 +30,7 @@ class SettingsScreenTest {
             NixKeyTheme {
                 SettingsScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -52,7 +52,7 @@ class SettingsScreenTest {
             NixKeyTheme {
                 SettingsScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -70,7 +70,7 @@ class SettingsScreenTest {
             NixKeyTheme {
                 SettingsScreen(
                     onBack = {},
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }
@@ -89,7 +89,7 @@ class SettingsScreenTest {
             NixKeyTheme {
                 SettingsScreen(
                     onBack = { backCalled = true },
-                    viewModel = viewModel,
+                    viewModel = viewModel
                 )
             }
         }

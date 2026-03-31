@@ -1,13 +1,9 @@
 package com.nixkey.keystore
 
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import androidx.test.runner.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import java.security.KeyPairGenerator
+import androidx.test.runner.AndroidJUnit4
 import java.security.KeyStore
 import java.security.Signature
-import java.security.interfaces.ECPublicKey
 import java.util.Base64
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
@@ -81,7 +77,7 @@ class KeyManagerTest {
         val info = keyManager.createKey(
             "test-policy",
             KeyType.ED25519,
-            signingPolicy = ConfirmationPolicy.BIOMETRIC,
+            signingPolicy = ConfirmationPolicy.BIOMETRIC
         )
         createdAliases.add(info.alias)
 
@@ -215,7 +211,7 @@ class KeyManagerTest {
         val encoded = entry.privateKey.encoded
         assertTrue(
             "ECDSA private key should not be extractable",
-            encoded == null || encoded.isEmpty(),
+            encoded == null || encoded.isEmpty()
         )
     }
 
@@ -231,7 +227,7 @@ class KeyManagerTest {
         val encoded = entry.secretKey.encoded
         assertTrue(
             "AES wrapping key should not be extractable",
-            encoded == null || encoded.isEmpty(),
+            encoded == null || encoded.isEmpty()
         )
     }
 

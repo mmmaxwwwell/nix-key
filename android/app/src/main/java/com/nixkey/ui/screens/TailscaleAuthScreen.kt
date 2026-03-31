@@ -32,10 +32,7 @@ import com.nixkey.ui.viewmodel.TailscaleAuthState
 import com.nixkey.ui.viewmodel.TailscaleAuthViewModel
 
 @Composable
-fun TailscaleAuthScreen(
-    onAuthSuccess: () -> Unit,
-    viewModel: TailscaleAuthViewModel = hiltViewModel(),
-) {
+fun TailscaleAuthScreen(onAuthSuccess: () -> Unit, viewModel: TailscaleAuthViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(state.phase) {
@@ -50,7 +47,7 @@ fun TailscaleAuthScreen(
         onConnectWithKey = viewModel::connectWithAuthKey,
         onConnectWithOAuth = viewModel::connectWithOAuth,
         onOAuthComplete = viewModel::onOAuthComplete,
-        onRetry = viewModel::retry,
+        onRetry = viewModel::retry
     )
 }
 
@@ -61,7 +58,7 @@ fun TailscaleAuthContent(
     onConnectWithKey: () -> Unit,
     onConnectWithOAuth: () -> Unit,
     onOAuthComplete: () -> Unit,
-    onRetry: () -> Unit,
+    onRetry: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -72,18 +69,18 @@ fun TailscaleAuthContent(
                 .padding(padding)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = "Connect to Tailscale",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMedium
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Join your Tailnet to enable secure communication with your NixOS host.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -101,12 +98,12 @@ fun TailscaleAuthContent(
                             { Text(state.error) }
                         } else {
                             null
-                        },
+                        }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = onConnectWithKey,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Connect")
                     }
@@ -114,12 +111,12 @@ fun TailscaleAuthContent(
                     Text(
                         text = "or",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = onConnectWithOAuth,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Sign in with Tailscale")
                     }
@@ -130,7 +127,7 @@ fun TailscaleAuthContent(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Connecting to Tailnet...",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
 
@@ -145,12 +142,12 @@ fun TailscaleAuthContent(
                     Text(
                         text = "Complete sign-in in your browser, then tap below.",
                         style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = onOAuthComplete,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("I've signed in")
                     }
@@ -161,12 +158,12 @@ fun TailscaleAuthContent(
                         text = state.error ?: "An unknown error occurred",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = onRetry,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Retry")
                     }

@@ -10,11 +10,11 @@ data class PairedHost(
     val otelEndpoint: String? = null,
     val otelEnabled: Boolean = false,
     val pairedAt: Long = System.currentTimeMillis(),
-    val status: ConnectionStatus = ConnectionStatus.UNKNOWN,
+    val status: ConnectionStatus = ConnectionStatus.UNKNOWN
 )
 
 enum class ConnectionStatus {
     REACHABLE,
     UNREACHABLE,
-    UNKNOWN,
+    UNKNOWN
 }

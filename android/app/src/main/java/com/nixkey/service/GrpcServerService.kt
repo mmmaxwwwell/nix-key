@@ -14,10 +14,10 @@ import com.nixkey.bridge.GoPhoneServer
 import com.nixkey.data.SettingsRepository
 import com.nixkey.tailscale.TailscaleManager
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
 import java.net.BindException
 import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
+import timber.log.Timber
 
 /**
  * Android foreground service that manages the gRPC server lifecycle.
@@ -37,7 +37,9 @@ import javax.inject.Inject
 class GrpcServerService : Service() {
 
     @Inject lateinit var tailscaleManager: TailscaleManager
+
     @Inject lateinit var goPhoneServer: GoPhoneServer
+
     @Inject lateinit var settingsRepository: SettingsRepository
 
     override fun onCreate() {
@@ -147,7 +149,7 @@ class GrpcServerService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "nix-key Server",
-            NotificationManager.IMPORTANCE_LOW,
+            NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Shows when the nix-key gRPC server is active"
             setShowBadge(false)
@@ -164,7 +166,7 @@ class GrpcServerService : Service() {
             this,
             0,
             openIntent,
-            PendingIntent.FLAG_IMMUTABLE,
+            PendingIntent.FLAG_IMMUTABLE
         )
 
         val stopIntent = Intent(this, GrpcServerService::class.java).apply {
@@ -174,7 +176,7 @@ class GrpcServerService : Service() {
             this,
             1,
             stopIntent,
-            PendingIntent.FLAG_IMMUTABLE,
+            PendingIntent.FLAG_IMMUTABLE
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -186,7 +188,7 @@ class GrpcServerService : Service() {
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 "Stop",
-                stopPendingIntent,
+                stopPendingIntent
             )
             .build()
     }

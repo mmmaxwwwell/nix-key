@@ -10,7 +10,7 @@ import javax.inject.Singleton
 
 @Singleton
 class SettingsRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @ApplicationContext private val context: Context
 ) {
     private val prefs: SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)

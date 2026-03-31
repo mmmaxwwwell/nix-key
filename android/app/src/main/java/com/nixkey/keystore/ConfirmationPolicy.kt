@@ -5,5 +5,5 @@ enum class ConfirmationPolicy {
     BIOMETRIC,
     PASSWORD,
     BIOMETRIC_PASSWORD,
-    AUTO_APPROVE,
+    AUTO_APPROVE
 }

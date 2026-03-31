@@ -33,7 +33,7 @@ object Routes {
 fun NixKeyNavGraph(
     needsTailscaleAuth: Boolean = false,
     deepLinkPayload: String? = null,
-    onDeepLinkConsumed: () -> Unit = {},
+    onDeepLinkConsumed: () -> Unit = {}
 ) {
     val navController = rememberNavController()
 
@@ -48,7 +48,7 @@ fun NixKeyNavGraph(
 
     NavHost(
         navController = navController,
-        startDestination = startDestination,
+        startDestination = startDestination
     ) {
         composable(Routes.TAILSCALE_AUTH) {
             TailscaleAuthScreen(
@@ -56,14 +56,14 @@ fun NixKeyNavGraph(
                     navController.navigate(Routes.SERVER_LIST) {
                         popUpTo(Routes.TAILSCALE_AUTH) { inclusive = true }
                     }
-                },
+                }
             )
         }
         composable(Routes.SERVER_LIST) {
             ServerListScreen(
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 onNavigateToScanQr = { navController.navigate(Routes.PAIRING) },
-                onNavigateToKeys = { hostId -> navController.navigate(Routes.keyManagement(hostId)) },
+                onNavigateToKeys = { hostId -> navController.navigate(Routes.keyManagement(hostId)) }
             )
         }
         composable(
@@ -73,8 +73,8 @@ fun NixKeyNavGraph(
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
-                },
-            ),
+                }
+            )
         ) { backStackEntry ->
             val initialPayload = backStackEntry.arguments?.getString("payload")
             PairingScreen(
@@ -82,12 +82,12 @@ fun NixKeyNavGraph(
                 onPairingComplete = {
                     navController.popBackStack(Routes.SERVER_LIST, inclusive = false)
                 },
-                initialPayload = initialPayload,
+                initialPayload = initialPayload
             )
         }
         composable(
             route = Routes.KEY_MANAGEMENT,
-            arguments = listOf(navArgument("hostId") { type = NavType.StringType }),
+            arguments = listOf(navArgument("hostId") { type = NavType.StringType })
         ) { backStackEntry ->
             val hostId = backStackEntry.arguments?.getString("hostId") ?: ""
             KeyListScreen(
@@ -96,25 +96,25 @@ fun NixKeyNavGraph(
                 onNavigateToKeyDetail = { keyAlias ->
                     navController.navigate(Routes.keyDetail(keyAlias))
                 },
-                onNavigateToCreateKey = { navController.navigate(Routes.KEY_DETAIL_NEW) },
+                onNavigateToCreateKey = { navController.navigate(Routes.KEY_DETAIL_NEW) }
             )
         }
         composable(
             route = Routes.KEY_DETAIL,
-            arguments = listOf(navArgument("keyId") { type = NavType.StringType }),
+            arguments = listOf(navArgument("keyId") { type = NavType.StringType })
         ) {
             KeyDetailScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.KEY_DETAIL_NEW) {
             KeyDetailScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
     }

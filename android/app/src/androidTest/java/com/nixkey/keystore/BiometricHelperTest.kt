@@ -132,7 +132,7 @@ class BiometricHelperTest {
         biometricHelper.authenticate(
             activity = mockActivity,
             policy = ConfirmationPolicy.AUTO_APPROVE,
-            title = "Sign request",
+            title = "Sign request"
         ) { result ->
             capturedResult = result
             latch.countDown()
@@ -149,7 +149,7 @@ class BiometricHelperTest {
         biometricHelper.authenticate(
             activity = mockActivity,
             policy = ConfirmationPolicy.AUTO_APPROVE,
-            title = "Sign request",
+            title = "Sign request"
         ) {}
 
         // BiometricManager should never be called for auto_approve
@@ -175,7 +175,7 @@ class BiometricHelperTest {
             assertEquals(
                 "Policy $policy should return BIOMETRIC_SUCCESS when mocked",
                 BiometricManager.BIOMETRIC_SUCCESS,
-                result,
+                result
             )
         }
     }

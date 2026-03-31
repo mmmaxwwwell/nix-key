@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nixkey.tailscale.TailscaleManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -13,13 +14,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 data class TailscaleAuthState(
     val phase: TailscaleAuthPhase = TailscaleAuthPhase.INPUT,
     val authKey: String = "",
     val error: String? = null,
-    val oauthUrl: String? = null,
+    val oauthUrl: String? = null
 )
 
 enum class TailscaleAuthPhase {
@@ -27,12 +27,12 @@ enum class TailscaleAuthPhase {
     CONNECTING,
     OAUTH_REQUIRED,
     SUCCESS,
-    ERROR,
+    ERROR
 }
 
 @HiltViewModel
 class TailscaleAuthViewModel @Inject constructor(
-    private val tailscaleManager: TailscaleManager,
+    private val tailscaleManager: TailscaleManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TailscaleAuthState())
@@ -53,7 +53,7 @@ class TailscaleAuthViewModel @Inject constructor(
         _state.update {
             it.copy(
                 phase = TailscaleAuthPhase.CONNECTING,
-                error = null,
+                error = null
             )
         }
 
@@ -67,7 +67,7 @@ class TailscaleAuthViewModel @Inject constructor(
                         _state.update {
                             it.copy(
                                 phase = TailscaleAuthPhase.ERROR,
-                                error = "Connection timed out. Check your network and try again.",
+                                error = "Connection timed out. Check your network and try again."
                             )
                         }
                     }
@@ -78,7 +78,7 @@ class TailscaleAuthViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             phase = TailscaleAuthPhase.OAUTH_REQUIRED,
-                            oauthUrl = oauthUrl,
+                            oauthUrl = oauthUrl
                         )
                     }
                 } else {
@@ -90,7 +90,7 @@ class TailscaleAuthViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         phase = TailscaleAuthPhase.ERROR,
-                        error = "Connection failed: ${e.message}",
+                        error = "Connection failed: ${e.message}"
                     )
                 }
             }
@@ -101,7 +101,7 @@ class TailscaleAuthViewModel @Inject constructor(
         _state.update {
             it.copy(
                 phase = TailscaleAuthPhase.CONNECTING,
-                error = null,
+                error = null
             )
         }
 
@@ -115,7 +115,7 @@ class TailscaleAuthViewModel @Inject constructor(
                         _state.update {
                             it.copy(
                                 phase = TailscaleAuthPhase.ERROR,
-                                error = "Connection timed out. Check your network and try again.",
+                                error = "Connection timed out. Check your network and try again."
                             )
                         }
                     }
@@ -126,7 +126,7 @@ class TailscaleAuthViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             phase = TailscaleAuthPhase.OAUTH_REQUIRED,
-                            oauthUrl = oauthUrl,
+                            oauthUrl = oauthUrl
                         )
                     }
                 } else {
@@ -138,7 +138,7 @@ class TailscaleAuthViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         phase = TailscaleAuthPhase.ERROR,
-                        error = "Connection failed: ${e.message}",
+                        error = "Connection failed: ${e.message}"
                     )
                 }
             }

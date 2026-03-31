@@ -1,7 +1,5 @@
 package com.nixkey.pairing
 
-import org.json.JSONObject
-import timber.log.Timber
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
 import java.io.InputStreamReader
@@ -15,11 +13,13 @@ import javax.inject.Singleton
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
+import org.json.JSONObject
+import timber.log.Timber
 
 data class PairingResponse(
     val hostName: String,
     val hostClientCert: String,
-    val status: String,
+    val status: String
 )
 
 @Singleton
@@ -33,7 +33,7 @@ class PairingClient @Inject constructor() {
         phoneName: String,
         tailscaleIp: String,
         listenPort: Int,
-        phoneServerCert: String,
+        phoneServerCert: String
     ): PairingResponse {
         val url = URL("https://$host:$port/pair")
 
@@ -85,7 +85,7 @@ class PairingClient @Inject constructor() {
             return PairingResponse(
                 hostName = json.getString("hostName"),
                 hostClientCert = json.getString("hostClientCert"),
-                status = status,
+                status = status
             )
         } finally {
             connection.disconnect()

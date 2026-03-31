@@ -119,7 +119,7 @@ class SecurityWarningTest {
     @Test
     fun autoApproveWarningDialog_rendersAndConfirms() {
         val state = MutableStateFlow(
-            KeyDetailState(isCreateMode = true, showAutoApproveWarning = true),
+            KeyDetailState(isCreateMode = true, showAutoApproveWarning = true)
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state
@@ -137,7 +137,7 @@ class SecurityWarningTest {
     @Test
     fun autoApproveWarningDialog_cancelDismisses() {
         val state = MutableStateFlow(
-            KeyDetailState(isCreateMode = true, showAutoApproveWarning = true),
+            KeyDetailState(isCreateMode = true, showAutoApproveWarning = true)
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state
@@ -154,7 +154,7 @@ class SecurityWarningTest {
     @Test
     fun noneUnlockWarningDialog_rendersAndConfirms() {
         val state = MutableStateFlow(
-            KeyDetailState(isCreateMode = true, showNoneUnlockWarning = true),
+            KeyDetailState(isCreateMode = true, showNoneUnlockWarning = true)
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state
@@ -172,7 +172,7 @@ class SecurityWarningTest {
     @Test
     fun noneUnlockWarningDialog_cancelDismisses() {
         val state = MutableStateFlow(
-            KeyDetailState(isCreateMode = true, showNoneUnlockWarning = true),
+            KeyDetailState(isCreateMode = true, showNoneUnlockWarning = true)
         )
         val viewModel = mockk<KeyDetailViewModel>(relaxed = true)
         every { viewModel.state } returns state

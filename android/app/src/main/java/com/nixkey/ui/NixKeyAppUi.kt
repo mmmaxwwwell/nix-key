@@ -17,24 +17,24 @@ fun NixKeyAppUi(
     needsTailscaleAuth: Boolean = false,
     deepLinkPayload: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
-    tailnetConnectionState: StateFlow<TailnetConnectionState>? = null,
+    tailnetConnectionState: StateFlow<TailnetConnectionState>? = null
 ) {
     NixKeyTheme {
         val content: @Composable () -> Unit = {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background,
+                color = MaterialTheme.colorScheme.background
             ) {
                 NixKeyNavGraph(
                     needsTailscaleAuth = needsTailscaleAuth,
                     deepLinkPayload = deepLinkPayload,
-                    onDeepLinkConsumed = onDeepLinkConsumed,
+                    onDeepLinkConsumed = onDeepLinkConsumed
                 )
             }
         }
         if (tailnetConnectionState != null) {
             CompositionLocalProvider(
-                LocalTailnetConnectionState provides tailnetConnectionState,
+                LocalTailnetConnectionState provides tailnetConnectionState
             ) {
                 content()
             }

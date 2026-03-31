@@ -50,7 +50,7 @@ class DisplayNameEditTest {
             key.alias,
             displayName = "renamed-key",
             unlockPolicy = key.unlockPolicy,
-            signingPolicy = key.confirmationPolicy,
+            signingPolicy = key.confirmationPolicy
         )
 
         val updated = keyManager.getKey(key.alias)
@@ -64,7 +64,7 @@ class DisplayNameEditTest {
             "test-preserve",
             KeyType.ED25519,
             unlockPolicy = UnlockPolicy.BIOMETRIC,
-            signingPolicy = ConfirmationPolicy.PASSWORD,
+            signingPolicy = ConfirmationPolicy.PASSWORD
         )
         createdAliases.add(key.alias)
 
@@ -72,7 +72,7 @@ class DisplayNameEditTest {
             key.alias,
             displayName = "new-name",
             unlockPolicy = key.unlockPolicy,
-            signingPolicy = key.confirmationPolicy,
+            signingPolicy = key.confirmationPolicy
         )
 
         val updated = keyManager.getKey(key.alias)!!
@@ -93,7 +93,7 @@ class DisplayNameEditTest {
             key.alias,
             displayName = key.displayName,
             unlockPolicy = UnlockPolicy.NONE,
-            signingPolicy = ConfirmationPolicy.AUTO_APPROVE,
+            signingPolicy = ConfirmationPolicy.AUTO_APPROVE
         )
 
         val updated = keyManager.getKey(key.alias)!!
@@ -111,7 +111,7 @@ class DisplayNameEditTest {
             key.alias,
             displayName = "updated-list",
             unlockPolicy = key.unlockPolicy,
-            signingPolicy = key.confirmationPolicy,
+            signingPolicy = key.confirmationPolicy
         )
 
         val listed = keyManager.listKeys().find { it.alias == key.alias }
@@ -128,7 +128,7 @@ class DisplayNameEditTest {
             key.alias,
             displayName = "new-comment",
             unlockPolicy = key.unlockPolicy,
-            signingPolicy = key.confirmationPolicy,
+            signingPolicy = key.confirmationPolicy
         )
 
         val exported = keyManager.exportPublicKey(key.alias)

@@ -6,5 +6,5 @@ data class QrPayload(
     val port: Int,
     val cert: String,
     val token: String,
-    val otel: String? = null,
+    val otel: String? = null
 )

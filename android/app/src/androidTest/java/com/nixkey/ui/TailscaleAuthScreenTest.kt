@@ -1,7 +1,6 @@
 package com.nixkey.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -30,7 +29,7 @@ class TailscaleAuthScreenTest {
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
                     onOAuthComplete = {},
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -53,7 +52,7 @@ class TailscaleAuthScreenTest {
                     onConnectWithKey = { connectCalled = true },
                     onConnectWithOAuth = {},
                     onOAuthComplete = {},
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -74,7 +73,7 @@ class TailscaleAuthScreenTest {
                     onConnectWithKey = {},
                     onConnectWithOAuth = { oauthCalled = true },
                     onOAuthComplete = {},
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -95,7 +94,7 @@ class TailscaleAuthScreenTest {
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
                     onOAuthComplete = {},
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -114,7 +113,7 @@ class TailscaleAuthScreenTest {
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
                     onOAuthComplete = {},
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -132,7 +131,7 @@ class TailscaleAuthScreenTest {
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
                     onOAuthComplete = {},
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -149,13 +148,13 @@ class TailscaleAuthScreenTest {
                 TailscaleAuthContent(
                     state = TailscaleAuthState(
                         phase = TailscaleAuthPhase.OAUTH_REQUIRED,
-                        oauthUrl = "https://login.tailscale.com/test",
+                        oauthUrl = "https://login.tailscale.com/test"
                     ),
                     onAuthKeyChanged = {},
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
                     onOAuthComplete = {},
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -174,13 +173,13 @@ class TailscaleAuthScreenTest {
                 TailscaleAuthContent(
                     state = TailscaleAuthState(
                         phase = TailscaleAuthPhase.OAUTH_REQUIRED,
-                        oauthUrl = "https://login.tailscale.com/test",
+                        oauthUrl = "https://login.tailscale.com/test"
                     ),
                     onAuthKeyChanged = {},
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
                     onOAuthComplete = { oauthCompleteCalled = true },
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -196,13 +195,13 @@ class TailscaleAuthScreenTest {
                 TailscaleAuthContent(
                     state = TailscaleAuthState(
                         phase = TailscaleAuthPhase.ERROR,
-                        error = "Connection failed: timeout",
+                        error = "Connection failed: timeout"
                     ),
                     onAuthKeyChanged = {},
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
                     onOAuthComplete = {},
-                    onRetry = {},
+                    onRetry = {}
                 )
             }
         }
@@ -220,13 +219,13 @@ class TailscaleAuthScreenTest {
                 TailscaleAuthContent(
                     state = TailscaleAuthState(
                         phase = TailscaleAuthPhase.ERROR,
-                        error = "Connection failed",
+                        error = "Connection failed"
                     ),
                     onAuthKeyChanged = {},
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
                     onOAuthComplete = {},
-                    onRetry = { retryCalled = true },
+                    onRetry = { retryCalled = true }
                 )
             }
         }
