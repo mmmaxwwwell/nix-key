@@ -60,3 +60,9 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **Root cause**: Nix-packaged gomobile (Dec 2024 commit) uses `GOPATH=gomobile-work` (relative) and `$WORK` (relative) internally. Go 1.26+ rejects relative GOPATH. A go-wrapper approach only fixes the GOPATH issue but not gomobile's own relative work directory for `.so` output paths.
 - **Fix**: Build gomobile + gobind from source (latest `golang.org/x/mobile` in go.mod, March 2026) which uses `os.MkdirTemp("", "gomobile-work-")` (absolute). The build is fast (~5s) and runs as part of the `build-android-apk` script.
 - **ANDROID_HOME NDK path**: gomobile requires the Android SDK to have `ndk/<version>/` directory. Multiple androidsdk store paths exist — use the one from the Nix `androidComposition` (not the first one in the store). The Nix gomobile wrapper's `$ANDROID_HOME` env var reveals the correct one.
+
+## T111 — Verify gomobile AAR contains real Go code
+
+- **AAR verification**: The AAR is 9.5MB compressed with `jni/arm64-v8a/libgojni.so` (20.7MB). This confirms real Go native code, not a stub (<100KB).
+- **x86_64 missing**: `-target android` only produced ARM64; x86_64 was not built. For emulator tests on x86_64 hosts, either use ARM64 translation (Android 11+) or add explicit `-target android/arm64,android/amd64` to the gomobile bind command.
+- **`jar` not in devshell**: Use `unzip -l` instead of `jar tf` to inspect AAR contents in the Nix environment.

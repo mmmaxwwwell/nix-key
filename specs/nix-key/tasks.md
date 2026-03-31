@@ -298,7 +298,7 @@
 - [x] T110 Fix gomobile AAR build: the Nix-packaged gomobile (Dec 2024) is broken with Go 1.26.1 (`GOPATH=gomobile-work` relative path rejected). Either update gomobile in nixpkgs, patch the Nix derivation, or apply the CI workaround (`GOPATH`/`GOMODCACHE` override) to `nix/android-apk.nix`'s `build-android-apk` script and the Makefile `gomobile` target. Remove the stub AAR — the real gomobile AAR must build. [Build infra]
   **Done when**: `nix develop --command build-android-apk` succeeds end-to-end. `jar tf android/app/libs/phoneserver.aar` shows `.so` native libraries (not just Java stub classes). `make android-apk` also works.
 
-- [ ] T111 [P] Verify gomobile AAR contains real Go code: run `jar tf android/app/libs/phoneserver.aar` and verify it contains `jni/*/libgojni.so` (ARM64, x86_64). Verify the AAR size is >1MB (stub AARs are <100KB). If the AAR is a stub, T110 is not done. [Build infra]
+- [x] T111 [P] Verify gomobile AAR contains real Go code: run `jar tf android/app/libs/phoneserver.aar` and verify it contains `jni/*/libgojni.so` (ARM64, x86_64). Verify the AAR size is >1MB (stub AARs are <100KB). If the AAR is a stub, T110 is not done. [Build infra]
   **Done when**: AAR contains native .so files, size >1MB.
 
 - [ ] T112 Run Android instrumented tests on local emulator: boot emulator via `nix develop --command start-emulator` (or `nix/android-emulator.nix` helper). Install debug APK via `adb install`. Run `./gradlew connectedDebugAndroidTest`. Parse JUnit XML results. Fix any failures — especially tests that call Go code via the bridge (GoPhoneServer, PhoneServer), which will crash if the AAR is a stub. [Android E2E]
