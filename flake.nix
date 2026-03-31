@@ -84,6 +84,9 @@
               semgrep
               govulncheck
 
+              # Java (for Android Gradle builds: ktlint, RacerD/Infer)
+              jdk17
+
               # Android build tools
               androidApk.gomobile
               androidApk.build-android-apk
@@ -96,6 +99,9 @@
               infer
             ];
 
+          JAVA_HOME = "${pkgs.jdk17}";
+          ANDROID_HOME = "${androidApk.androidSdk}/libexec/android-sdk";
+
           shellHook = ''
             # Install gitleaks pre-commit hook
             git config --local core.hooksPath .githooks
@@ -105,6 +111,7 @@
             echo "  protoc:         $(protoc --version)"
             echo "  age:            $(age --version)"
             echo "  golangci-lint:  $(golangci-lint --version 2>&1 | head -1)"
+            echo "  Java:           $(java -version 2>&1 | head -1)"
           '';
         };
       }

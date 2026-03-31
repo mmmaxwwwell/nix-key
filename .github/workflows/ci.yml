@@ -49,7 +49,10 @@ jobs:
           cd android
           if test -f ./gradlew; then
             nix develop --command bash -c '
-              infer run --racerd-only -- ./gradlew assembleDebug --no-daemon 2>&1
+              NIX_AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+              infer run --racerd-only -- ./gradlew assembleDebug --no-daemon \
+                -Dorg.gradle.java.home="$JAVA_HOME" \
+                -Pandroid.aapt2FromMavenOverride="$NIX_AAPT2" 2>&1
               if [ -f infer-out/report.json ]; then
                 RACES=$(jq "[.[] | select(.bug_type == \"THREAD_SAFETY_violation\")] | length" infer-out/report.json)
                 echo "RacerD found $RACES potential race(s)"
