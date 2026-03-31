@@ -403,6 +403,7 @@ jobs:
           category: trivy
 
       - name: Semgrep SAST
+        if: always()
         uses: semgrep/semgrep-action@v1
         continue-on-error: true
         with:
@@ -434,6 +435,7 @@ jobs:
           category: semgrep
 
       - name: Gitleaks secret scan
+        if: always()
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -463,6 +465,7 @@ jobs:
           category: gitleaks
 
       - name: govulncheck
+        if: always()
         run: |
           nix develop --command bash -c '
             export GOPATH="$HOME/go"
