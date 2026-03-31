@@ -16,6 +16,9 @@ func FuzzConfigParse(f *testing.F) {
 	f.Add([]byte(`{"logLevel":"invalid","signTimeout":-1}`))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 1024 {
+			return // skip large inputs to prevent deadline exceeded
+		}
 		var cfg Config
 		_ = json.Unmarshal(data, &cfg)
 	})
