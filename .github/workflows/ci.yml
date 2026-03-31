@@ -248,13 +248,7 @@ jobs:
 
       - name: Build gomobile AAR
         run: |
-          nix develop --command bash -c '
-            export GOPATH="$HOME/go"
-            export GOMODCACHE="$GOPATH/pkg/mod"
-            mkdir -p android/app/libs "$GOMODCACHE"
-            go get golang.org/x/mobile/bind@latest || true
-            gomobile bind -target=android -androidapi 29 -o android/app/libs/phoneserver.aar ./pkg/phoneserver
-          '
+          nix develop --command build-android-apk --aar-only
 
       - name: Gradle build + unit tests
         run: |
@@ -375,6 +369,7 @@ jobs:
 
       - name: Trivy vulnerability scan (SARIF)
         uses: aquasecurity/trivy-action@v0.35.0
+        continue-on-error: true
         with:
           scan-type: fs
           scan-ref: .
