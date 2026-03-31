@@ -51,8 +51,8 @@ func FuzzProtoRoundTrip(f *testing.F) {
 	f.Add([]byte{})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		if len(data) > 10*1024 {
-			return // skip pathologically large inputs
+		if len(data) > 1024 {
+			return // tighter limit for round-trip: proto.Equal is expensive on nested messages
 		}
 		var msg SignRequest
 		if err := proto.Unmarshal(data, &msg); err != nil {
