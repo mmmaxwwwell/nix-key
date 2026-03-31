@@ -78,3 +78,15 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **headscale v0.28 preauthkeys require numeric user ID**: `--user` takes a uint, not a string name. Use `users list -o json | python3 -c "..."` to extract the numeric `id` field. Also requires `derp.urls` section and `dns.nameservers.global` with a real nameserver (not empty) when `override_local_dns: false`.
 - **nix-key daemon config field names**: The config JSON uses `socketPath`, `controlSocketPath`, and integer `signTimeout` (not `listenPath`, `controlSocket`, `"30s"`). The daemon finds config at `$XDG_CONFIG_HOME/nix-key/config.json` and devices at `$XDG_STATE_HOME/nix-key/devices.json`.
 - **APK install on slow emulators**: Use push-then-install (`adb push` + `adb shell pm install`) instead of streaming `adb install`, which times out on slow software-emulated devices. After `sys.boot_completed=1`, wait for `pm list packages` to show 50+ packages AND `service check mount` to report "found" before attempting install.
+
+## T099 — Final CI validation and PR (finalization)
+
+- **18 CI attempts across 3 sessions** to reach fully green CI on develop. Key failure categories:
+  1. **Unix socket path too long** (attempt 1): `t.TempDir()` in CI has long paths exceeding 108-char `sun_path`. Fix: use short `/tmp/nk-*` paths.
+  2. **Gitignore vendor collisions** (attempt 3): Bare patterns like `result` and `build/` matched vendor subdirectories. Fix: root-anchor all patterns (`/result`, `/build/`).
+  3. **Android build infra** (attempts 5-13): Missing `gradlew`, broken gomobile with Go 1.26, Gradle API mismatches, protobuf plugin version, AAPT2 ELF patching. Required rebuilding Android build chain from scratch.
+  4. **Fuzz deadline exceeded** (attempt 15): `FuzzProtoRoundTrip` hit 10-minute deadline on large inputs. Fix: add 1KB input size guard.
+- **Sanity-check methodology**: Download CI logs and verify (1) test counts match source (413 Go tests vs 262 test functions + subtests across 48 files), (2) NixOS VM tests all reach "test script finished", (3) no silent exit-code swallowing, (4) security scanners produce non-empty output, (5) artifacts are downloadable and non-empty.
+- **Badge pre-merge state**: CI and E2E badges return HTTP 200 on develop. Release badge returns 404 (workflow not on main yet), license badge shows "not specified" (LICENSE not on main yet), release version shows "no releases" — all expected and will self-heal after PR merge.
+- **Observable outputs validated**: nix-key binary artifact (15MB), debug APK (112MB), ci-summary.json showing 413 passed / 0 failed, all 4 Tier 1 scanners produced output.
+- **PR created**: develop → main, PR #2, 213 commits across 21 phases.
