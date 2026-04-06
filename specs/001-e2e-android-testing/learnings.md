@@ -16,6 +16,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **Fingerprint simulation + AUTO_APPROVE are two independent bypass paths.** `adb -e emu finger touch 1` works with `BiometricPrompt` (BIOMETRIC policy), while `AUTO_APPROVE` policy skips prompts entirely. For E2E, prefer AUTO_APPROVE + UnlockPolicy.NONE to avoid any biometric interaction.
 - **StrongBox fallback is automatic — no debug flag needed.** Emulators have no StrongBox; KeyManager.kt catches the exception and retries without it. No special configuration for E2E.
 
+## T003 — Headscale/tailscale/daemon infrastructure
+
+- **`tailscale up` may fail if chained immediately after `tailscaled &`.** The daemon needs ~3s to initialize its IPN state machine. The E2E script's `sleep 2` is borderline; running `tailscale up` as a separate step (not `&&`-chained) is more reliable.
+- **Headscale 0.28+ uses numeric user IDs for `--user` flag.** The `users list -o json` + python3 extraction pattern in `android_e2e_test.sh` is required; passing the username string no longer works for `preauthkeys create`.
+- **Agent socket responds immediately after creation.** `ssh-add -L` returns "no identities" (exit 1) which is correct with no paired devices — the protocol is functional.
+
 ## T001 — Infrastructure verification
 
 - **Emulator boots in ~40s with KVM.** `start-emulator --no-wait` + polling `sys.boot_completed` is the pattern. AVD creation via `avdmanager` may fail in Nix (path issues); the script's manual fallback handles this.

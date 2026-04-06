@@ -28,7 +28,7 @@
   reaches the pairing flow; fingerprint simulation (`adb -e emu finger touch 1`) triggers biometric callback;
   debug APK uses software keystore (no StrongBox requirement).
 
-- [ ] T003 Verify headscale/tailscale/daemon infrastructure [FR-006]
+- [x] T003 Verify headscale/tailscale/daemon infrastructure [FR-006]
   Done when: headscale starts on localhost:18080, host tailscale joins mesh,
   nix-key daemon exposes SSH_AUTH_SOCK, pre-auth keys are generated via `headscale preauthkeys create`.
   Patterns verified against existing `test/e2e/android_e2e_test.sh`.
