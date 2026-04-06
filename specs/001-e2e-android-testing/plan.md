@@ -1,202 +1,230 @@
-# Implementation Plan: Comprehensive E2E Integration Testing
+# Implementation Plan: E2E Android Testing
 
-**Branch**: `001-e2e-android-testing` | **Date**: 2026-04-05 | **Spec**: [spec.md](spec.md)  
-**Input**: Feature specification from `/specs/001-e2e-android-testing/spec.md`
+**Feature**: 001-e2e-android-testing  
+**Created**: 2026-04-06  
+**Spec**: [spec.md](spec.md)  
+**Research**: [research.md](research.md)  
+**Preset**: public
 
 ## Summary
 
-Replace the existing shallow E2E test suite with comprehensive agent-driven visual testing. Agents use MCP-android tools to navigate the real Android app on an emulator, validating every screen, navigation flow, state machine transition, and error path against the UI_FLOW.md specification. All tests use a real headscale mesh for full-fidelity Tailscale networking. CI runs tests as pass/fail assertions; a separate local-only explore-fix-verify loop enables agents to discover, fix, and verify bugs autonomously.
+Agents use MCP tools to explore the live nix-key Android app on an emulator, validate against UI_FLOW.md, and fix bugs via the explore-fix-verify loop. The parallel runner handles all infrastructure — emulator boot, APK build+install, MCP server lifecycle, and agent coordination. Tasks do NOT create shell scripts, prompt templates, scenario runners, or any orchestration code.
 
 ## Technical Context
 
-**Language/Version**: Bash (orchestrator), Go 1.22+ (host daemon/tools), Kotlin (Android app)  
-**Primary Dependencies**: MCP-android (nix-mcp-debugkit), headscale, tailscale, Android SDK (API 34), gomobile  
-**Storage**: Temp directories (`/tmp/nix-key-e2e.XXXXXX/`), `test-logs/e2e/` for output  
-**Testing**: Agent-driven via MCP tools; structured JSON output aggregatable by `scripts/ci-summary.sh`  
-**Target Platform**: Linux (CI runner with KVM), Android emulator (API 34, x86_64)  
-**Project Type**: Test infrastructure (shell orchestrator + agent prompts + CI integration)  
-**Performance Goals**: Full suite completes within 60 minutes on CI with KVM  
-**Constraints**: Requires KVM for emulator; requires `nix develop` shell for tooling  
-**Scale/Scope**: 7 screens, 5+ navigation flows, 4 state machines, ~25 test scenarios
+- **Languages**: Bash (existing orchestrator), Go 1.22+ (host daemon), Kotlin (Android app)
+- **Primary dependency**: `mcp-android` from `nix-mcp-debugkit`
+- **Platform**: Linux with KVM, Android emulator API 34 (x86_64)
+- **Testing**: Agent-driven via MCP tools (Screenshot, DumpHierarchy, Click, Type, WaitForElement, etc.)
+- **Output**: Structured `findings.json` with screenshot evidence
+- **Constraint**: Single emulator — all scenarios are sequential
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. Nix-First | PASS | Emulator, headscale, tailscale, build tools all provided via Nix flake devshell. Android APK is the only non-Nix artifact (per constitution). |
-| II. Security by Default | PASS | Tests validate mTLS, cert pinning, biometric policies, and security warning dialogs. No security relaxations — bypasses use existing debug mechanisms (deep link, software keystore fallback). |
-| III. Test-First | PASS | This feature IS the test infrastructure. Tests are written against the spec before validating the app. |
-| IV. Unix Philosophy | PASS | Orchestrator is a shell script. Components are separate processes. Output is structured JSON to stdout/files. |
-| V. Minimal Trust Surface | PASS | Tests validate that key enumeration can be disabled, that each key has independent confirmation policy, and that mutual pairing confirmation works. |
-| VI. Simplicity | PASS | Extends the existing `android_e2e_test.sh` orchestrator pattern rather than introducing a new framework. Uses existing infrastructure (headscale, emulator, MCP-android). |
-
-No violations. No complexity tracking needed.
+| I. Nix-First | Pass | Emulator via `start-emulator` in devshell, APK via `nix/android-apk.nix` |
+| II. Security by Default | Pass | Tests use real mTLS over headscale mesh; bypass mechanisms are debug-only |
+| III. Test-First | Pass | This IS test infrastructure |
+| IV. Unix Philosophy | Pass | Extends existing patterns, no new daemons or services |
+| V. Minimal Trust Surface | Pass | Deep link/biometric/keystore bypasses gated behind debug builds |
+| VI. Simplicity | Pass | No orchestration code — runner manages everything |
 
 ## Project Structure
 
-### Documentation (this feature)
+Minimal footprint. The runner manages everything; only artifacts produced are:
 
-```text
+```
 specs/001-e2e-android-testing/
-├── plan.md              # This file
-├── spec.md              # Feature specification
-├── research.md          # Phase 0 research decisions
-├── data-model.md        # Test entities and state machines
-├── quickstart.md        # How to run the tests
-├── contracts/
-│   ├── test-output.md   # Output format contract
-│   └── e2e-runner.md    # Runner interface and MCP tool contract
-└── checklists/
-    └── requirements.md  # Spec quality checklist
+  spec.md                    # Feature spec (exists)
+  research.md                # Architecture decisions (this file)
+  plan.md                    # This plan
+  tasks.md                   # Task list (generated next)
+  learnings.md               # Cross-task discoveries (managed by runner)
+validate/e2e/                # Runtime artifacts (gitignored)
+  findings.json              # Bug findings with pass/fail per screen/flow
+  screenshots/               # Screenshot evidence (PNG)
 ```
 
-### Source Code (repository root)
+No new source files, scripts, or infrastructure code are created by this feature.
 
-```text
-test/e2e/
-├── android_e2e_test.sh       # Extended orchestrator (CI + explore-fix-verify modes)
-├── scenarios/                 # Test scenario definitions
-│   ├── us1-screen-validation.sh    # US1: Agent-driven screen exploration
-│   ├── us2-navigation-flows.sh     # US2: Navigation flow coverage
-│   ├── us3-state-machines.sh       # US3: State machine transitions
-│   ├── us4-error-paths.sh          # US4: Error path validation
-│   ├── us6-cross-system.sh         # US6: Cross-system gRPC integration
-│   └── us7-persistence.sh          # US7: Persistence and recovery
-├── prompts/                   # Agent prompt templates
-│   ├── explore-screen.md           # Prompt: explore and validate a screen
-│   ├── explore-flow.md             # Prompt: exercise a navigation flow
-│   ├── explore-state-machine.md    # Prompt: verify state machine transitions
-│   ├── explore-error-path.md       # Prompt: test error handling
-│   ├── fix-bugs.md                 # Prompt: batch-fix discovered bugs
-│   ├── verify-fixes.md             # Prompt: verify bug fixes
-│   └── supervisor-review.md        # Prompt: supervisor progress review
-└── lib/
-    ├── infrastructure.sh      # Headscale, tailscale, emulator, daemon setup/teardown
-    ├── mcp-helpers.sh         # MCP-android server management
-    ├── scenario-runner.sh     # Test scenario execution and result collection
-    └── report.sh              # Structured JSON output generation
+## Tool Environment Inventory
 
-test-logs/e2e/                 # Output (gitignored)
-├── summary.json
-├── screenshots/
-├── hierarchies/
-├── bugs/                      # Local mode only
-├── iterations/                # Local mode only
-└── supervisor/                # Local mode only
+| Command | Tool | Nix package | Notes |
+|---------|------|-------------|-------|
+| `start-emulator` | Android emulator | `nix/android-emulator.nix` | In devshell, needs KVM |
+| `make android-apk` | Gradle wrapper | `nix/android-apk.nix` | Builds debug APK |
+| `adb install` | Android Debug Bridge | `androidsdk` | In devshell |
+| `adb shell getprop` | Emulator readiness | `androidsdk` | Boot check |
+| `adb -e emu finger touch` | Biometric simulation | `androidsdk` | Fingerprint bypass |
+| `mcp-android` | MCP server | `nix-mcp-debugkit#mcp-android` | UI automation tools |
+| `headscale` | Mesh coordinator | `pkgs.headscale` | In devshell |
+| `tailscale` | Mesh node | `pkgs.tailscale` | In devshell |
+| `nix-key daemon` | SSH agent | `nix/package.nix` | Host-side daemon |
 
-scripts/
-└── ci-summary.sh             # Updated to aggregate e2e results
-```
+## Test Plan Matrix
 
-**Structure Decision**: Extends the existing `test/e2e/` directory. Scenario scripts are modular (one per user story) and share infrastructure setup via `lib/`. Agent prompts are separate markdown files that reference `specs/nix-key/UI_FLOW.md` and `spec.md` as source of truth. The existing orchestrator is extended with new flags rather than replaced.
+| SC | Test Tier | What Agent Does | Infrastructure |
+|----|-----------|----------------|----------------|
+| SC-001 | MCP exploration (Phase 2) | Navigate all 7 screens, Screenshot + DumpHierarchy each, compare to UI_FLOW.md | Emulator + MCP |
+| SC-002 | MCP exploration (Phase 2) | Exercise every nav flow from flowchart, verify transitions | Emulator + MCP |
+| SC-003 | MCP + headscale (Phase 3) | Trigger sign from host, observe dialog via MCP, tap Approve, verify SSH exits 0 | Emulator + headscale + daemon |
+| SC-004 | MCP exploration (Phase 4) | Enter invalid inputs per Field Validation table, verify error messages | Emulator + MCP |
+| SC-005 | MCP + adb (Phase 4) | Create state, `adb shell am force-stop`, restart, verify state via DumpHierarchy | Emulator + MCP |
+| SC-006 | E2E loop (Phase 5) | Full explore → find bug → fix → rebuild → verify cycle | Emulator + MCP + source code |
 
-## Phase 1: Design Decisions
+## Phase Structure
 
-### Infrastructure Layer (`test/e2e/lib/infrastructure.sh`)
+### Phase 1: Infrastructure Prerequisites
 
-Extracted from the existing `android_e2e_test.sh` into a reusable library:
+Verify the runner's infrastructure works before giving agents MCP tools.
 
-1. **Headscale setup**: localhost:18080, SQLite, self-signed EC P-256 TLS cert (domain: `headscale.test`), embedded DERP region 999, user `nixkey-e2e`
-2. **Tailscale nodes**: Host + phone, pre-auth keys, isolated state directories
-3. **Emulator management**: API 34, x86_64, KVM, swiftshader, 2GB RAM, Pixel 6 profile
-4. **Daemon management**: nix-key daemon with SSH_AUTH_SOCK, control socket, XDG isolation
-5. **MCP-android server**: Started after emulator boot, connected via ADB
-6. **Cleanup**: Trap handler kills all PIDs, removes temp directory
+**Tasks**:
+1. Verify emulator boots via `start-emulator` and MCP tools respond (Screenshot returns an image, DumpHierarchy returns XML)
+2. Verify test bypass mechanisms work: deep link pairing (`adb shell am start -a android.intent.action.VIEW -d "nix-key://pair?payload=..."`), fingerprint simulation (`adb -e emu finger touch 1`), software keystore (APK built with debug flag)
+3. Verify headscale/tailscale/daemon setup: headscale starts, host tailscale joins, daemon exposes SSH_AUTH_SOCK, pre-auth keys are generated
 
-### Agent Prompt Design
+**Dependencies**: None (foundational)  
+**Done when**: All three verifications pass on a clean environment.
 
-Each agent prompt follows this structure:
-1. **Context**: Reference to spec sections (UI_FLOW.md screens, state machines, field validations)
-2. **Available tools**: MCP-android tool list with usage patterns
-3. **Task**: Specific exploration or verification objective
-4. **Validation criteria**: Expected outcomes from acceptance scenarios
-5. **Output format**: Structured result (pass/fail, screenshots, details)
+---
 
-Agents use Screenshot + DumpHierarchy for observation, Click/Type/Swipe for interaction, and WaitForElement for synchronization.
+### Phase 2: Screen and Flow Validation (US1 — P1) [needs: mcp-android, e2e-loop]
 
-### Test Scenario Execution
+Agent explores all 7 screens and navigation flows, validates against UI_FLOW.md.
 
-Each scenario script:
-1. Declares preconditions (infrastructure state required)
-2. Invokes the agent with the appropriate prompt + spec context
-3. Collects structured results (pass/fail, screenshots, timing)
-4. Reports to the runner for aggregation
+**Tasks**:
+1. **Screen validation**: Agent visits each screen (TailscaleAuth, ServerList, Pairing, KeyManagement, KeyDetail, SignRequestDialog, Settings), takes Screenshot, runs DumpHierarchy, and verifies every layout element from UI_FLOW.md exists. Records pass/fail per screen in findings.json.
+2. **Navigation flow validation**: Agent exercises every navigation edge from the flowchart — first-launch flow (TailscaleAuth → ServerList with back stack cleared), ServerList → Pairing → ServerList, ServerList → KeyManagement → KeyDetail → KeyManagement → ServerList, ServerList → Settings → ServerList. Verifies transitions work and back navigation is correct.
 
-Scenarios are independent (given infrastructure is up) but run sequentially since they share a single Android emulator.
+**Dependencies**: Phase 1  
+**FR coverage**: FR-004, FR-005  
+**SC coverage**: SC-001, SC-002  
+**Done when**: Every screen and flow from UI_FLOW.md has a pass/fail entry in findings.json with screenshot evidence.
 
-### CI Integration
+---
 
-The existing `.github/workflows/e2e.yml` is updated:
-- Build step unchanged (gomobile AAR + Gradle)
-- Test step calls `android_e2e_test.sh` with new scenario flags
-- Retry logic preserved (3 attempts, 15min timeout each)
-- Artifacts: `test-logs/e2e/` uploaded alongside existing artifacts
-- `ci-summary.sh` updated to include E2E results in aggregate
+### Phase 3: Cross-System Sign Round-Trip (US2 — P1) [needs: mcp-android, e2e-loop]
 
-### Explore-Fix-Verify Loop (Local Mode)
+Agent verifies the core product flow — SSH signing via phone.
 
-When `--explore-fix-verify` is passed:
-1. **Explore phase**: Agents run all scenarios, collecting BugReports for failures
-2. **Fix phase**: Fix agent receives BugReports, analyzes source code, applies batch fixes across any codebase area (Android, Go, Nix, proto)
-3. **Rebuild phase**: `build-android-apk` rebuilds AAR + APK, reinstalls on emulator
-4. **Verify phase**: Re-run failed scenarios to confirm fixes
-5. **Supervisor phase**: Every N iterations, supervisor reviews progress and adjusts strategy
-6. Loop repeats until all bugs are verified-fixed or max iterations reached
+**Tasks**:
+1. **Sign approval round-trip**: Set up headscale mesh (reusing patterns from `test/e2e/android_e2e_test.sh`), pair emulator app with host daemon via deep link, trigger `ssh-keygen -Y sign` from host. Agent observes sign dialog via MCP Screenshot + WaitForElement, taps Approve, verifies biometric via fingerprint simulation, confirms SSH operation exits 0.
+2. **Sign denial round-trip**: Same setup, trigger sign request, agent taps Deny. Verify SSH operation fails with SSH_AGENT_FAILURE.
 
-## Phase 2: Implementation Phases
+**Dependencies**: Phase 2 (need working navigation to reach pairing and key screens)  
+**FR coverage**: FR-006, FR-007, FR-012  
+**SC coverage**: SC-003  
+**Done when**: Sign approval returns a valid signature, sign denial returns SSH_AGENT_FAILURE. Both verified on live emulator.
 
-### Phase A: Infrastructure Extraction (Foundation)
+---
 
-Extract shared infrastructure from `android_e2e_test.sh` into `test/e2e/lib/`:
-- `infrastructure.sh`: headscale, tailscale, emulator, daemon setup/teardown
-- `mcp-helpers.sh`: MCP-android server lifecycle
-- `report.sh`: structured JSON output generation
-- Update `android_e2e_test.sh` to use the extracted library
+### Phase 4: Error Paths + Persistence (US3, US4 — P2) [needs: mcp-android, e2e-loop]
 
-### Phase B: Agent Prompts and Scenario Framework
+Agent tests error handling and state persistence.
 
-Write agent prompt templates in `test/e2e/prompts/`:
-- Screen exploration prompt (references UI_FLOW.md per-screen details)
-- Navigation flow prompt (references navigation flowchart)
-- State machine prompt (references state machine diagrams)
-- Error path prompt (references field validation table)
+**Tasks**:
+1. **Error path validation**: Agent enters every invalid input from the Field Validation Reference Table via MCP Type/SetText:
+   - TailscaleAuth: "not-a-real-key" → expect "Invalid auth key format"
+   - KeyDetail: 65-char name → expect "Name must be 1-64 characters..."
+   - KeyDetail: duplicate name → expect "A key with this name already exists"
+   - Settings: "invalid:endpoint:format" → expect "Invalid endpoint format (expected host:port)"
+   - Pairing: malformed QR via deep link → expect "Invalid QR code" or "Not a nix-key pairing code"
+   
+   Agent verifies exact error message text via DumpHierarchy.
 
-Build scenario runner (`test/e2e/lib/scenario-runner.sh`) that:
-- Takes a scenario script + infrastructure state
-- Invokes the agent with prompt + context
-- Collects and formats results
+2. **Persistence validation**: Agent creates app state (pairs a host, creates a key), then kills app via `adb shell am force-stop com.nixkey`, restarts app, and verifies via DumpHierarchy that:
+   - Host still appears in ServerList
+   - Key still appears in KeyManagement
+   - Key shows locked state (unlock resets per spec)
 
-### Phase C: P1 Test Scenarios (Screen Validation + Navigation Flows)
+**Dependencies**: Phase 3 (need paired host and key from sign round-trip setup)  
+**FR coverage**: FR-008, FR-011  
+**SC coverage**: SC-004, SC-005  
+**Done when**: All error messages match spec text exactly. State survives force-stop/restart.
 
-Implement scenarios for User Stories 1 and 2:
-- `us1-screen-validation.sh`: Walk all 7 screens, verify elements against spec
-- `us2-navigation-flows.sh`: Exercise all navigation paths (first launch, pairing, key management, sign request, settings)
+---
 
-### Phase D: P2 Test Scenarios (State Machines + Error Paths)
+### Phase 5: Explore-Fix-Verify Loop (US5 — P3) [needs: mcp-android, e2e-loop]
 
-Implement scenarios for User Stories 3 and 4:
-- `us3-state-machines.sh`: Key lifecycle, sign request lifecycle, Tailscale connection, pairing session transitions
-- `us4-error-paths.sh`: Invalid auth keys, malformed QR, biometric failures, network timeouts
+Full cycle: explore finds bugs, fix agent patches source, runner rebuilds APK, verify agent confirms fixes.
 
-### Phase E: Explore-Fix-Verify Loop
+**Tasks**:
+1. **End-to-end loop**: If any prior phase recorded bugs in findings.json, the runner triggers the fix-verify cycle:
+   - Fix agent reads findings.json, modifies source code (Kotlin, Go, Nix, proto — any area)
+   - Runner rebuilds APK (`make android-apk`) and reinstalls on emulator
+   - Verify agent re-checks each bug via MCP tools
+   - Loop until all bugs are resolved or max iterations (3) reached
+   - Each bug status in findings.json updates: new → fixed → verified_fixed (or verified_broken for regressions)
 
-Implement the local-only explore-fix-verify mode:
-- Fix agent prompt (`fix-bugs.md`)
-- Verify agent prompt (`verify-fixes.md`)
-- Supervisor prompt (`supervisor-review.md`)
-- Loop orchestration in `android_e2e_test.sh --explore-fix-verify`
+**Dependencies**: Phases 2, 3, 4  
+**FR coverage**: FR-009, FR-010  
+**SC coverage**: SC-006  
+**Done when**: findings.json shows zero open bugs, or max iterations reached with remaining bugs documented.
 
-### Phase F: P3 Test Scenarios (Cross-System + Persistence)
+## Interface Contracts
 
-Implement scenarios for User Stories 6 and 7:
-- `us6-cross-system.sh`: Full gRPC round-trip through headscale mesh
-- `us7-persistence.sh`: App restart, process kill recovery, stale auth handling
+| IC | Name | Producer | Consumer(s) | Specification |
+|----|------|----------|-------------|---------------|
+| IC-001 | findings.json | Explore agent (Phases 2-4) | Fix agent, Verify agent (Phase 5) | JSON at `validate/e2e/findings.json`. Schema: `{ findings: [{ id, screen, flow, description, expected, actual, screenshot, status }] }`. Status enum: `new`, `fixed`, `verified_fixed`, `verified_broken`. |
+| IC-002 | Screenshots | Explore/Verify agents | findings.json references | PNGs at `validate/e2e/screenshots/<finding-id>.png`. Referenced by `screenshot` field in IC-001. |
+| IC-003 | Headscale mesh config | Phase 1 infra setup | Phase 3 sign tests | Headscale at `localhost:18080`, namespace `nixkey-e2e`, pre-auth keys via `headscale preauthkeys create`. Patterns from `test/e2e/android_e2e_test.sh`. |
 
-### Phase G: CI Integration
+## Critical Path
 
-Update CI pipeline:
-- Modify `.github/workflows/e2e.yml` to use new scenario-based runner
-- Update `scripts/ci-summary.sh` to aggregate E2E results
-- Verify artifact uploads include `test-logs/e2e/`
+**Day-1 user flow**: Boot emulator → MCP tools work → explore a screen → see findings.json output.
+
+| Checkpoint | Phase | What it proves |
+|------------|-------|---------------|
+| Emulator boots, MCP Screenshot works | Phase 1 | Infrastructure is functional |
+| All 7 screens visited with screenshots | Phase 2 | Agent can explore the live app |
+| Sign request approved end-to-end | Phase 3 | Core product flow works through the mesh |
+| Error messages match spec | Phase 4 | App validates inputs correctly |
+| Bug found, fixed, verified | Phase 5 | Full loop works |
+
+## Complexity Tracking
+
+| Decision | Justification | Constitution |
+|----------|--------------|--------------|
+| No new code artifacts | Runner handles everything — zero added complexity | VI. Simplicity |
+
+No complexity violations. This feature adds zero source code to the project.
+
+---
+
+### Phase 6: Post-Task Validation
+
+Verify everything still builds, tests pass, lint is clean, and CI would be green. This runs AFTER the E2E exploration phases and catches any regressions introduced by the fix agent.
+
+**Tasks**:
+1. **Go build + test**: Run `make test` and `make build`. Fix any failures introduced by fix-agent source changes.
+2. **Android build + test**: Run `make android-apk` and verify the APK installs and launches on emulator. Run `./gradlew testDebugUnitTest` in `android/`.
+3. **Lint**: Run `make lint` (golangci-lint + nixfmt). Fix any new lint warnings.
+4. **Security scan**: Run `make security-scan`. Verify no new findings introduced by fix-agent changes.
+5. **Existing E2E gate**: Run `test/e2e/android_e2e_test.sh --skip-build` to verify the existing CI regression test still passes after any source changes.
+6. **CI workflow verification**: If any workflow files were modified, verify CI steps locally before pushing. Push to remote, verify CI passes. Fix failures in a loop.
+
+**Dependencies**: Phase 5 (or whatever phase the fix agent last modified source code)
+**Done when**: `make validate` passes, existing E2E gate passes, CI is green.
+
+---
+
+### Phase 7: PR Preparation
+
+Create PR with all changes, ensure branch protection requirements are met.
+
+**Tasks**:
+1. **Commit findings**: Commit `validate/e2e/findings.json` (if it should be tracked) or ensure it's properly gitignored.
+2. **Update CLAUDE.md**: If any new commands or patterns emerged, add them to the project documentation.
+3. **Create PR**: Push branch, create PR to develop with summary of E2E findings and any fixes applied.
+
+**Dependencies**: Phase 6
+**Done when**: PR created, CI green, ready for review.
+
+## Key Constraints
+
+1. **No orchestration code**: Tasks do NOT create shell scripts, prompt templates, scenario runners, or any orchestration code. Agents use MCP tools directly.
+2. **Single emulator**: All phases are sequential. No parallel task execution for MCP tasks.
+3. **Existing test untouched**: `test/e2e/android_e2e_test.sh` is not modified.
+4. **Debug-only bypasses**: Deep link, biometric sim, and software keystore are only available in debug builds. Agents must use the debug APK.
+5. **Side-by-side architecture**: Emulator and host processes run directly on the machine (not nested in a VM). Requires KVM.

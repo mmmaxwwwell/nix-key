@@ -1,7 +1,7 @@
-# Specification Quality Checklist: Comprehensive E2E Integration Testing
+# Specification Quality Checklist: E2E Integration Testing
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-04-05
+**Created**: 2026-04-06
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -31,4 +31,6 @@
 
 ## Notes
 
-- All items pass. Spec is ready for `/speckit.clarify` or `/speckit.plan`.
+- Spec references MCP tools by name (Screenshot, DumpHierarchy, etc.) — these are the test interaction mechanism, not implementation details. The spec describes WHAT agents do, not HOW to build infrastructure.
+- Non-Goals section explicitly prevents the meta-framework anti-pattern from the failed first attempt.
+- All items pass. Ready for /speckit.clarify or /speckit.plan.

@@ -1,193 +1,148 @@
 # Feature Specification: Comprehensive E2E Integration Testing for nix-key Android App
 
 **Feature Branch**: `001-e2e-android-testing`  
-**Created**: 2026-04-05  
+**Created**: 2026-04-06  
 **Status**: Draft  
 **Input**: User description: "Comprehensive E2E Integration Testing for nix-key Android App"
 
-## Clarifications
-
-### Session 2026-04-05
-
-- Q: What is the relationship between CI and the explore-fix-verify loop? → A: CI runs the E2E tests as standard pass/fail assertions. The explore-fix-verify loop is a separate local-only development tool for surfacing and fixing bugs — it is not a test mode and does not run in CI.
-- Q: Should P1/P2 tests use mock Tailscale state or real headscale? → A: All tests use a real headscale mesh. The setup cost (~30-60s) is small relative to the 60-minute time budget, CI already has the infrastructure, and this avoids building/maintaining a mock Tailscale layer.
-- Q: Should fix agents in the explore-fix-verify loop be scoped to Android code only? → A: No. Fix agents can modify any source code (Android, Go, Nix, proto) if the bug traces to it.
-
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Agent-driven visual E2E test execution (Priority: P1)
+### User Story 1 - Agent-driven screen and flow validation on live emulator (Priority: P1)
 
-A developer (or CI system) launches the E2E test suite, which boots an Android emulator, builds and installs the debug APK, starts the MCP-android server, and runs explore agents that walk every screen and flow defined in UI_FLOW.md. The agents use MCP tools (screenshot, tap, view tree, swipe) to interact with the real app and compare actual behavior against the specification.
+An agent boots the Android emulator, installs the debug APK, and uses MCP tools (Screenshot, DumpHierarchy, Click, Type, WaitForElement) to walk every screen and navigation flow defined in UI_FLOW.md. The agent compares what it sees on the live screen against the spec and reports discrepancies as bugs in findings.json.
 
-**Why this priority**: This is the core capability — without visual agent-driven testing against a real emulator, the feature has no value. It replaces the existing shallow bash orchestrator and mocked Compose tests with real, comprehensive E2E coverage.
+**Why this priority**: This is the core capability. Without agents actually interacting with the live app, the feature has zero value. Every other story depends on this working.
 
-**Independent Test**: Can be fully tested by launching the test runner against the emulator with a freshly built APK. The agents navigate every screen, verify visual elements match spec, and produce a structured pass/fail report. Delivers value immediately as a comprehensive regression suite.
+**Independent Test**: Boot emulator, install APK, give agent MCP tools, point it at UI_FLOW.md. Agent navigates every screen, verifies elements exist, and produces findings.json with pass/fail per screen.
 
 **Acceptance Scenarios**:
 
-1. **Given** a clean Android emulator (API 34, x86_64) and freshly built debug APK, **When** the E2E test suite is launched, **Then** the emulator boots, APK is installed, MCP-android server starts, and agents begin navigating the app within 5 minutes of launch.
-2. **Given** the test suite is running, **When** agents explore the Tailscale Auth screen, **Then** they verify all layout elements (logo, auth key field, OAuth button, loading states) match UI_FLOW.md and field validations match the validation reference table.
-3. **Given** the test suite is running, **When** agents complete all screen explorations, **Then** a structured report is produced listing every screen, every element checked, and pass/fail status for each acceptance scenario.
+1. **Given** a clean Android emulator (API 34, x86_64) with the debug APK installed and MCP-android connected, **When** an agent explores the TailscaleAuth screen, **Then** it takes a screenshot, dumps the view hierarchy, and verifies the auth key field, connect button, and loading states match UI_FLOW.md.
+2. **Given** the agent has verified all 7 screens individually, **When** it exercises the first-launch navigation flow (TailscaleAuth → enter pre-auth key → ServerList), **Then** it verifies the transition works and the back stack is cleared (pressing Back exits the app).
+3. **Given** the agent has completed exploration, **When** findings.json is written, **Then** every screen and flow from UI_FLOW.md has a pass/fail entry with screenshot evidence.
 
 ---
 
-### User Story 2 - Full navigation flow coverage (Priority: P1)
+### User Story 2 - Cross-system sign request round-trip (Priority: P1)
 
-Agents navigate every flow defined in UI_FLOW.md: first launch (Tailscale auth), pairing via QR code (using deep link bypass), key creation and management, sign request approval/denial, and settings configuration. Each flow is exercised end-to-end on the real app.
+The agent sets up the full infrastructure (headscale mesh, host tailscale, nix-key daemon, emulator with app) and exercises the core use case: host triggers an SSH sign request, the agent sees the sign dialog appear on the emulator via MCP, approves it, and verifies the signature is returned to the host.
 
-**Why this priority**: Navigation flows are the backbone of user experience. Broken navigation means a broken app, regardless of whether individual screens render correctly.
+**Why this priority**: This is the product's raison d'etre — SSH signing via phone. If this doesn't work end-to-end, nothing else matters.
 
-**Independent Test**: Can be tested by running the navigation flow agent against the emulator. Each flow is exercised independently: first launch flow, pairing flow, key management flow, sign request flow, settings flow. Each produces its own pass/fail result.
+**Independent Test**: Start headscale + tailscale + daemon + emulator with paired app. Trigger `ssh-keygen -Y sign` from host. Agent sees dialog via Screenshot, taps Approve via Click, verifies SSH operation completes.
 
 **Acceptance Scenarios**:
 
-1. **Given** a fresh app install with no prior state, **When** the first-launch flow agent runs, **Then** the app shows Tailscale Auth screen, accepts a pre-authorized auth key, navigates to Server List, and the back stack is cleared (pressing back exits the app).
-2. **Given** the app is authenticated with Tailscale, **When** the pairing flow agent runs using the deep link bypass (`nix-key://pair?payload=<base64>`), **Then** the pairing completes, the host appears in Server List, and the agent can navigate to Key Management for that host.
-3. **Given** a paired host exists, **When** the key management flow agent runs, **Then** it creates a new Ed25519 key, verifies it appears in the key list, navigates to Key Detail, edits the key name, saves, and verifies the updated name persists.
+1. **Given** headscale mesh is running with nix-key daemon and emulator app paired, **When** the host triggers a sign request, **Then** the sign request dialog appears on the emulator within 5 seconds (verified via MCP Screenshot + WaitForElement).
+2. **Given** a sign request dialog is showing, **When** the agent taps Approve and biometric auth succeeds (emulator fingerprint simulation), **Then** the signature is returned and the SSH operation exits 0.
+3. **Given** a sign request dialog is showing, **When** the agent taps Deny, **Then** SSH_AGENT_FAILURE is returned and the SSH operation fails.
 
 ---
 
-### User Story 3 - State machine transition coverage (Priority: P2)
+### User Story 3 - Error path validation on live emulator (Priority: P2)
 
-Agents verify every state machine transition defined in UI_FLOW.md: key lifecycle (Creating -> Active -> Editing -> ConfirmDelete -> Deleted), sign request lifecycle (Received -> PromptShown -> AuthChallenge -> Signing -> Completed), Tailscale connection state, and pairing session state.
+The agent exercises every error path from the Field Validation Reference Table in UI_FLOW.md: invalid auth keys, malformed QR payloads, duplicate key names, invalid OTEL endpoints. For each error, the agent injects the invalid input via MCP tools, takes a screenshot, and verifies the exact error message matches the spec.
 
-**Why this priority**: State machines govern the core security model (unlock/sign policies). Incorrect transitions could silently compromise key security or leave the app in an unrecoverable state.
+**Why this priority**: Error handling is where security tools fail silently. The existing tests never exercise error paths.
 
-**Independent Test**: Each state machine can be tested independently. For example, the key lifecycle agent creates a key, edits it, deletes it with biometric confirmation, and verifies each intermediate state via the UI.
+**Independent Test**: Agent uses MCP Type/SetText to enter invalid inputs on each screen, verifies error messages appear as specified.
 
 **Acceptance Scenarios**:
 
-1. **Given** no keys exist, **When** the key lifecycle agent creates a key with biometric unlock policy, **Then** the key transitions through Creating -> Active, and the lock indicator shows "locked" in the Key Management list.
-2. **Given** a sign request arrives for a locked key, **When** the sign request lifecycle agent observes the UI, **Then** the unlock prompt appears first, followed by the sign approval dialog, matching the two-step flow described in UI_FLOW.md.
-3. **Given** Tailscale is connected, **When** the Tailscale connection agent simulates a network disconnection (via emulator network control), **Then** the Tailnet indicator transitions from green/"Connected" to red/"Disconnected" and back to green/"Connected" when connectivity is restored.
+1. **Given** the TailscaleAuth screen is shown, **When** the agent enters "not-a-real-key" via MCP SetText, **Then** the validation error "Invalid auth key format" is visible in the view hierarchy.
+2. **Given** the KeyDetail create screen is shown, **When** the agent enters a name longer than 64 characters, **Then** the error "Name must be 1-64 characters..." is displayed.
+3. **Given** the Settings screen is shown, **When** the agent enters "invalid:endpoint:format" in the OTEL field, **Then** the error "Invalid endpoint format (expected host:port)" appears.
 
 ---
 
-### User Story 4 - Error path and edge case validation (Priority: P2)
+### User Story 4 - Persistence and recovery on live emulator (Priority: P2)
 
-Agents systematically exercise every error path: invalid Tailscale auth keys, malformed QR codes, mTLS certificate mismatches, biometric authentication failures, port conflicts, stale auth states, and network timeouts. Each error path produces the correct user-facing error message.
+The agent creates app state (pairs a host, creates a key), then kills the app process via adb, restarts it, and verifies state integrity via MCP tools (DumpHierarchy to check elements are still present).
 
-**Why this priority**: Error handling is where security tools fail silently. The existing shallow tests never exercise error paths, which is where the most dangerous bugs hide.
+**Why this priority**: Persistence bugs cause data loss and are dangerous for a security tool.
 
-**Independent Test**: Each error category can be tested independently by injecting the specific failure condition and verifying the error UI matches specification.
+**Independent Test**: Agent creates state, force-stops app, restarts, verifies via MCP DumpHierarchy.
 
 **Acceptance Scenarios**:
 
-1. **Given** the Tailscale Auth screen is shown, **When** an agent enters an invalid auth key (e.g., "not-a-real-key"), **Then** the validation error "Invalid auth key format" is displayed inline.
-2. **Given** the Pairing screen is active, **When** the agent triggers a deep link with a malformed QR payload (missing required fields), **Then** the error message "Invalid QR code" or "Not a nix-key pairing code" is shown.
-3. **Given** a sign request arrives, **When** the user denies biometric authentication, **Then** the dialog is dismissed and SSH_AGENT_FAILURE is returned (verified by the test harness monitoring gRPC responses).
+1. **Given** a host is paired and a key exists, **When** the app is force-stopped and restarted, **Then** the agent verifies the host still appears in ServerList and the key still appears in KeyManagement via DumpHierarchy.
+2. **Given** a key is unlocked, **When** the app is stopped and restarted, **Then** the key shows locked state (unlock resets per spec).
 
 ---
 
-### User Story 5 - Explore-fix-verify loop with bug remediation (Priority: P2)
+### User Story 5 - Explore-fix-verify loop (Priority: P3)
 
-When agents discover a bug (UI element missing, wrong error message, broken navigation, etc.), they batch the issues, apply fixes to the source code, rebuild and reinstall the APK, and re-verify each fix. A supervisor agent reviews progress periodically and adjusts strategy.
+When the exploration agent discovers bugs (missing UI elements, wrong error messages, broken navigation), a fix agent receives the findings, applies source code fixes, the runner rebuilds and reinstalls the APK, and a verify agent re-checks each bug on the live emulator. This loops until all bugs are resolved or max iterations reached.
 
-**Why this priority**: The explore-fix-verify loop is what makes this E2E suite actionable rather than just a passive test reporter. Without it, bugs are reported but not fixed, requiring manual developer intervention.
+**Why this priority**: The explore-fix-verify loop is what makes this actionable rather than just a reporter. But it depends on all exploration working first.
 
-**Independent Test**: Can be tested by intentionally introducing a known bug (e.g., wrong error message text), running the explore-fix-verify loop, and verifying the agent detects the bug, fixes it, rebuilds, and confirms the fix.
-
-**Acceptance Scenarios**:
-
-1. **Given** agents have discovered 3 UI bugs during exploration, **When** the fix phase runs, **Then** the agents batch-fix all 3 bugs in source code, rebuild the APK, reinstall, and verify each fix independently.
-2. **Given** a fix has been applied and verified, **When** the supervisor reviews after 10 iterations, **Then** it produces a progress report listing bugs found, fixed, verified, and remaining.
-3. **Given** a fix introduces a regression in another flow, **When** the verify phase runs, **Then** the regression is detected, reported, and the fix is revised in the next cycle.
-
----
-
-### User Story 6 - Cross-system gRPC integration testing (Priority: P3)
-
-The E2E suite includes tests that exercise the full host-to-phone communication path: the nix-key daemon on the host sends a sign request via gRPC over mTLS through Tailscale (using the existing headscale test infrastructure), the phone app receives it, shows the sign prompt, and returns the signature.
-
-**Why this priority**: Cross-system integration validates the entire end-to-end path that the product is built for. However, it requires complex infrastructure (headscale, daemon, mTLS) and builds on top of the single-app E2E tests.
-
-**Independent Test**: Can be tested by starting the headscale mesh, nix-key daemon, and Android emulator, then triggering a sign request from the host and observing the full round-trip through the phone UI.
+**Independent Test**: Intentionally introduce a known bug (e.g., wrong error message text), run the loop, verify detection → fix → rebuild → verify completes in one cycle.
 
 **Acceptance Scenarios**:
 
-1. **Given** headscale mesh is running with the nix-key daemon and Android emulator paired, **When** the host triggers a sign request, **Then** the sign request dialog appears on the phone emulator within 5 seconds.
-2. **Given** a sign request dialog is shown on the emulator, **When** the agent taps Approve and biometric auth succeeds, **Then** the signature is returned to the host daemon and the SSH operation completes successfully.
-
----
-
-### User Story 7 - Persistence and recovery testing (Priority: P3)
-
-Agents test that app state persists correctly across restarts: paired hosts survive app restart, keys survive process kill, unlock state resets on app stop (as specified), and stale Tailscale auth triggers re-authentication.
-
-**Why this priority**: Persistence bugs cause data loss and are especially dangerous for a security tool where losing pairing state means re-pairing all devices.
-
-**Independent Test**: Can be tested by creating state (pair a host, create a key), force-stopping the app, restarting, and verifying state integrity.
-
-**Acceptance Scenarios**:
-
-1. **Given** a host is paired and a key exists, **When** the app process is killed and restarted, **Then** the host still appears in Server List and the key still appears in Key Management.
-2. **Given** a key is in unlocked state, **When** the app is stopped and restarted, **Then** the key returns to locked state (unlock state resets per spec).
-3. **Given** the Tailscale auth token has expired, **When** the app is launched, **Then** the re-authentication flow is shown instead of crashing (FR-115).
+1. **Given** the explore agent found 3 bugs in findings.json, **When** the fix agent runs, **Then** it modifies source code to fix all 3 bugs and commits changes.
+2. **Given** fixes are committed and APK is rebuilt+reinstalled, **When** the verify agent re-checks each bug via MCP tools, **Then** each bug status updates to "fixed" in findings.json.
+3. **Given** a fix introduces a regression, **When** the verify agent discovers the regression, **Then** the regression is added to findings.json as a new bug for the next cycle.
 
 ---
 
 ### Edge Cases
 
-- What happens when the emulator runs out of disk space during APK installation?
-- How does the test suite handle an emulator that fails to boot within the timeout period?
-- What happens when MCP-android loses connection to the emulator mid-test?
-- How does the suite handle a test that never terminates (infinite loop in app UI)?
-- What happens when multiple sign requests arrive simultaneously while the app is backgrounded?
-- How does the app behave when Tailscale VPN is connected but the gRPC port is blocked?
-- What happens when the key name uniqueness constraint is violated during rapid key creation?
+- What happens when the emulator fails to boot within the timeout (120s with KVM)?
+- How does the system handle MCP-android losing connection to the emulator mid-test?
+- What happens when multiple sign requests arrive simultaneously?
+- What happens when the app crashes during exploration (agent detects via Screenshot showing home screen)?
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST boot an Android emulator and verify it is responsive before proceeding with tests
-- **FR-002**: System MUST build the debug APK from source and install it on the emulator before each test run
-- **FR-003**: System MUST start the MCP-android server and verify it can communicate with the emulator
-- **FR-004**: System MUST provide explore agents that navigate every screen defined in UI_FLOW.md (7 screens: TailscaleAuth, ServerList, Pairing, KeyManagement, KeyDetail, SignRequestDialog, Settings)
-- **FR-005**: System MUST verify all layout elements on each screen match the UI_FLOW.md specification (field presence, labels, button text, indicators)
-- **FR-006**: System MUST exercise every navigation flow defined in the navigation flowchart (first launch, pairing, key management, sign request, settings)
-- **FR-007**: System MUST provide test bypass mechanisms for QR code scanning (deep link with payload), biometric authentication (emulator test biometric or debug auto-approve), and hardware keystore (software keystore fallback). Tailscale authentication uses a real headscale mesh with pre-authorized auth keys (not mocked)
-- **FR-008**: System MUST verify every state machine transition defined in UI_FLOW.md for key lifecycle, sign request lifecycle, Tailscale connection, and pairing session states
-- **FR-009**: System MUST exercise error paths including invalid auth keys, malformed QR payloads, biometric failures, and network timeouts, verifying correct error messages are displayed
-- **FR-010**: System MUST produce structured test output (pass/fail per scenario, screenshots on failure, timing data) in JSON format aggregatable by `scripts/ci-summary.sh` into ci-summary.json
-- **FR-011**: System MUST support an explore-fix-verify loop as a local development tool where discovered bugs are batched, fixed in any source code the bug traces to (Android, Go, Nix, proto), rebuilt and reinstalled, and fixes are verified. This is separate from the test suite and does not run in CI.
-- **FR-012**: System MUST validate field validations from the Field Validation Reference Table (auth key format, key name constraints, OTEL endpoint format, QR payload structure)
-- **FR-013**: System MUST test persistence across app restart: paired hosts, created keys, and settings survive process kill; unlock state resets on app stop
-- **FR-014**: System MUST support cross-system integration tests using the existing headscale + nix-key daemon infrastructure for full host-to-phone gRPC round-trips
-- **FR-015**: System MUST include a supervisor agent in the local explore-fix-verify loop that reviews progress periodically and adjusts strategy based on findings. The supervisor does not run in CI mode.
-- **FR-016**: System MUST integrate with the existing CI/CD pipeline for automated E2E test execution as standard pass/fail assertions
+- **FR-001**: The runner MUST boot an Android emulator and verify it is responsive before giving agents MCP tools
+- **FR-002**: The runner MUST build the debug APK and install it on the emulator before each test run
+- **FR-003**: The runner MUST provide MCP-android tools (Screenshot, DumpHierarchy, Click, ClickBySelector, Swipe, Type, SetText, Press, WaitForElement, GetScreenInfo) to agents via --mcp-config
+- **FR-004**: Agents MUST visit all 7 screens from UI_FLOW.md (TailscaleAuth, ServerList, Pairing, KeyManagement, KeyDetail, SignRequestDialog, Settings) and verify layout elements match the spec
+- **FR-005**: Agents MUST exercise every navigation flow from the UI_FLOW.md flowchart end-to-end on the live emulator
+- **FR-006**: The test infrastructure MUST set up a real headscale mesh with pre-authorized auth keys for Tailscale authentication (no mocks)
+- **FR-007**: Agents MUST use test bypass mechanisms for hardware-dependent features: deep link for QR scanning (`nix-key://pair?payload=<base64>`), emulator fingerprint simulation for biometrics, software keystore fallback for hardware keystore
+- **FR-008**: Agents MUST verify every error message from the Field Validation Reference Table matches the spec text exactly
+- **FR-009**: The explore-fix-verify loop MUST support fixing bugs across any codebase area (Android, Go, Nix, proto)
+- **FR-010**: All bug findings MUST be recorded in structured findings.json format with screenshots as evidence
+- **FR-011**: Persistence tests MUST use adb force-stop/restart (not just activity recreation) to verify data survival
+- **FR-012**: Cross-system tests MUST verify a complete sign request round-trip through the headscale mesh (host daemon → phone → signature returned)
 
 ### Key Entities
 
-- **Test Suite**: The complete collection of E2E tests organized by screen, flow, and state machine. Contains test scenarios, bypass configurations, and output settings.
-- **Explore Agent**: An autonomous agent that navigates the app using MCP tools, compares actual behavior against spec, and reports discrepancies.
-- **Fix Agent**: An agent that receives bug reports from explore agents, applies source code fixes in batches, and triggers rebuilds.
-- **Supervisor Agent**: A periodic reviewer that assesses overall progress, identifies stuck agents, and adjusts strategy.
-- **Test Bypass**: A mechanism that substitutes production behavior (QR scan, biometric, Tailscale auth, hardware keystore) with test-compatible alternatives during E2E runs.
-- **MCP-Android Server**: The server that provides visual and interactive access to the emulator for agents (Screenshot, DumpHierarchy, Click, Swipe, Type, etc.).
+- **Finding**: A bug discovered by the explore agent — screen, flow, steps to reproduce, expected vs actual, screenshot path, status (new/fixed/verified_broken)
+- **Explore Agent**: Agent with MCP tools that walks the app and compares against spec
+- **Fix Agent**: Agent with source code access (no MCP) that fixes bugs from findings
+- **Verify Agent**: Agent with MCP tools that re-checks fixed bugs on the rebuilt app
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: All 7 screens defined in UI_FLOW.md are visited and validated by explore agents, with 100% element coverage per screen
-- **SC-002**: All navigation flows from the navigation flowchart are exercised end-to-end, including back navigation and back-stack behavior
-- **SC-003**: Every state machine transition in UI_FLOW.md is covered by at least one test scenario
-- **SC-004**: Error paths produce the exact error messages specified in the Field Validation Reference Table
-- **SC-005**: The explore-fix-verify loop can detect a known-introduced bug, fix it, rebuild, and verify the fix within a single cycle
-- **SC-006**: The full test suite completes within 60 minutes on a CI machine with hardware virtualization support
-- **SC-007**: Test output includes structured pass/fail results, failure screenshots, and timing data aggregatable by `scripts/ci-summary.sh` into ci-summary.json
-- **SC-008**: Cross-system integration tests verify a complete sign request round-trip (host daemon to phone to signature returned) through the test mesh network
-- **SC-009**: Persistence tests verify state integrity across at least one app process kill-restart cycle
+- **SC-001**: All 7 screens from UI_FLOW.md are visited and validated on the live emulator with screenshot evidence
+- **SC-002**: All navigation flows from the flowchart are exercised end-to-end on the live emulator
+- **SC-003**: A sign request round-trip (host → phone → signature) completes successfully through the headscale mesh
+- **SC-004**: Error paths produce the exact error messages specified in the Field Validation Reference Table (verified on live emulator)
+- **SC-005**: App state survives force-stop/restart (verified via MCP tools on live emulator)
+- **SC-006**: The explore-fix-verify loop detects a known-introduced bug, fixes it, and verifies the fix in one cycle
 
 ## Assumptions
 
-- The test host has hardware virtualization support for acceptable emulator performance
-- The `nix-mcp-debugkit` project's `mcp-android` MCP server is available and functional with the required tools (Screenshot, DumpHierarchy, Click, ClickBySelector, Swipe, Type, SetText, Press, WaitForElement, GetScreenInfo)
-- The existing emulator Nix package provides a working emulator with software rendering
-- Debug builds of the Android app include a software keystore fallback that does not require hardware-backed TEE/StrongBox
-- The deep link bypass (`nix-key://pair?payload=<base64>`) is implemented and functional in debug builds
-- The existing headscale + Tailscale test infrastructure from NixOS VM tests is used for all E2E tests (not just cross-system), providing real Tailscale networking throughout
-- Tailscale pre-authorized auth keys can be generated programmatically for test automation
-- The spec-kit parallel runner supports `[needs: mcp-android, e2e-loop]` task annotations for agent orchestration
-- Biometric authentication can be simulated on the emulator via test biometric enrollment or a debug auto-approve flag
+- The test host has KVM access for acceptable emulator performance
+- The `nix-mcp-debugkit` project's `mcp-android` MCP server is available and functional
+- The Nix flake provides a working emulator via `start-emulator` in the devshell
+- Debug builds include software keystore fallback (no hardware TEE required)
+- The deep link bypass (`nix-key://pair?payload=<base64>`) is implemented in debug builds
+- The parallel runner handles emulator boot, APK build+install, MCP server lifecycle, and the explore-fix-verify loop — no custom orchestration code is needed
+- Biometric authentication can be simulated via emulator fingerprint enrollment
+- Pre-authorized Tailscale auth keys can be generated programmatically from headscale
+
+## Non-Goals
+
+- Building custom test orchestration scripts, scenario runners, or prompt templates — the parallel runner already handles this
+- Writing shell scripts that invoke future agents — agents use MCP tools directly
+- Replacing or refactoring the existing `test/e2e/android_e2e_test.sh` — it continues to work as-is for CI
+- Testing on physical devices — emulator only
+- iOS or web testing — Android only

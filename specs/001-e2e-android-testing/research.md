@@ -1,78 +1,63 @@
-# Research: Comprehensive E2E Integration Testing
+# Research: E2E Android Testing
 
 **Feature**: 001-e2e-android-testing  
-**Date**: 2026-04-05
+**Created**: 2026-04-06  
+**Preset**: public
 
-## Decision 1: Test Architecture — Side-by-Side vs NixOS VM
+## Decision 1: Use the parallel runner's built-in MCP E2E loop
 
-**Decision**: Side-by-side architecture (all components run natively on the host/CI runner, not inside NixOS VMs).
+**Decision**: All E2E testing uses the runner's `[needs: mcp-android, e2e-loop]` annotation. No custom orchestration code.
 
-**Rationale**: The existing E2E orchestrator (`test/e2e/android_e2e_test.sh`) already uses this pattern successfully — headscale, tailscaled, nix-key daemon, and the Android emulator all run as native processes on the CI runner. The Android emulator requires KVM access which is straightforward on a native runner but complex inside a NixOS VM. The existing CI workflow (`.github/workflows/e2e.yml`) already enables KVM via udev rules on `ubuntu-latest`.
+**Rationale**: The first attempt produced ~6000 lines of shell script orchestration (prompt templates, scenario runners, agent management harnesses) that duplicated what the runner already provides. The runner handles: emulator boot, APK build+install, MCP server lifecycle, explore-fix-verify loop coordination, and supervisor checks. Writing orchestration code is explicitly a non-goal in the spec.
 
-**Alternatives considered**:
-- NixOS VM wrapping everything: rejected because the Android emulator needs KVM and nested virtualization adds complexity and latency without benefit.
-- Hybrid (NixOS VM for host services, native emulator): rejected because it complicates networking between VM and emulator; the existing side-by-side pattern already works.
+**Alternatives rejected**:
+- Custom shell orchestration (android_e2e_test.sh style): Already failed. Produces unmaintainable meta-framework that no agent can debug.
+- Kotlin instrumented tests (UI Automator): Good for CI regression gates (the existing android_e2e_test.sh fills this role), but cannot adapt to UI changes or discover unexpected bugs. MCP exploration is complementary.
 
-## Decision 2: MCP-Android Integration Point
+## Decision 2: Real headscale mesh, no mocks
 
-**Decision**: The MCP-android server from `nix-mcp-debugkit` runs as a sidecar process alongside the emulator. Agents connect to it via MCP protocol (stdio or SSE) and use it to drive the emulator UI. The existing `NixKeyE2EHelper.kt` UI Automator code serves as reference for expected UI element selectors and interaction patterns but is not reused directly — agents use MCP tools instead.
+**Decision**: Cross-system tests (US2) use a real headscale instance with Tailscale nodes for both the host daemon and the Android emulator. Reuse infrastructure patterns from `test/e2e/android_e2e_test.sh`.
 
-**Rationale**: MCP-android wraps `adb` and `uiautomator2` behind a tool interface that agents can use natively. The existing E2E helper's retry logic and element selectors (e.g., `waitForApp()`, `navigateToKeys()`, `createKey()`) document the app's UI contract and inform the agent prompts. The MCP tools (Screenshot, DumpHierarchy, Click, ClickBySelector, Swipe, Type, SetText, Press, WaitForElement, GetScreenInfo) map directly to the operations the existing helper performs.
+**Rationale**: Constitution II (Security by Default) and III (Test-First) require testing the actual mTLS + Tailscale communication path. Mocking the mesh would hide the exact class of bugs this feature exists to find (cert pinning failures, Tailscale routing issues, gRPC over mTLS).
 
-**Alternatives considered**:
-- Reuse NixKeyE2EHelper.kt directly via instrumented tests: rejected because it's shallow (mocked ViewModels) and doesn't support the agent-driven explore pattern.
-- Write new UI Automator tests: rejected because agents need visual feedback loops (screenshot → reason → act) that UI Automator alone doesn't support.
+**Alternatives rejected**:
+- Mock gRPC server on localhost: Defeats the purpose — the mesh IS the product.
+- NixOS VM test with nested emulator: Requires nested KVM, unavailable on CI runners. Side-by-side architecture is correct per `reference/e2e-runtime.md`.
 
-## Decision 3: Headscale Setup for All Tests
+## Decision 3: Test bypass mechanisms already exist
 
-**Decision**: All E2E tests use a real headscale mesh, following the same pattern as the existing orchestrator. Headscale runs on localhost:18080 with SQLite, self-signed TLS cert, embedded DERP (region 999). Pre-authorized auth keys are generated programmatically for both the host tailscaled and the phone (emulator).
+**Decision**: Use three existing bypass mechanisms rather than building new ones:
+1. **Deep link for QR scanning**: `nix-key://pair?payload=<base64>` — bypasses camera (debug builds only)
+2. **Emulator fingerprint simulation**: `adb -e emu finger touch 1` — bypasses real biometric sensor
+3. **Software keystore fallback**: `setIsStrongBoxBacked(false)` — bypasses hardware TEE
 
-**Rationale**: Clarification from user — all tests use real headscale, no mocks. The existing orchestrator already implements this pattern with namespace `nixkey-e2e`, pre-auth keys, and XDG directory isolation. Setup adds ~30-60s which is negligible in a 60-minute budget.
+**Rationale**: All three are already implemented in the debug build. No new code needed. Constitution V (Minimal Trust Surface) is maintained because bypasses are debug-only.
 
-**Alternatives considered**:
-- Mock Tailscale state for P1/P2: rejected per clarification — avoids maintaining a mock layer and provides higher fidelity.
+**Alternatives rejected**:
+- Building new test-only DI modules: Unnecessary — the bypasses already exist.
+- Skipping hardware-dependent tests entirely: Would leave the core sign flow untested on emulator.
 
-## Decision 4: Test Bypass Mechanisms
+## Decision 4: Runner-managed task lifecycle via annotations
 
-**Decision**: Use the following bypass mechanisms, all of which already exist in the codebase:
+**Decision**: Tasks use `[needs: mcp-android, e2e-loop]` annotations. The runner handles:
+- Emulator boot + readiness check (`adb shell getprop sys.boot_completed`)
+- APK build (`make android-apk`) + install (`adb install`)
+- MCP-android server start + connection
+- Explore/fix/verify agent spawning and coordination
+- Screenshot capture and findings.json management
 
-| Bypass | Mechanism | Source |
-|--------|-----------|--------|
-| QR code scanning | Deep link: `nix-key://pair?payload=<base64>` | `src/debug/AndroidManifest.xml` intent-filter, `MainActivity.extractPairPayload()` |
-| Hardware keystore | Ed25519 uses BouncyCastle software + AES wrapping key; ECDSA falls back from StrongBox to TEE | `KeyManager.kt` |
-| Tailscale auth | Pre-authorized auth key injected via UI Automator or `adb input text` | `android_e2e_test.sh` step 4 |
-| Biometric auth | Android emulator test biometric enrollment via `adb` fingerprint simulation | Standard emulator API |
+**Rationale**: This is the entire point of the runner integration. Agents receive MCP tools and use them to interact with the live app. They do not write scripts, prompt templates, or orchestration code.
 
-**Rationale**: All bypasses are already implemented and tested in the existing E2E flow. No new debug-only code paths needed.
+**Alternatives rejected**:
+- Manual infrastructure setup per task: Duplicates runner capability, causes drift.
+- Shared setup script sourced by tasks: This IS the anti-pattern from attempt 1.
 
-**Alternatives considered**:
-- Build-time feature flags for test mode: rejected because the existing mechanisms are sufficient and don't require maintaining separate build variants.
+## Decision 5: Existing android_e2e_test.sh unchanged
 
-## Decision 5: Test Output Format
+**Decision**: `test/e2e/android_e2e_test.sh` (839 lines) continues as the deterministic CI regression test. It is NOT modified, replaced, or refactored.
 
-**Decision**: Structured JSON output compatible with the existing `cmd/test-reporter` format. Each test scenario produces a result entry with: test name, status (pass/fail/skip), duration, screenshots on failure, and error details. Output goes to `test-logs/e2e/` alongside existing test output directories.
+**Rationale**: The existing script is a working, deterministic E2E gate that runs in CI. MCP-driven exploration is complementary — it finds new bugs that scripted tests don't cover. Both approaches coexist. Per spec non-goals: "Replacing or refactoring the existing test/e2e/android_e2e_test.sh — it continues to work as-is for CI."
 
-**Rationale**: The project already has a structured test reporting pipeline (`cmd/test-reporter` reads `go test -json`, produces `test-logs/*/summary.json`). The E2E suite should produce output in the same schema so `scripts/ci-summary.sh` can aggregate it with other test results.
-
-**Alternatives considered**:
-- Custom report format: rejected because it would require modifying `ci-summary.sh` and the test reporter.
-- JUnit XML: rejected because the existing pipeline uses JSON, not XML.
-
-## Decision 6: Explore-Fix-Verify Loop Architecture
-
-**Decision**: The loop is a local-only development tool using the spec-kit parallel runner with `[needs: mcp-android, e2e-loop]` task annotations. Fix agents can modify any source code (Android, Go, Nix, proto) that the bug traces to. The loop does not run in CI — CI runs the test suite as standard pass/fail assertions.
-
-**Rationale**: Per clarification, the loop is for local development. It uses the spec-kit runner's explore-fix-verify pattern: explore agents find bugs, fix agents batch-fix them, verify agents confirm fixes. A supervisor reviews every 10 iterations. Rebuilds include both the Go gomobile AAR and the Android APK.
-
-**Alternatives considered**:
-- CI-integrated fix loop: rejected per clarification — too dangerous for automated environments.
-- Android-only fixes: rejected per clarification — bugs may trace to Go, Nix, or proto code.
-
-## Decision 7: Emulator Configuration
-
-**Decision**: Use the existing `nix/android-emulator.nix` configuration: API 34, x86_64, Pixel 6 profile, 2GB RAM, swiftshader_indirect GPU, KVM auto-detection. Boot timeout: 120s with KVM, 600s without.
-
-**Rationale**: The existing configuration is battle-tested in CI. No changes needed.
-
-**Alternatives considered**:
-- API 35: rejected because the current system image and SDK are pinned to API 34 with build tools 35.0.0, and changing would require updating the entire Android build chain.
+**Alternatives rejected**:
+- Replacing android_e2e_test.sh with MCP exploration: MCP exploration is non-deterministic and slower. CI needs a deterministic gate.
+- Merging both approaches: They serve different purposes and shouldn't be coupled.
