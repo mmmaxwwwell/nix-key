@@ -23,13 +23,20 @@
 - **Backup model**: YubiKey model — no backup, no recovery. Lose the phone = re-generate keys.
 - **User explicitly chose**: "rotate your shit" — no software-backed exportable key option.
 
-### Confirmation Policies
-- Per-key configurable: always ask (default), biometric only, password only, biometric+password, auto-approve (with warning)
+### Key Unlock & Signing Policies (UPDATED 2026-03-30)
+- Two independent per-key policies, like a YubiKey model:
+  - **Unlock policy** (decrypt key into memory, once per app session — like plugging in a YubiKey): none, biometric, password (default), biometric+password
+  - **Signing policy** (per sign request, after unlocked — like touching the YubiKey): always-ask, biometric (default), password, biometric+password, auto-approve
+- Key material stays in memory while app is alive (including backgrounded). Wiped on process kill (analogous to unplugging a YubiKey).
+- Sign request on locked key auto-triggers unlock prompt, then signing prompt.
+- Manual re-lock available from UI (key detail or long-press).
+- Auto-approve signing and none-unlock each show security warning.
 - No timeout-based auto-approve (e.g., "approve for 5 minutes") — decided to keep it simple
+- **Defaults**: password unlock, biometric signing. Rationale: password is harder to coerce than biometric (can't be forced while asleep), biometric is right balance for per-request signing.
 
 ### Pairing Flow
 - **Direction**: Phone initiates connection to host's temporary HTTPS endpoint during pairing
-- **QR code contents**: Host Tailscale IP, temp port, TLS cert fingerprint, one-time token, optional OTEL endpoint
+- **QR code contents**: Host Tailscale IP, temp port, full TLS server cert (for immediate pinning), one-time token, optional OTEL endpoint
 - **Mutual confirmation**: Both sides must explicitly confirm
 - **QR code**: Contains host's full server cert (not just fingerprint) for immediate pinning. Phone generates its own cert and sends it during pairing handshake.
 - **Simple approach**: Cert exchange over the pairing HTTPS connection — accepted because pairing requires physical proximity

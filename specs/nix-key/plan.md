@@ -139,11 +139,14 @@ nix-key/
 │   ├── module.nix                  # NixOS module (services.nix-key)
 │   ├── package.nix                 # Go binary derivation
 │   ├── phonesim.nix                # Phone simulator derivation
+│   ├── android-apk.nix             # Android APK build
+│   ├── android-emulator.nix        # Android emulator for CI E2E
+│   ├── jaeger.nix                  # Jaeger v2 package (GitHub releases)
+│   ├── infer.nix                   # Facebook Infer (Android static analysis)
 │   └── tests/
 │       ├── service-test.nix        # Service lifecycle, config, SSH_AUTH_SOCK
 │       ├── pairing-test.nix        # Pairing over headscale
-│       ├── signing-test.nix        # Signing over headscale
-│       └── android-e2e-test.nix    # Android emulator E2E
+│       └── signing-test.nix        # Signing over headscale
 ├── flake.nix
 ├── flake.lock
 ├── Makefile
@@ -154,8 +157,228 @@ nix-key/
     └── workflows/
         ├── ci.yml                  # lint + test-host + test-android + security
         ├── e2e.yml                 # Android emulator E2E (KVM)
+        ├── fuzz.yml                # Generative fuzzing on develop push
         └── release.yml             # Build + tag + SBOM (on push to main)
 ```
+
+## Interface Contracts (Internal)
+
+| IC | Name | Producer | Consumer(s) | Specification |
+|----|------|----------|-------------|---------------|
+| IC-001 | Config file | NixOS module (T040) | Daemon, CLI, tests (T009, T021, T054-T061) | `~/.config/nix-key/config.json`, JSON schema per FR-098/FR-100, 0644 |
+| IC-002 | Device registry | Pairing (T025), NixOS module (T039) | Daemon (T020), CLI (T054-T055) | `~/.local/state/nix-key/devices.json`, JSON, 0600. Merge semantics: Nix wins on conflict (FR-064) |
+| IC-003 | Cert store | Pairing (T025) | Daemon mTLS (T018, T021) | `~/.local/state/nix-key/certs/`, PEM age-encrypted per FR-101/FR-104, 0600 |
+| IC-004 | Agent socket | Daemon (T019) | SSH clients, tests | `$XDG_RUNTIME_DIR/nix-key/agent.sock` per FR-002, SSH agent protocol (list keys + sign) |
+| IC-005 | Control socket | Daemon (T026) | CLI commands (T054-T061) | Unix socket at `controlSocketPath`, line-delimited JSON per FR-078/FR-079 |
+| IC-006 | environment.d conf | NixOS module (T040) | Login sessions | `~/.config/environment.d/50-nix-key.conf` containing `SSH_AUTH_SOCK=<socketPath>` per FR-069a |
+| IC-007 | QR payload format | `nix-key pair` (T023) | Android app (T036) | Base64 JSON `{v:1, host, port, cert, token, otel?}` per FR-021 |
+| IC-008 | gRPC wire protocol | Proto schema (T012) | Host client (T021), phone server (T013) | `proto/nixkey/v1/nix_key.proto`, ListKeys/Sign/Ping per FR-017 |
+| IC-009 | Structured log format | Daemon logger (T007) | `nix-key logs` (T059) | JSON per line: timestamp, level, message, module, correlationId per FR-090 |
+| IC-010 | Age identity | First run/pairing (T017, T025) | Daemon startup (T018) | `~/.local/state/nix-key/age.key`, age identity format, 0600, skip-if-exists |
+
+## Runtime State Machines
+
+### Daemon Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Starting: SIGTERM/config loaded
+    Starting --> Running: config valid, socket bound, certs decrypted
+    Starting --> Failed: config invalid (FR-E06) / age decrypt fail (FR-E14)
+    Running --> Draining: SIGTERM/SIGINT received
+    Draining --> Stopped: in-flight drained or 30s timeout
+    Running --> Failed: unrecoverable error
+    Failed --> [*]: exit 1
+    Stopped --> [*]: exit 0
+```
+
+### Sign Request Flow (Host)
+
+```mermaid
+stateDiagram-v2
+    [*] --> Received: SSH agent sign request
+    Received --> DeviceLookup: key fingerprint extracted
+    DeviceLookup --> Connecting: device found, mTLS dial
+    DeviceLookup --> Failed: key not found (FR-E15)
+    Connecting --> WaitingResponse: gRPC Sign RPC sent
+    Connecting --> Failed: unreachable (FR-E01) / mTLS fail (FR-E05)
+    WaitingResponse --> Success: signature returned
+    WaitingResponse --> Failed: denied (FR-E02) / timeout (FR-E03) / disconnect (FR-E08)
+    Success --> [*]: SSH_AGENT_SUCCESS
+    Failed --> [*]: SSH_AGENT_FAILURE
+```
+
+### Sign Request Flow (Phone)
+
+```mermaid
+stateDiagram-v2
+    [*] --> Received: gRPC Sign RPC
+    Received --> CheckLock: key fingerprint matched
+    Received --> Failed: key not found (FR-E15)
+    CheckLock --> UnlockPrompt: key locked
+    CheckLock --> SignPrompt: key already unlocked
+    UnlockPrompt --> SignPrompt: unlock succeeded
+    UnlockPrompt --> Failed: unlock failed (FR-E13)
+    SignPrompt --> Signing: approved (or auto-approve)
+    SignPrompt --> Failed: denied (FR-E02)
+    Signing --> Success: signature computed
+    Success --> [*]: gRPC response
+    Failed --> [*]: gRPC error
+```
+
+Note: If unlock fails and more requests are queued, the next request triggers its own unlock prompt (FR-053).
+
+### Pairing Session
+
+```mermaid
+stateDiagram-v2
+    [*] --> QRDisplayed: nix-key pair started, QR rendered
+    QRDisplayed --> PhoneConnected: phone POSTs to pairing endpoint
+    QRDisplayed --> TimedOut: no connection within timeout
+    PhoneConnected --> AwaitingHostConfirm: phone info displayed, "Authorize? [y/N]"
+    AwaitingHostConfirm --> CertExchange: host confirms
+    AwaitingHostConfirm --> Denied: host denies
+    CertExchange --> Complete: certs stored, device registered (atomic per FR-E16)
+    CertExchange --> Failed: write failure → cleanup partial state
+    Denied --> Cleanup: no state saved
+    TimedOut --> Cleanup: temp server shut down
+    Complete --> [*]: pairing server shut down
+    Cleanup --> [*]
+    Failed --> [*]
+```
+
+### Phone gRPC Server Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> TailscaleAuth: app launched, auth needed
+    [*] --> TailscaleReconnect: app foregrounded, auth valid
+    TailscaleAuth --> TailscaleConnecting: auth key/OAuth provided
+    TailscaleAuth --> AuthFailed: bad key / timeout (FR-115)
+    TailscaleReconnect --> TailscaleConnecting
+    TailscaleConnecting --> Listening: Tailscale up, gRPC bound to TS interface
+    TailscaleConnecting --> PortConflict: port unavailable (FR-E19)
+    TailscaleConnecting --> AuthFailed: stale auth (FR-115)
+    Listening --> Serving: first request arrives
+    Serving --> Listening: idle
+    Listening --> Backgrounded: app backgrounded (keys stay in memory per FR-118)
+    Serving --> Backgrounded: app backgrounded mid-serve
+    Backgrounded --> TailscaleReconnect: app foregrounded
+    Backgrounded --> Killed: OS kills process (keys wiped per FR-118)
+    AuthFailed --> TailscaleAuth: user retries
+    PortConflict --> [*]: error notification shown
+    Killed --> [*]
+```
+
+### Key Unlock Lifecycle (Phone, per-key)
+
+```mermaid
+stateDiagram-v2
+    [*] --> Locked: app started (or process killed per FR-118)
+    [*] --> Unlocked: app started + none-unlock policy (eager decrypt per FR-119)
+    Locked --> UnlockPrompt: sign request (FR-116) or user initiates
+    UnlockPrompt --> Unlocked: auth succeeded
+    UnlockPrompt --> Locked: auth failed (FR-E13)
+    Unlocked --> Locked: manual re-lock (FR-117) or process killed
+    Unlocked --> Unlocked: app backgrounded (persists per FR-118)
+```
+
+## Test Plan Matrix
+
+| SC | Test Tier | Fixture Requirements | Assertion | Infrastructure |
+|----|-----------|---------------------|-----------|----------------|
+| SC-001 | Integration (user-flow) | In-process gRPC phone server, test keys, test certs | `ssh-add -L` returns keys, sign succeeds, unlock→sign flow works | Unix socket, mTLS |
+| SC-002 | Integration (user-flow) | Simulated phone HTTP client, test certs | Device in registry, certs age-encrypted, two cert pairs generated | Pairing server |
+| SC-003 | Android instrumented | Android Keystore (emulator) | SSH format output, non-extractability, both key types | Emulator |
+| SC-004 | NixOS VM | Test NixOS config | Service active, config.json correct, SSH_AUTH_SOCK via environment.d | NixOS VM |
+| SC-005 | Integration | Running daemon, test fixtures | CLI output correct, control socket JSON protocol works | Control socket |
+| SC-006 | Integration | Phone server with deny/timeout/disconnect modes | SSH_AGENT_FAILURE for each failure mode | Unix socket |
+| SC-007 | Integration (adversarial) + NixOS VM | Expired/wrong-CA/unpinned/rogue certs | mTLS handshake rejected, no detail leakage | mTLS, NixOS VM with rogue node |
+| SC-008 | NixOS VM | OTEL collector, headscale | Trace spans with correct parent-child, zero overhead when disabled | Jaeger/collector |
+| SC-009 | CI | N/A | Zero critical findings in all scanners | CI pipeline |
+| SC-010 | NixOS VM | Test NixOS config with devices | Service starts, devices merged, log level config, declarative certs, environment.d | NixOS VM |
+| SC-011 | NixOS VM (adversarial) | Adversarial cert fixtures, firewall | All 6 adversarial scenarios rejected | NixOS VM with rogue node |
+| SC-012 | Go fuzz | Seed corpus from test fixtures | No crashes, round-trip properties hold | None |
+| SC-013 | Integration | In-process phone server, auto-approve | p95 < 2s over 20 runs | Unix socket, mTLS |
+| SC-014 | Android instrumented (UI) | Emulator | Correct indicator states, loading states, no premature "ready" | Emulator |
+| SC-015 | Android instrumented | QR code bitmap fixture | ML Kit decodes correct payload | Emulator |
+| SC-016 | Manual + CI | N/A | README sections present, commands work, badges render | N/A |
+| SC-017 | Manual | N/A | LICENSE file present, compatible with deps | N/A |
+| SC-018 | Integration + NixOS VM | Running daemon, test requests | JSON log output, correct levels, correlation IDs, security events at INFO+ | Unix socket |
+| SC-019 | Integration | Error-triggering scenarios | Typed errors with codes/correlation IDs, sanitized SSH responses | Unix socket |
+| SC-020 | Integration + NixOS VM | Age identity, test certs | Keys encrypted on disk, decrypted in memory only, ageKeyFile works | Age identity |
+| SC-021 | Integration + NixOS VM | Empty state dirs, existing state | Dirs created with 0700, warm start reuses state, pair is idempotent | Filesystem |
+| SC-022 | Integration | Working project | All Makefile targets exit 0, produce expected output | Nix devshell |
+| SC-023 | CI | N/A | test-android and test-host fail when 0 tests reported | GitHub Actions |
+| SC-024 | CI | N/A | debug-apk and nix-key-binary artifacts uploaded on develop | GitHub Actions |
+| SC-025 | Post-merge | N/A | All 5 README badges render valid status | curl + SVG parsing |
+
+## Critical Path (User Perspective)
+
+**Day-1 user flow (walking skeleton):**
+Install flake → enable service → rebuild → `nix-key pair` → scan QR on phone → approve → `ssh-add -L` → SSH sign succeeds
+
+**Phase mapping:**
+1. Phase 1 (flake + dev env)
+2. Phase 2 (config, logging, errors — daemon can start)
+3. Phase 4 (mTLS + age — certs work)
+4. Phase 5 (SSH agent — socket accepts connections, forwards to phone)
+5. Phase 6 (pairing — QR + cert exchange)
+6. Phase 9 (NixOS module — declarative config, systemd service)
+7. Phase 10 (E2E — full flow over headscale)
+
+**Incremental integration checkpoints:**
+- Phase 2 done: daemon starts with config, structured logs appear, graceful shutdown works
+- Phase 5 done: `SSH_AUTH_SOCK` works, `ssh-add -L` returns keys from in-process mock phone
+- Phase 6 done: `nix-key pair` completes with simulated phone, device in registry
+- Phase 9 done: NixOS module produces working service, config.json generated, SSH_AUTH_SOCK set via environment.d
+- Phase 10 done: full signing and pairing over real Tailscale (headscale) in NixOS VM
+
+**First testable user result:** Phase 5 — `ssh-add -L` returns keys from a simulated phone.
+
+## Performance Budget Decomposition
+
+| Component | Sub-budget | Benchmark | CI behavior |
+|-----------|-----------|-----------|-------------|
+| mTLS handshake | < 200ms | `BenchmarkMTLSHandshake` | > 300% regression → fail |
+| gRPC round-trip overhead | < 100ms | `BenchmarkGRPCRoundTrip` | > 300% regression → fail |
+| Age decrypt (startup, not per-request) | < 50ms | `BenchmarkAgeDecrypt` | > 300% regression → fail |
+| Phone signing (including unlock + prompt) | < 1500ms | E2E latency test | p95 > 2s → fail |
+| Margin | 150ms | — | — |
+
+## CI Hardening & Observable Output Validation (Phase 18-19)
+
+### Problem Statement
+
+The CI pipeline has a class of silent failures where jobs exit green despite producing no results:
+- **test-android**: Gradle exit codes swallowed by pipe-to-tee (`cmd | tee log.txt` succeeds if `tee` succeeds). Job reports 0 passed / 0 failed as success.
+- **Default branch gap**: `main` contains only `.claude/`, `.specify/`, `.gitignore` — no source code, workflows, or LICENSE. This causes: workflow badges 404, license badge "not specified", E2E badge failing (GitHub uses main's stale `e2e.yml` for `workflow_run` triggers), release automation broken.
+
+### Architecture
+
+All changes are in `.github/workflows/ci.yml` (additive steps within existing jobs):
+
+**test-android job**:
+1. Add `set -o pipefail` before Gradle commands
+2. Add "Verify tests ran" step (`if: always()`) — count JUnit XML files, extract test count, exit 1 if 0
+3. Add "Upload debug APK" step — `actions/upload-artifact@v4` with `debug-apk` name
+
+**test-host job**:
+1. Add "Verify tests ran" step (`if: always()`) — check `summary.json` exists, assert `passed + failed > 0`
+2. Add "Upload Go binary" step — `nix build` + `actions/upload-artifact@v4` with `nix-key-binary` name
+
+**security job**:
+1. Add "Verify scanners ran" step (`if: always()`) — check each scanner's JSON output exists and >10 bytes, advisory `::warning::` (not hard failure)
+
+**Post-CI observable output validation**:
+1. Verify artifacts uploaded via `gh run view --json artifacts`
+2. Verify default branch readiness before PR to main (workflows, LICENSE, README, release config)
+3. Verify `workflow_run` triggers reference workflows that exist on the default branch
+4. Fetch all README badge URLs, verify HTTP 200 and valid SVG content post-merge
+
+### Test Plan
+
+SC-023 through SC-025 are included in the main Test Plan Matrix above.
 
 ## Complexity Tracking
 
@@ -165,6 +388,8 @@ nix-key/
 | `Confirmer` interface in `pkg/phoneserver` (2 implementations: BiometricPrompt + auto-approve) | Tests can't trigger biometric prompts | Hardcoded confirmation would require Android emulator for all tests |
 | gomobile bridge layer | Go code needs to be callable from Kotlin | Direct JNI is more complex; gomobile is the standard approach |
 | Age encryption for certs at rest | Constitution II mandates encrypted secrets | Plaintext with 0600 permissions would be simpler but violates constitution |
+| Two-policy model (unlock + signing) per key | User requires YubiKey-like unlock semantics with independent per-request auth | Single "confirmation policy" conflates decrypt-into-memory with per-request approval |
+| Infer/RacerD in CI for Android | User mandates validated concurrency safety | Annotations alone are unchecked; runtime race detection doesn't exist for Kotlin coroutines |
 
 ## Phase Dependencies
 
@@ -180,17 +405,23 @@ Phase 10 ──▶ Phase 11 (OTEL Distributed Tracing)
 Phase 10 ──▶ Phase 12 (CLI Polish: all subcommands)
 Phase 12 ──▶ Phase 13 (Android Emulator E2E)
 Phase 13 ──▶ Phase 14 (CI/CD Pipeline + Release)
+Post-impl ──▶ Phase 15 (Hardening: fuzz, bench, adversarial, security scan, DX)
+Phase 15 ──▶ Phase 16 (Android Hardening: unlock lifecycle, UI status, loading states, RacerD)
+Phase 15 + 16 ──▶ Phase 17 (Documentation: README, config table, coverage boundaries, license)
+Phase 17 ──▶ Phase 18 (Final CI validation + PR)
 ```
 
 ### Parallel workstreams
 
 ```
-Agent A (Host):   Phase 1 → 2 → 3 → 4 → 5 → 6 → 9 → 10 → 11 → 12 → 14
-Agent B (Android): Phase 1 (wait) → 7 → 8 → (wait for Phase 9) → 10 → 13
+Agent A (Host):    Phase 1 → 2 → 3 → 4 → 5 → 6 → 9 → 10 → 11 → 12 → 14 → 15a-d (host hardening)
+Agent B (Android): Phase 1 (wait) → 7 → 8 → (wait for Phase 9) → 10 → 13 → 16 (Android hardening)
+Agent C (Docs):    (wait for Phase 15+16) → 17 (README, config table, coverage doc, license)
 ```
 
 Phases 3-6 (host protocol) and 7-8 (Android core) can run in parallel after Phase 2.
-Sync points: Phase 10 (E2E requires both host and Android ready), Phase 14 (CI requires everything).
+Phase 15 (host hardening) and Phase 16 (Android hardening) can run in parallel.
+Sync points: Phase 10 (E2E requires both host and Android ready), Phase 14 (CI requires everything), Phase 17 (docs require all hardening done).
 
 ## Implementation Phases
 
@@ -312,7 +543,7 @@ Sync points: Phase 10 (E2E requires both host and Android ready), Phase 14 (CI r
 **Tasks**:
 - **`nix/module.nix`**: Full options under `services.nix-key`:
   - `enable`, `port`, `tailscaleInterface`, `allowKeyListing`, `signTimeout`, `connectionTimeout`
-  - `socketPath`, `logLevel`
+  - `socketPath`, `logLevel`, `certExpiry` (default: null = no expiry)
   - `tracing.otelEndpoint`, `tracing.jaeger.enable`
   - `secrets.ageKeyFile`
   - `tailscale.authKeyFile`
@@ -405,6 +636,56 @@ This is a P3 confidence test — protocol correctness is proven by phonesim test
 - **Cachix**: Nix binary cache for CI speed.
 
 **Validates**: CI passes, push to main creates release with artifacts and SBOM. Fix-validate agents can diagnose CI failures via `ci-summary.json`.
+
+### Phase 15: Host Hardening
+**Goal**: Fuzz testing, performance benchmarks, adversarial VM tests, local security scan infrastructure, DX Makefile targets.
+
+**Sub-phases** (15a-15e; 15a-15d are parallel, 15e depends on 15d):
+
+- **15a: Fuzz Testing** — Go native fuzz targets (`testing.F`) for: SSH agent message parsing, protobuf deserialization, QR payload JSON, config JSON, cert PEM, control socket JSON. Seed corpus from existing fixtures. Fuzz CI: run on PRs/develop (time-boxed 60s per target). Commit `testdata/fuzz/` as regression corpus.
+- **15b: Performance & Latency** — E2E latency assertion test (20 runs, p95 < 2s). Microbenchmarks: `BenchmarkMTLSHandshake`, `BenchmarkGRPCRoundTrip`, `BenchmarkAgeDecrypt`. `make bench` target. CI: > 300% regression fails build.
+- **15c: Adversarial VM Tests** — Adversarial cert fixtures (expired, wrong-CA, unpaired, wrong-EKU). `nix/tests/adversarial-test.nix`: rogue node on same virtual network. 6 scenarios. Firewall enabled.
+- **15d: Local Security Scan + DX** — `make security-scan` (Trivy, Semgrep, Gitleaks, govulncheck → JSON → `test-logs/security/summary.json`). `make validate` (test + lint + security-scan). CI dual output (SARIF + JSON). `ci-summary.sh` updated with per-scanner details. `make bench` target.
+- **15e: DX Validation** — Verify all Makefile targets work (T-DX-01 through T-DX-11). Cold-start and idempotency tests. Secrets-at-rest verification.
+
+**Validates**: Fuzz seed corpus passes, benchmarks within budget, adversarial scenarios rejected, all Makefile targets work, cold-start clean.
+
+### Phase 16: Android Hardening
+**Goal**: Key unlock lifecycle, UI status indicators, loading states, concurrency safety.
+
+**Tasks**:
+- **Key unlock lifecycle**: Implement FR-116-119. Two independent policies per key (unlock + signing). Eager decrypt for none-unlock. Manual re-lock. Key material persists across background, wiped on process kill. Queued requests retry unlock on failure.
+- **UI status indicators**: Persistent Tailnet connection indicator (green/yellow/red) across all screens (FR-110). Per-key lock/unlock indicator on key list (FR-111).
+- **Loading states**: Tailscale auth ("Connecting to Tailnet..."), pairing flow ("Scanning...", "Connecting to host...", "Waiting for host approval..."), gRPC startup ("Starting nix-key..." → "nix-key active" only when listening). Stale auth → re-auth flow (FR-112-115).
+- **Concurrency annotations**: `@GuardedBy`/`@ThreadSafe` on GoPhoneServer, GrpcServerService, KeyManager, HostRepository, TailscaleManager. Infer/RacerD via Nix in CI lint job.
+- **QR scanning test**: ML Kit `InputImage.fromBitmap()` instrumented test.
+- **Multi-host test**: Pair with two mock hosts, verify both work independently.
+- Update UI_FLOW.md and data-model.md to reflect two-policy model (replace stale "confirmation policy").
+
+**Validates**: Unlock lifecycle tests pass, status indicators correct, loading states correct, RacerD clean, QR bitmap test passes.
+
+### Phase 17: Documentation & License
+**Goal**: README, config documentation, coverage boundaries, license.
+
+**Tasks**:
+- **README.md**: Full public-preset README. Title/tagline, badges, description, architecture diagram (Mermaid), features, getting started (flake + channel), configuration table (all `services.nix-key` options), usage (CLI examples), development, CI setup (secrets), security, license.
+- **Config documentation table**: Consolidated table in README and CLAUDE.md with Key/Type/Default/Required/Sensitive/Description for every option.
+- **Coverage boundaries**: `specs/nix-key/coverage-boundaries.md` documenting what's tested in CI (every PR, develop push, scheduled) vs. manual only, with mitigations.
+- **License**: MIT (or least restrictive compatible). Check dependency licenses.
+- **CLAUDE.md update**: Final project structure, all commands, CI debugging instructions.
+- **Update stale files**: data-model.md, UI_FLOW.md, plan.md terminology ("confirmation policy" → two-policy model).
+
+**Validates**: README renders correctly, config table matches module, LICENSE file present and compatible.
+
+### Phase 18: Final CI Validation
+**Goal**: Push all hardening + docs work, verify CI green, create PR.
+
+**Tasks**:
+- `[needs: gh, ci-loop]` Push to develop, iterate until CI green (including new fuzz, bench, adversarial, security scan targets).
+- Create PR to main.
+- Verify `release-please` creates release PR with all new artifacts.
+
+**Validates**: CI fully green with all hardening tasks, PR created.
 
 ## Fix-Validate Loop Strategy
 

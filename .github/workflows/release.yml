@@ -1,0 +1,210 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # ---------- Release Please ----------
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # ---------- CI (full suite) ----------
+  ci:
+    name: CI
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  # ---------- E2E ----------
+  e2e:
+    name: E2E
+    needs: [release-please, ci]
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    uses: ./.github/workflows/e2e.yml
+    secrets: inherit
+
+  # ---------- Build: Go binaries via Nix ----------
+  build-go:
+    name: Build Go (${{ matrix.system }})
+    needs: [release-please, ci, e2e]
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - system: x86_64-linux
+            arch_suffix: x86_64-linux
+          - system: aarch64-linux
+            arch_suffix: aarch64-linux
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            extra-platforms = aarch64-linux
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Install QEMU for cross-compilation
+        if: matrix.system == 'aarch64-linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static binfmt-support
+          sudo update-binfmts --enable qemu-aarch64
+
+      - name: Build nix-key binary
+        run: nix build .#packages.${{ matrix.system }}.default --print-build-logs
+
+      - name: Copy and rename binary
+        run: |
+          cp result/bin/nix-key nix-key-${{ matrix.arch_suffix }}
+          chmod +x nix-key-${{ matrix.arch_suffix }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nix-key-${{ matrix.arch_suffix }}
+          path: nix-key-${{ matrix.arch_suffix }}
+
+  # ---------- Build: Android APK ----------
+  build-apk:
+    name: Build Android APK
+    needs: [release-please, ci, e2e]
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build gomobile AAR
+        run: |
+          nix develop --command build-android-apk --aar-only
+
+      - name: Build release APK
+        run: |
+          nix develop --command build-android-apk --skip-aar --release
+
+      - name: Find and rename APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          cp "$APK" nix-key-${{ needs.release-please.outputs.version }}.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nix-key-apk
+          path: nix-key-${{ needs.release-please.outputs.version }}.apk
+
+  # ---------- SBOM ----------
+  sbom:
+    name: Generate SBOM
+    needs: [release-please, ci]
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Trivy CycloneDX SBOM
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: cyclonedx
+          output: nix-key-sbom.cdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nix-key-sbom
+          path: nix-key-sbom.cdx.json
+
+  # ---------- GitHub Release: attach artifacts ----------
+  upload-assets:
+    name: Upload Release Assets
+    needs: [release-please, build-go, build-apk, sbom]
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+          # Upload Go binaries
+          for bin in artifacts/nix-key-x86_64-linux/nix-key-* artifacts/nix-key-aarch64-linux/nix-key-*; do
+            [ -f "$bin" ] && gh release upload "$TAG" "$bin" --repo "${{ github.repository }}" --clobber
+          done
+          # Upload APK
+          for apk in artifacts/nix-key-apk/*.apk; do
+            [ -f "$apk" ] && gh release upload "$TAG" "$apk" --repo "${{ github.repository }}" --clobber
+          done
+          # Upload SBOM
+          for sbom in artifacts/nix-key-sbom/*.json; do
+            [ -f "$sbom" ] && gh release upload "$TAG" "$sbom" --repo "${{ github.repository }}" --clobber
+          done
+
+      - name: Job summary
+        run: |
+          echo "## Release Assets Uploaded" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Tag**: ${{ needs.release-please.outputs.tag_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Version**: ${{ needs.release-please.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Artifacts" >> "$GITHUB_STEP_SUMMARY"
+          echo "- nix-key-x86_64-linux (Go binary)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- nix-key-aarch64-linux (Go binary)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- nix-key-*.apk (Android release)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- nix-key-sbom.cdx.json (CycloneDX SBOM)" >> "$GITHUB_STEP_SUMMARY"

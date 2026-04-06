@@ -10,26 +10,24 @@
 
 ```mermaid
 flowchart TD
-    classDef android fill:#2e7d32,stroke:#1b5e20,color:#fff
-
-    LAUNCH([App Launch]):::android
-    TS_AUTH[Tailscale Auth Screen]:::android
-    SERVER_LIST[Server List / Home]:::android
-    PAIRING[Pairing Screen]:::android
-    KEY_MGMT[Key Management Screen]:::android
-    KEY_DETAIL[Key Detail Screen]:::android
-    SETTINGS[Settings Screen]:::android
-    SIGN_PROMPT[Sign Request Prompt]:::android
+    LAUNCH([App Launch])
+    TS_AUTH[Tailscale Auth Screen]
+    SERVER_LIST[Server List / Home]
+    PAIRING[Pairing Screen]
+    KEY_MGMT[Key Management Screen]
+    KEY_DETAIL[Key Detail Screen]
+    SETTINGS[Settings Screen]
+    SIGN_PROMPT[Sign Request Prompt]
 
     LAUNCH -->|First launch / no auth| TS_AUTH
     LAUNCH -->|Auth present| SERVER_LIST
     TS_AUTH -->|Auth success| SERVER_LIST
-    SERVER_LIST -->|Tap "Scan QR Code"| PAIRING
+    SERVER_LIST -->|Tap Scan QR Code| PAIRING
     SERVER_LIST -->|Tap host row| KEY_MGMT
     SERVER_LIST -->|Tap gear icon| SETTINGS
     PAIRING -->|Pairing complete or cancel| SERVER_LIST
     KEY_MGMT -->|Tap key row| KEY_DETAIL
-    KEY_MGMT -->|Tap "Create Key" FAB| KEY_DETAIL
+    KEY_MGMT -->|Tap Create Key FAB| KEY_DETAIL
     KEY_MGMT -->|Back| SERVER_LIST
     KEY_DETAIL -->|Back / Save / Delete| KEY_MGMT
     SETTINGS -->|Back| SERVER_LIST
@@ -48,7 +46,7 @@ stateDiagram-v2
     Creating --> Active: Keystore generation succeeds
     Creating --> Failed: Keystore generation fails
     Failed --> [*]: User dismisses error
-    Active --> Editing: User edits name or policy
+    Active --> Editing: User edits name, unlock policy, or signing policy
     Editing --> Active: Save
     Active --> ConfirmDelete: User taps Delete
     ConfirmDelete --> Active: Biometric/password fails or user cancels
@@ -127,10 +125,11 @@ stateDiagram-v2
 
 **Layout**:
 - App logo and name
+- Tailnet connection indicator: yellow/"Connecting to Tailnet..." with spinner during auth (FR-112)
 - Text field: Tailscale auth key (paste-friendly, monospace)
 - OR divider
 - "Sign in with Tailscale" button (OAuth flow, opens browser)
-- Progress indicator during Tailnet join
+- Loading state: "Connecting to Tailnet..." with progress indicator during Tailnet join (FR-112). On timeout (30s) or failure, show error message with retry button. Never show "ready" while auth is in progress
 - Success: auto-navigate to Server List
 - Failure: inline error with retry option
 
@@ -156,7 +155,7 @@ stateDiagram-v2
 **Purpose**: Display all paired hosts with connection status. Primary entry point after auth.
 
 **Layout**:
-- Top bar: "nix-key" title, gear icon (Settings)
+- Top bar: "nix-key" title, Tailnet connection indicator (FR-110: green/"Connected", yellow/"Connecting", red/"Disconnected"), gear icon (Settings)
 - List of paired hosts, each row:
   - Host name (e.g., "workstation")
   - Tailscale IP (e.g., "100.64.0.1")
@@ -177,7 +176,9 @@ stateDiagram-v2
 - `server_list` -> `key_management/{hostId}`
 - `server_list` -> `settings`
 
-**Related FRs**: FR-029, FR-030
+**Foreground Service Notification**: During Tailscale + gRPC initialization, the notification shows "Starting nix-key..." (FR-114). The "nix-key active" notification only appears after the gRPC server is actually listening. If Tailscale auth state is stale on app launch, the re-auth flow is shown instead of crashing (FR-115). Port conflict errors show a specific notification (e.g., "Port 29418 in use") and the Tailnet indicator shows red/"Disconnected" (FR-E19).
+
+**Related FRs**: FR-029, FR-030, FR-110, FR-112, FR-114, FR-115, FR-E19
 
 ---
 
@@ -189,7 +190,9 @@ stateDiagram-v2
 
 **Layout**:
 - Full-screen camera viewfinder with QR detection overlay
+- Tailnet connection indicator (FR-110) in top bar
 - "Cancel" button (top-left)
+- Loading state during QR decode: "Scanning..." (FR-113)
 - After QR scan, camera pauses and a bottom sheet appears:
   - Host name and Tailscale IP from QR
   - "Connect to {hostname}?" prompt
@@ -197,7 +200,8 @@ stateDiagram-v2
 - If OTEL endpoint present in QR, a second prompt follows:
   - "Enable tracing? Traces will be sent to {endpoint}"
   - Accept / Deny (pairing proceeds regardless of choice)
-- Progress indicator during mTLS handshake (after user accepts)
+- Loading states during handshake (FR-113): "Connecting to host..." during pairing POST, "Waiting for host approval..." while the HTTP connection is held open
+- On timeout or failure: actionable error message with retry button
 - Result screen: success (checkmark + host name) or failure (error message + reason)
 
 **User Actions**:
@@ -256,12 +260,14 @@ stateDiagram-v2
 **Purpose**: List SSH keys on this phone. Keys are global (not per-host), but accessed via host context.
 
 **Layout**:
-- Top bar: host name, back arrow
+- Top bar: host name, Tailnet connection indicator (FR-110), back arrow
 - List of SSH keys, each row:
+  - Per-key lock/unlock indicator (FR-111): locked icon when key material is not in memory, unlocked icon when decrypted and ready to sign. Keys with none-unlock + auto-approve show unlocked icon with security warning badge (FR-046)
   - Key name (e.g., "github-signing")
   - Key type badge: "Ed25519" or "ECDSA-P256"
   - Fingerprint (truncated, e.g., "SHA256:abc123...")
   - Created date
+- Long-press on key row: context menu with "Re-lock key" option (FR-117, only shown for unlocked keys)
 - Empty state: "No keys yet. Create one to get started."
 - FAB (bottom-right): "+" icon (Create Key)
 
@@ -284,30 +290,37 @@ stateDiagram-v2
 
 **Route**: `key_detail/{keyId}` or `key_detail/new`
 
-**Purpose**: View/edit key properties, manage confirmation policy, export public key, or create a new key.
+**Purpose**: View/edit key properties, manage unlock and signing policies, export public key, or create a new key.
 
 **Layout (create mode)**:
-- Top bar: "Create Key", back arrow
+- Top bar: "Create Key", Tailnet connection indicator (FR-110), back arrow
 - Key name text field
 - Key type selector: Ed25519 (default, chip selected) | ECDSA-P256
 - Info text for selected type:
   - Ed25519: "Software-generated, encrypted with Keystore wrapping key"
   - ECDSA-P256: "Hardware-backed via Android Keystore (TEE/StrongBox)"
-- Confirmation policy picker (dropdown or segmented):
-  - Always ask (default)
-  - Biometric only
-  - Password only
+- Unlock policy picker (dropdown or segmented):
+  - Password (default)
+  - Biometric
   - Biometric + Password
-  - Auto-approve (shows warning dialog before allowing selection)
+  - None (shows security warning dialog before allowing selection, per FR-046)
+- Signing policy picker (dropdown or segmented):
+  - Biometric (default)
+  - Always ask
+  - Password
+  - Biometric + Password
+  - Auto-approve (shows security warning dialog before allowing selection, per FR-046)
 - "Create" button
 
 **Layout (view/edit mode)**:
-- Top bar: key name, back arrow
+- Top bar: key name, Tailnet connection indicator (FR-110), per-key lock/unlock indicator (FR-111), back arrow
 - Key name (editable text field)
 - Key type (read-only)
 - Fingerprint (full SHA256, copyable)
 - Created date
-- Confirmation policy picker (same as create mode)
+- Unlock policy picker (same as create mode)
+- Signing policy picker (same as create mode)
+- "Lock Key" / "Unlock Key" button (FR-117, reflects current runtime unlock state)
 - "Export Public Key" section:
   - "Copy to Clipboard" button
   - "Share" button (system share sheet)
@@ -319,7 +332,9 @@ stateDiagram-v2
 | Action | Result |
 |--------|--------|
 | Edit key name | Enables Save button |
-| Change confirmation policy | Enables Save button; auto-approve triggers warning dialog |
+| Change unlock policy | Enables Save button; "none" triggers security warning dialog (FR-046) |
+| Change signing policy | Enables Save button; "auto-approve" triggers security warning dialog (FR-046) |
+| Tap "Lock Key" | Wipes decrypted key material from memory, key returns to locked state (FR-117) |
 | Tap "Create" (create mode) | Generates key in Keystore, navigates to view mode on success |
 | Tap "Copy to Clipboard" | Copies public key in SSH format, shows snackbar |
 | Tap "Share" | Opens system share sheet with public key text |
@@ -328,10 +343,15 @@ stateDiagram-v2
 | Tap "Save" | Persists name/policy changes |
 | Tap back arrow | Navigate to Key Management (prompt to save if unsaved changes) |
 
-**Auto-Approve Warning Dialog**:
+**Auto-Approve Signing Warning Dialog**:
 - Title: "Security Warning"
 - Body: "Auto-approve allows sign requests to be processed without your confirmation. Any host with a valid mTLS certificate can trigger signing operations silently. Are you sure?"
 - Buttons: "Cancel" / "Enable Auto-Approve"
+
+**None-Unlock Warning Dialog**:
+- Title: "Security Warning"
+- Body: "Disabling unlock means this key's material will be decrypted into memory automatically when the app starts. No biometric or password prompt will be required before signing operations can proceed."
+- Buttons: "Cancel" / "Disable Unlock"
 
 **Field Validations**: See Field Validation Reference Table.
 
@@ -360,16 +380,19 @@ stateDiagram-v2
 **User Actions**:
 | Action | Result |
 |--------|--------|
-| Tap "Approve" | Triggers auth challenge per key policy, then signs |
+| Tap "Approve" | Triggers signing policy auth challenge (biometric/password/both per signing policy), then signs |
 | Tap "Deny" | Returns SSH_AGENT_FAILURE immediately |
 | Auth succeeds (biometric/password) | Keystore signs data, returns signature via gRPC |
 | Auth fails | Returns SSH_AGENT_FAILURE |
 | No response within signTimeout | Dialog auto-dismissed, returns SSH_AGENT_FAILURE |
 
 **Behavior Notes**:
-- For auto-approve keys, no dialog is shown. Signing happens immediately in the background.
-- For "always ask" keys, the dialog appears but no biometric/password challenge follows the Approve tap.
+- If the key is **locked** when a sign request arrives, the unlock policy prompt is shown first (FR-116): "Unlock key '{keyName}' for host '{hostName}'?" with biometric/password/both per the key's unlock policy. On success, the key transitions to unlocked and the signing policy prompt follows.
+- For **auto-approve** signing policy, no sign dialog is shown. Signing happens immediately in the background (after unlock, if needed).
+- For **always-ask** signing policy, the dialog appears but no biometric/password challenge follows the Approve tap — just a simple tap to confirm.
+- For **none** unlock policy, the key is eagerly decrypted on app start (FR-119) — no unlock prompt ever shown.
 - Concurrent requests are serialized as individual dialogs in arrival order.
+- If a key is re-locked while requests are queued, the next queued request triggers a fresh unlock prompt (FR-117).
 
 **Related FRs**: FR-050 through FR-053
 
@@ -382,10 +405,11 @@ stateDiagram-v2
 **Purpose**: App-wide configuration.
 
 **Layout**:
-- Top bar: "Settings", back arrow
+- Top bar: "Settings", Tailnet connection indicator (FR-110), back arrow
 - **Security** section:
   - "Allow key listing" toggle (default: on). When off, phone returns empty list to all ListKeys requests regardless of host config.
-  - "Default confirmation policy" picker (for newly created keys)
+  - "Default unlock policy" picker (for newly created keys): None, Biometric, Password (default), Biometric + Password
+  - "Default signing policy" picker (for newly created keys): Always ask, Biometric (default), Password, Biometric + Password, Auto-approve
 - **Tracing** section:
   - "Enable tracing" toggle
   - OTEL endpoint text field (visible when tracing enabled, pre-filled from pairing if available)
@@ -402,7 +426,8 @@ stateDiagram-v2
 | Action | Result |
 |--------|--------|
 | Toggle "Allow key listing" | Immediately effective; persisted |
-| Change default confirmation policy | Applied to future keys only |
+| Change default unlock policy | Applied to future keys only |
+| Change default signing policy | Applied to future keys only |
 | Toggle tracing | Enables/disables OTEL export |
 | Edit OTEL endpoint | Validated on blur, persisted |
 | Tap "Re-authenticate" | Navigate to Tailscale Auth Screen |
@@ -449,7 +474,8 @@ During pairing only, the host runs a temporary HTTPS server. The phone is the HT
 | Tailscale Auth | Auth key | Non-empty; starts with `tskey-auth-` or `tskey-` prefix; no whitespace | "Invalid auth key format" |
 | Key Detail | Key name | 1-64 characters; alphanumeric, hyphens, underscores only; unique across all keys | "Name must be 1-64 characters (letters, numbers, hyphens, underscores)" / "A key with this name already exists" |
 | Key Detail | Key type | Must be one of: `Ed25519`, `ECDSA-P256` | N/A (selection-based, cannot enter invalid) |
-| Key Detail | Confirmation policy | Must be one of: `always_ask`, `biometric`, `password`, `biometric_password`, `auto_approve` | N/A (selection-based, cannot enter invalid) |
+| Key Detail | Unlock policy | Must be one of: `none`, `biometric`, `password`, `biometric_password` | N/A (selection-based, cannot enter invalid) |
+| Key Detail | Signing policy | Must be one of: `always_ask`, `biometric`, `password`, `biometric_password`, `auto_approve` | N/A (selection-based, cannot enter invalid) |
 | Settings | OTEL endpoint | Valid `host:port` format; host is IP or hostname; port 1-65535 | "Invalid endpoint format (expected host:port)" |
 | Pairing | QR payload | Must contain `hostIp`, `port`, `serverCert`, `token`; `hostIp` must be valid Tailscale IP (100.x.x.x range); `port` must be 1-65535; `serverCert` must be valid PEM; `token` must be non-empty | "Invalid QR code" / "Not a nix-key pairing code" |
 | Pairing | OTEL endpoint (from QR) | Same as Settings OTEL endpoint | Silently ignored if invalid (pairing still proceeds) |

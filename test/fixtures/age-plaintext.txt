@@ -1,0 +1,1 @@
+nix-key test plaintext for age encryption fixture
