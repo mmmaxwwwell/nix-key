@@ -17,9 +17,11 @@
 
 **Purpose**: Verify the runner's infrastructure works before E2E exploration begins.
 
-- [ ] T001 Verify emulator boots and MCP tools respond [FR-001, FR-003]
+- [ ] T001 Verify emulator boots, APK installs, and MCP tools respond [FR-001, FR-002, FR-003]
   Done when: `start-emulator` boots emulator, `adb shell getprop sys.boot_completed` returns 1,
-  MCP Screenshot returns a valid PNG, MCP DumpHierarchy returns XML with UI elements.
+  `make android-apk` builds debug APK successfully, `adb install` installs it on the emulator,
+  app launches without crash, MCP Screenshot returns a valid PNG, MCP DumpHierarchy returns
+  XML with UI elements. `validate/` directory added to .gitignore.
 
 - [ ] T002 Verify test bypass mechanisms [FR-007]
   Done when: deep link pairing (`adb shell am start -a android.intent.action.VIEW -d "nix-key://pair?payload=..."`)
@@ -102,10 +104,13 @@
 **Purpose**: Full cycle — explore finds bugs, fix agent patches source, runner rebuilds, verify agent confirms.
 
 - [ ] T010 Run explore-fix-verify loop [needs: mcp-android, e2e-loop] [FR-009, FR-010, SC-006]
-  Done when: if any prior phase recorded bugs in findings.json, the runner triggers the
+  Done when: if prior phases recorded bugs in findings.json, the runner triggers the
   fix-verify cycle: fix agent reads findings.json and modifies source code (any area:
   Kotlin, Go, Nix, proto); runner rebuilds APK and reinstalls; verify agent re-checks
   each bug via MCP tools; loop until all bugs resolved or max 3 iterations.
+  If NO bugs were found naturally, introduce a known synthetic bug (e.g., change an error
+  message string in Kotlin source) and run the loop to verify detection → fix → rebuild →
+  verify completes in one cycle (per SC-006 acceptance scenario).
   findings.json shows zero open bugs (or remaining bugs documented with "verified_broken").
 
 **Checkpoint**: SC-006 satisfied. Explore-fix-verify loop functional.
