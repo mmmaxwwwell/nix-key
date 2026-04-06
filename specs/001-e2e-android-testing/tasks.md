@@ -17,7 +17,7 @@
 
 **Purpose**: Verify the runner's infrastructure works before E2E exploration begins.
 
-- [ ] T001 Verify emulator boots, APK installs, and MCP tools respond [FR-001, FR-002, FR-003]
+- [x] T001 Verify emulator boots, APK installs, and MCP tools respond [FR-001, FR-002, FR-003]
   Done when: `start-emulator` boots emulator, `adb shell getprop sys.boot_completed` returns 1,
   `make android-apk` builds debug APK successfully, `adb install` installs it on the emulator,
   app launches without crash, MCP Screenshot returns a valid PNG, MCP DumpHierarchy returns
