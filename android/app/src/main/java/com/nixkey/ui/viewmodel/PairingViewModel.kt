@@ -68,7 +68,7 @@ class PairingViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     phase = PairingPhase.ERROR,
-                    error = "Invalid QR code: ${e.message}"
+                    error = "Not a nix-key pairing code"
                 )
             }
         }

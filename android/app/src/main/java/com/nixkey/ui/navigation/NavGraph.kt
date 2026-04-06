@@ -114,7 +114,12 @@ fun NixKeyNavGraph(
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onReauthenticate = {
+                    navController.navigate(Routes.TAILSCALE_AUTH) {
+                        popUpTo(Routes.SERVER_LIST) { inclusive = true }
+                    }
+                }
             )
         }
     }

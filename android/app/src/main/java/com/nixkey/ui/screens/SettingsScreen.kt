@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -34,6 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.keystore.ConfirmationPolicy
@@ -44,9 +47,14 @@ import com.nixkey.ui.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onReauthenticate: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsState()
     val tailnetState by LocalTailnetConnectionState.current.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -99,6 +107,27 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Tailscale section
+            Text(
+                text = "Tailscale",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            ReadOnlyField(label = "Tailscale IP", value = state.tailscaleIp.ifEmpty { "Not connected" })
+            ReadOnlyField(label = "Tailnet name", value = state.tailnetName.ifEmpty { "Unknown" })
+
+            OutlinedButton(
+                onClick = { viewModel.onReauthenticate(onReauthenticate) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Re-authenticate")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
             // Tracing section
             Text(
                 text = "Tracing",
@@ -114,16 +143,71 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             )
 
             if (state.otelEnabled) {
+                var hasFocus by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = state.otelEndpoint,
                     onValueChange = viewModel::setOtelEndpoint,
                     label = { Text("OTEL endpoint") },
                     placeholder = { Text("host:port") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            if (hasFocus && !focusState.isFocused) {
+                                viewModel.validateOtelEndpoint()
+                            }
+                            hasFocus = focusState.isFocused
+                        },
+                    singleLine = true,
+                    isError = state.otelEndpointError != null,
+                    supportingText = if (state.otelEndpointError != null) {
+                        { Text(state.otelEndpointError!!) }
+                    } else {
+                        null
+                    }
                 )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // About section
+            Text(
+                text = "About",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            val packageInfo = try {
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            } catch (_: Exception) {
+                null
+            }
+
+            ReadOnlyField(label = "App version", value = packageInfo?.versionName ?: "Unknown")
+            ReadOnlyField(label = "Build info", value = "Build ${packageInfo?.longVersionCode ?: "Unknown"}")
+
+            Text(
+                text = "Open source licenses",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
+    }
+}
+
+@Composable
+private fun ReadOnlyField(label: String, value: String) {
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
 }
 

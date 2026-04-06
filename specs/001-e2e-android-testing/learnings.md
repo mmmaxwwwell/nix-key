@@ -27,3 +27,15 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **Emulator boots in ~40s with KVM.** `start-emulator --no-wait` + polling `sys.boot_completed` is the pattern. AVD creation via `avdmanager` may fail in Nix (path issues); the script's manual fallback handles this.
 - **"System UI isn't responding" dialog appears on first boot** — dismiss it before UI assertions. It's the system launcher, not the app.
 - **MCP Screenshot/DumpHierarchy map to `adb exec-out screencap -p` and `uiautomator dump`** respectively. Both work on the emulator out of the box.
+
+## E2E Bug Fix Pass (12 bugs)
+
+- **Auth key validation (BUG-001):** `TailscaleAuthViewModel.connectWithAuthKey()` only checked for empty string. Keys must start with `tskey-auth-` or `tskey-` prefix.
+- **Missing Settings sections (BUG-002/003):** Added Tailscale section (IP, tailnet name, re-authenticate) and About section (version, build, licenses). Required injecting `TailscaleManager` into `SettingsViewModel`.
+- **Java internals in error messages (BUG-004/005):** `PairingViewModel.onQrScanned()` passed raw `e.message` to UI. Fixed with static user-friendly message; internal details still logged via Timber.
+- **OTEL validation (BUG-006):** Added `onFocusChanged` blur-triggered validation for host:port format in SettingsScreen.
+- **TailscaleAuth missing UI (BUG-007/008):** Added app logo via `R.mipmap.ic_launcher` and connection indicator using `LocalTailnetConnectionState`.
+- **Cancel button broken (BUG-009):** ErrorContent's `onBack` didn't call `viewModel.resetState()` first. Fixed by wrapping the callback.
+- **Empty state (BUG-010/011):** Added illustration (launcher icon), fixed subtitle to match spec ("Scan a QR code to pair.").
+- **Back arrow vs Cancel (BUG-012):** Replaced `IconButton` with `TextButton("Cancel")` in pairing screen `TopAppBar.navigationIcon`.
+- **Material icons:** Only default set available without extended icons dependency. Use `R.mipmap.ic_launcher` as fallback illustration.

@@ -49,6 +49,10 @@ class TailscaleAuthViewModel @Inject constructor(
             _state.update { it.copy(error = "Auth key cannot be empty") }
             return
         }
+        if (!isValidAuthKeyFormat(key)) {
+            _state.update { it.copy(error = "Invalid auth key format") }
+            return
+        }
 
         _state.update {
             it.copy(
@@ -165,5 +169,9 @@ class TailscaleAuthViewModel @Inject constructor(
 
     companion object {
         private const val CONNECTION_TIMEOUT_MS = 30_000L
+
+        fun isValidAuthKeyFormat(key: String): Boolean {
+            return key.startsWith("tskey-auth-") || key.startsWith("tskey-")
+        }
     }
 }

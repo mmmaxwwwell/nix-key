@@ -2,20 +2,25 @@ package com.nixkey.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,10 +28,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nixkey.R
+import com.nixkey.tailscale.TailnetConnectionState
+import com.nixkey.ui.components.LocalTailnetConnectionState
 import com.nixkey.ui.viewmodel.TailscaleAuthPhase
 import com.nixkey.ui.viewmodel.TailscaleAuthState
 import com.nixkey.ui.viewmodel.TailscaleAuthViewModel
@@ -61,6 +71,7 @@ fun TailscaleAuthContent(
     onRetry: () -> Unit
 ) {
     val context = LocalContext.current
+    val tailnetState by LocalTailnetConnectionState.current.collectAsState()
 
     Scaffold { padding ->
         Column(
@@ -71,6 +82,18 @@ fun TailscaleAuthContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Tailnet connection indicator at the top
+            TailscaleAuthIndicator(tailnetState)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // App logo
+            Image(
+                painter = painterResource(id = R.mipmap.ic_launcher),
+                contentDescription = "nix-key logo",
+                modifier = Modifier.size(72.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = "Connect to Tailscale",
                 style = MaterialTheme.typography.headlineMedium
@@ -173,6 +196,35 @@ fun TailscaleAuthContent(
                     // Navigation handled by LaunchedEffect above
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TailscaleAuthIndicator(state: TailnetConnectionState) {
+    val (color, label) = when (state) {
+        TailnetConnectionState.CONNECTED -> Color(0xFF4CAF50) to "Connected to Tailnet"
+        TailnetConnectionState.CONNECTING -> Color(0xFFFFC107) to "Connecting to Tailnet..."
+        TailnetConnectionState.DISCONNECTED -> Color(0xFFF44336) to "Disconnected"
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = color,
+            modifier = Modifier.size(8.dp)
+        ) {}
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (state == TailnetConnectionState.CONNECTING) {
+            Spacer(modifier = Modifier.width(8.dp))
+            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
         }
     }
 }
