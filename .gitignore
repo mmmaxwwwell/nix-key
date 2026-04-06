@@ -62,6 +62,8 @@ node_modules/
 local.properties
 android/app/libs/
 android/**/build/
+android/infer-out/
+android/result
 
 # Dev certs
 certs/

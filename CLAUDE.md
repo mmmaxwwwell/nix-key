@@ -313,3 +313,10 @@ Download from the GitHub Actions workflow run page → Artifacts section.
 - Format Nix files with `nixfmt` (rfc-style).
 - Android app is the only non-Nix artifact.
 - When creating NixOS VM tests with headscale, always apply: (1) `dns.nameservers.global` set, (2) generate a self-signed TLS cert via `pkgs.runCommand` and set `tls_cert_path`/`tls_key_path` + `security.pki.certificateFiles` on all nodes (required for embedded DERP relay), (3) no `pkgs` in node function args.
+
+## Active Technologies
+- Bash (orchestrator), Go 1.22+ (host daemon/tools), Kotlin (Android app) + MCP-android (nix-mcp-debugkit), headscale, tailscale, Android SDK (API 34), gomobile (001-e2e-android-testing)
+- Temp directories (`/tmp/nix-key-e2e.XXXXXX/`), `test-logs/e2e/` for output (001-e2e-android-testing)
+
+## Recent Changes
+- 001-e2e-android-testing: Added Bash (orchestrator), Go 1.22+ (host daemon/tools), Kotlin (Android app) + MCP-android (nix-mcp-debugkit), headscale, tailscale, Android SDK (API 34), gomobile
