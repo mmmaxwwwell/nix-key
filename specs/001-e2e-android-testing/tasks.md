@@ -23,7 +23,7 @@
   app launches without crash, MCP Screenshot returns a valid PNG, MCP DumpHierarchy returns
   XML with UI elements. `validate/` directory added to .gitignore.
 
-- [ ] T002 Verify test bypass mechanisms [FR-007]
+- [x] T002 Verify test bypass mechanisms [FR-007]
   Done when: deep link pairing (`adb shell am start -a android.intent.action.VIEW -d "nix-key://pair?payload=..."`)
   reaches the pairing flow; fingerprint simulation (`adb -e emu finger touch 1`) triggers biometric callback;
   debug APK uses software keystore (no StrongBox requirement).
