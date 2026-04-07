@@ -1,9 +1,7 @@
 package com.nixkey.ui.navigation
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -14,6 +12,7 @@ import com.nixkey.ui.screens.KeyDetailScreen
 import com.nixkey.ui.screens.KeyListScreen
 import com.nixkey.ui.screens.PairingScreen
 import com.nixkey.ui.screens.ServerListScreen
+import com.nixkey.ui.screens.LicensesScreen
 import com.nixkey.ui.screens.SettingsScreen
 import com.nixkey.ui.screens.TailscaleAuthScreen
 
@@ -25,6 +24,7 @@ object Routes {
     const val KEY_DETAIL = "key_detail/{keyId}"
     const val KEY_DETAIL_NEW = "key_detail/new"
     const val SETTINGS = "settings"
+    const val LICENSES = "licenses"
 
     fun keyManagement(hostId: String) = "key_management/$hostId"
     fun keyDetail(keyId: String) = "key_detail/$keyId"
@@ -115,11 +115,10 @@ fun NixKeyNavGraph(
             )
         }
         composable(Routes.SETTINGS) {
-            val context = LocalContext.current
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onLicenses = {
-                    Toast.makeText(context, "Open source licenses", Toast.LENGTH_SHORT).show()
+                    navController.navigate(Routes.LICENSES)
                 },
                 onReauthenticate = {
                     navController.navigate(Routes.TAILSCALE_AUTH) {
@@ -128,6 +127,9 @@ fun NixKeyNavGraph(
                     }
                 }
             )
+        }
+        composable(Routes.LICENSES) {
+            LicensesScreen(onBack = { navController.popBackStack() })
         }
     }
 }

@@ -108,7 +108,7 @@ class TailscaleAuthScreenTest {
         composeTestRule.setContent {
             NixKeyTheme {
                 TailscaleAuthContent(
-                    state = TailscaleAuthState(error = "Auth key cannot be empty"),
+                    state = TailscaleAuthState(error = "Invalid auth key format"),
                     onAuthKeyChanged = {},
                     onConnectWithKey = {},
                     onConnectWithOAuth = {},
@@ -118,7 +118,7 @@ class TailscaleAuthScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Auth key cannot be empty").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Invalid auth key format").assertIsDisplayed()
     }
 
     @Test
