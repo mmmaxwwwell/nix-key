@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -50,6 +51,7 @@ import com.nixkey.ui.viewmodel.SettingsViewModel
 fun SettingsScreen(
     onBack: () -> Unit,
     onReauthenticate: () -> Unit = {},
+    onLicenses: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -190,7 +192,8 @@ fun SettingsScreen(
             Text(
                 text = "Open source licenses",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable(onClick = onLicenses)
             )
         }
     }
@@ -315,16 +318,16 @@ private fun DefaultSigningPolicyPicker(selected: ConfirmationPolicy, onSelected:
 }
 
 private fun UnlockPolicy.settingsLabel(): String = when (this) {
-    UnlockPolicy.NONE -> "None (auto-unlock)"
-    UnlockPolicy.BIOMETRIC -> "Biometric only"
-    UnlockPolicy.PASSWORD -> "Password only"
+    UnlockPolicy.NONE -> "None"
+    UnlockPolicy.BIOMETRIC -> "Biometric"
+    UnlockPolicy.PASSWORD -> "Password"
     UnlockPolicy.BIOMETRIC_PASSWORD -> "Biometric + Password"
 }
 
 private fun ConfirmationPolicy.settingsLabel(): String = when (this) {
     ConfirmationPolicy.ALWAYS_ASK -> "Always ask"
-    ConfirmationPolicy.BIOMETRIC -> "Biometric only"
-    ConfirmationPolicy.PASSWORD -> "Password only"
+    ConfirmationPolicy.BIOMETRIC -> "Biometric"
+    ConfirmationPolicy.PASSWORD -> "Password"
     ConfirmationPolicy.BIOMETRIC_PASSWORD -> "Biometric + Password"
     ConfirmationPolicy.AUTO_APPROVE -> "Auto-approve"
 }

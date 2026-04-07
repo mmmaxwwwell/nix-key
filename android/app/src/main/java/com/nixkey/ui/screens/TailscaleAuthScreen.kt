@@ -1,7 +1,9 @@
 package com.nixkey.ui.screens
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -72,6 +74,10 @@ fun TailscaleAuthContent(
 ) {
     val context = LocalContext.current
     val tailnetState by LocalTailnetConnectionState.current.collectAsState()
+
+    BackHandler {
+        (context as? Activity)?.finishAffinity()
+    }
 
     Scaffold { padding ->
         Column(

@@ -38,12 +38,19 @@ class SettingsViewModel @Inject constructor(
 
     private fun loadSettings() {
         val ip = tailscaleManager.getIp() ?: ""
+        val endpoint = settingsRepository.otelEndpoint
+        val endpointError = if (endpoint.isNotEmpty() && !isValidHostPort(endpoint)) {
+            "Invalid endpoint format (expected host:port)"
+        } else {
+            null
+        }
         _state.value = SettingsState(
             allowKeyListing = settingsRepository.allowKeyListing,
             defaultUnlockPolicy = settingsRepository.defaultUnlockPolicy,
             defaultConfirmationPolicy = settingsRepository.defaultConfirmationPolicy,
             otelEnabled = settingsRepository.otelEnabled,
-            otelEndpoint = settingsRepository.otelEndpoint,
+            otelEndpoint = endpoint,
+            otelEndpointError = endpointError,
             tailscaleIp = ip,
             tailnetName = if (ip.isNotEmpty()) "tailnet" else ""
         )
@@ -70,8 +77,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setOtelEndpoint(endpoint: String) {
-        settingsRepository.otelEndpoint = endpoint
         _state.update { it.copy(otelEndpoint = endpoint, otelEndpointError = null) }
+        if (endpoint.isEmpty() || isValidHostPort(endpoint)) {
+            settingsRepository.otelEndpoint = endpoint
+        }
     }
 
     fun validateOtelEndpoint() {

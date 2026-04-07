@@ -353,13 +353,10 @@ private fun ErrorContent(error: String, onRetry: () -> Unit, onBack: () -> Unit)
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedButton(onClick = onBack) {
-                    Text("Cancel")
-                }
-                Button(onClick = onRetry) {
-                    Text("Try Again")
-                }
+            Button(onClick = {
+                onBack()
+            }) {
+                Text("Done")
             }
         }
     }

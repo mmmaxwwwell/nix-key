@@ -39,3 +39,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **Empty state (BUG-010/011):** Added illustration (launcher icon), fixed subtitle to match spec ("Scan a QR code to pair.").
 - **Back arrow vs Cancel (BUG-012):** Replaced `IconButton` with `TextButton("Cancel")` in pairing screen `TopAppBar.navigationIcon`.
 - **Material icons:** Only default set available without extended icons dependency. Use `R.mipmap.ic_launcher` as fallback illustration.
+
+## E2E Bug Fix Pass #2 (7 bugs)
+
+- **Dropdown label suffixes (BUG-001/002):** `settingsLabel()` extensions had non-spec suffixes like "(auto-unlock)" and "only". Labels must exactly match UI_FLOW.md Field Validation Reference Table.
+- **TailscaleAuth back navigation (BUG-003):** No `BackHandler` on auth screen let NavHost pop to ServerList, bypassing auth. Fixed by adding `BackHandler { finishAffinity() }` to exit the app.
+- **OTEL validation persistence (BUG-004/007):** Validation error was only set on blur but not restored on screen re-entry. Fixed by validating in `loadSettings()`. Also gated persistence — invalid values are no longer saved to SharedPreferences.
+- **Open source licenses not clickable (BUG-005):** The `Text` composable was missing `Modifier.clickable()`. Added an `onLicenses` callback parameter.
+- **Pairing error buttons (BUG-006):** Error screen showed Cancel/Try Again per original implementation. Spec requires a single "Done" button navigating to Server List.
