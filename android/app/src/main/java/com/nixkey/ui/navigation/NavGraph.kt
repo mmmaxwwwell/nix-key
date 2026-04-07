@@ -123,7 +123,8 @@ fun NixKeyNavGraph(
                 },
                 onReauthenticate = {
                     navController.navigate(Routes.TAILSCALE_AUTH) {
-                        popUpTo(navController.graph.id) { inclusive = true }
+                        popUpTo(Routes.SERVER_LIST) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )

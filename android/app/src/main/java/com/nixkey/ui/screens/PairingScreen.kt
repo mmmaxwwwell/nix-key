@@ -129,8 +129,7 @@ fun PairingScreen(
                 PairingPhase.ERROR -> {
                     ErrorContent(
                         error = state.error ?: "Unknown error",
-                        onRetry = { viewModel.resetState() },
-                        onBack = {
+                        onDone = {
                             viewModel.resetState()
                             onBack()
                         }
@@ -335,7 +334,7 @@ private fun PairingProgressContent(statusText: String) {
 }
 
 @Composable
-private fun ErrorContent(error: String, onRetry: () -> Unit, onBack: () -> Unit) {
+private fun ErrorContent(error: String, onDone: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -355,9 +354,7 @@ private fun ErrorContent(error: String, onRetry: () -> Unit, onBack: () -> Unit)
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = {
-                onBack()
-            }) {
+            Button(onClick = onDone) {
                 Text("Done")
             }
         }

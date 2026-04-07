@@ -83,9 +83,7 @@ class SettingsViewModel @Inject constructor(
             null
         }
         _state.update { it.copy(otelEndpoint = endpoint, otelEndpointError = error) }
-        if (endpoint.isEmpty() || isValidHostPort(endpoint)) {
-            settingsRepository.otelEndpoint = endpoint
-        }
+        settingsRepository.otelEndpoint = endpoint
     }
 
     fun validateOtelEndpoint() {

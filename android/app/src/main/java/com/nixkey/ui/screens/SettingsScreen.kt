@@ -1,5 +1,6 @@
 package com.nixkey.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -189,13 +189,12 @@ fun SettingsScreen(
             ReadOnlyField(label = "App version", value = packageInfo?.versionName ?: "Unknown")
             ReadOnlyField(label = "Build info", value = "Build ${packageInfo?.longVersionCode ?: "Unknown"}")
 
-            TextButton(onClick = onLicenses) {
-                Text(
-                    text = "Open source licenses",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            Text(
+                text = "Open source licenses",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable(onClick = onLicenses)
+            )
         }
     }
 }
@@ -321,13 +320,13 @@ private fun DefaultSigningPolicyPicker(selected: ConfirmationPolicy, onSelected:
 private fun UnlockPolicy.settingsLabel(): String = when (this) {
     UnlockPolicy.NONE -> "None"
     UnlockPolicy.BIOMETRIC -> "Biometric"
-    UnlockPolicy.PASSWORD -> "Password"
+    UnlockPolicy.PASSWORD -> "Password (default)"
     UnlockPolicy.BIOMETRIC_PASSWORD -> "Biometric + Password"
 }
 
 private fun ConfirmationPolicy.settingsLabel(): String = when (this) {
     ConfirmationPolicy.ALWAYS_ASK -> "Always ask"
-    ConfirmationPolicy.BIOMETRIC -> "Biometric"
+    ConfirmationPolicy.BIOMETRIC -> "Biometric (default)"
     ConfirmationPolicy.PASSWORD -> "Password"
     ConfirmationPolicy.BIOMETRIC_PASSWORD -> "Biometric + Password"
     ConfirmationPolicy.AUTO_APPROVE -> "Auto-approve"
