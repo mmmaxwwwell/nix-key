@@ -1,7 +1,9 @@
 package com.nixkey.ui.navigation
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -113,11 +115,15 @@ fun NixKeyNavGraph(
             )
         }
         composable(Routes.SETTINGS) {
+            val context = LocalContext.current
             SettingsScreen(
                 onBack = { navController.popBackStack() },
+                onLicenses = {
+                    Toast.makeText(context, "Open source licenses", Toast.LENGTH_SHORT).show()
+                },
                 onReauthenticate = {
                     navController.navigate(Routes.TAILSCALE_AUTH) {
-                        popUpTo(Routes.SERVER_LIST) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 }
             )

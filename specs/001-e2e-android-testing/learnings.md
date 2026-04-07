@@ -47,3 +47,11 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - **OTEL validation persistence (BUG-004/007):** Validation error was only set on blur but not restored on screen re-entry. Fixed by validating in `loadSettings()`. Also gated persistence — invalid values are no longer saved to SharedPreferences.
 - **Open source licenses not clickable (BUG-005):** The `Text` composable was missing `Modifier.clickable()`. Added an `onLicenses` callback parameter.
 - **Pairing error buttons (BUG-006):** Error screen showed Cancel/Try Again per original implementation. Spec requires a single "Done" button navigating to Server List.
+
+## E2E Bug Fix Pass #3 (7 bugs)
+
+- **Dropdown label suffixes in KeyDetailScreen (BUG-001/002):** The SettingsScreen `settingsLabel()` was fixed in pass #2, but the KeyDetailScreen still had `displayLabel()` with "(auto-unlock)" and "only" suffixes. Both screens must use matching spec-compliant labels.
+- **TailscaleAuth back navigation via re-authenticate (BUG-003):** `popUpTo(Routes.SERVER_LIST)` in NavGraph didn't fully clear the back stack when re-authenticating from Settings. Changed to `popUpTo(navController.graph.id) { inclusive = true }` to clear the entire graph, ensuring Back exits the app.
+- **OTEL inline validation (BUG-004/007):** Moved validation from blur-only to inline in `setOtelEndpoint()` — error is now computed on every keystroke. This ensures the error persists across navigation. Invalid values are still never saved to SharedPreferences.
+- **Open source licenses clickability (BUG-005):** `Modifier.clickable` on a Text composable doesn't always propagate `clickable=true` to the native accessibility tree. Changed to `TextButton` which has proper Material accessibility semantics. Also wired `onLicenses` callback in NavGraph.
+- **Pairing error Cancel button (BUG-006):** The top bar "Cancel" button was always visible including on the error result screen. Now hidden when `phase == ERROR`, leaving only the "Done" button per spec.

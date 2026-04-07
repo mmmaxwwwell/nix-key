@@ -77,7 +77,12 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setOtelEndpoint(endpoint: String) {
-        _state.update { it.copy(otelEndpoint = endpoint, otelEndpointError = null) }
+        val error = if (endpoint.isNotEmpty() && !isValidHostPort(endpoint)) {
+            "Invalid endpoint format (expected host:port)"
+        } else {
+            null
+        }
+        _state.update { it.copy(otelEndpoint = endpoint, otelEndpointError = error) }
         if (endpoint.isEmpty() || isValidHostPort(endpoint)) {
             settingsRepository.otelEndpoint = endpoint
         }

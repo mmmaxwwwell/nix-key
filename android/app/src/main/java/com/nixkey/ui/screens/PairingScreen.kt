@@ -80,11 +80,13 @@ fun PairingScreen(
             TopAppBar(
                 title = { Text("Pair with Host") },
                 navigationIcon = {
-                    TextButton(onClick = {
-                        viewModel.resetState()
-                        onBack()
-                    }) {
-                        Text("Cancel")
+                    if (state.phase != PairingPhase.ERROR) {
+                        TextButton(onClick = {
+                            viewModel.resetState()
+                            onBack()
+                        }) {
+                            Text("Cancel")
+                        }
                     }
                 },
                 actions = {

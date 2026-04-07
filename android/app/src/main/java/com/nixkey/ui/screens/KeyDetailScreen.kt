@@ -377,16 +377,16 @@ private fun NoneUnlockWarningDialog(onConfirm: () -> Unit, onDismiss: () -> Unit
 }
 
 private fun UnlockPolicy.displayLabel(): String = when (this) {
-    UnlockPolicy.NONE -> "None (auto-unlock)"
-    UnlockPolicy.BIOMETRIC -> "Biometric only"
-    UnlockPolicy.PASSWORD -> "Password only"
+    UnlockPolicy.NONE -> "None"
+    UnlockPolicy.BIOMETRIC -> "Biometric"
+    UnlockPolicy.PASSWORD -> "Password"
     UnlockPolicy.BIOMETRIC_PASSWORD -> "Biometric + Password"
 }
 
 private fun ConfirmationPolicy.displayLabel(): String = when (this) {
     ConfirmationPolicy.ALWAYS_ASK -> "Always ask"
-    ConfirmationPolicy.BIOMETRIC -> "Biometric only"
-    ConfirmationPolicy.PASSWORD -> "Password only"
+    ConfirmationPolicy.BIOMETRIC -> "Biometric"
+    ConfirmationPolicy.PASSWORD -> "Password"
     ConfirmationPolicy.BIOMETRIC_PASSWORD -> "Biometric + Password"
     ConfirmationPolicy.AUTO_APPROVE -> "Auto-approve"
 }
