@@ -13,6 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.nixkey.tailscale.TailnetConnectionState
 
@@ -34,7 +36,11 @@ fun TailnetIndicator(state: TailnetConnectionState, modifier: Modifier = Modifie
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.padding(end = 8.dp)
+        modifier = modifier
+            .padding(end = 8.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Connection status: $label"
+            }
     ) {
         Surface(
             shape = CircleShape,

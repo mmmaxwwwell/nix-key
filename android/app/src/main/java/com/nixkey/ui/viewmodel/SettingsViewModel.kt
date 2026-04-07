@@ -82,6 +82,10 @@ class SettingsViewModel @Inject constructor(
         } else {
             null
         }
+        // Persist immediately when valid (matches toggle/dropdown save-on-change behavior)
+        if (error == null) {
+            settingsRepository.otelEndpoint = endpoint
+        }
         _state.update { it.copy(otelEndpoint = endpoint, otelEndpointError = error) }
     }
 

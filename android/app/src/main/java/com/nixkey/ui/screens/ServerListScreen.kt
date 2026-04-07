@@ -35,6 +35,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.data.ConnectionStatus
@@ -107,19 +110,26 @@ private fun EmptyHostsState(modifier: Modifier = Modifier) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
                 painter = painterResource(id = R.mipmap.ic_launcher),
-                contentDescription = "No paired hosts",
+                contentDescription = "nix-key app icon",
                 modifier = Modifier.size(72.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "No paired hosts yet",
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics {
+                    heading()
+                    contentDescription = "No paired hosts yet"
+                }
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Scan a QR code to pair.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.semantics {
+                    contentDescription = "Scan a QR code to pair."
+                }
             )
         }
     }

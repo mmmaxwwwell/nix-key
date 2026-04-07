@@ -155,14 +155,27 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         setIntent(Intent())
     }
 
+    private var wasChangingConfigurations = false
+
     override fun onStart() {
         super.onStart()
-        GrpcServerService.startService(this)
+        // Skip starting the service if we're resuming from a configuration change
+        // (e.g. rotation) — the service was intentionally kept running
+        if (!wasChangingConfigurations) {
+            GrpcServerService.startService(this)
+        }
+        wasChangingConfigurations = false
     }
 
     override fun onStop() {
         super.onStop()
-        GrpcServerService.stopService(this)
+        // Don't stop the service during configuration changes (e.g. rotation)
+        // to avoid a race condition where startForegroundService() in onStart()
+        // fails to call startForeground() within the system's 10-second deadline
+        wasChangingConfigurations = isChangingConfigurations
+        if (!isChangingConfigurations) {
+            GrpcServerService.stopService(this)
+        }
     }
 
     companion object {
