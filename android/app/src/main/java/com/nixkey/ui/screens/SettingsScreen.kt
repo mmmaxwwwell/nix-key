@@ -39,8 +39,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nixkey.keystore.ConfirmationPolicy
@@ -165,7 +171,14 @@ fun SettingsScreen(
                     singleLine = true,
                     isError = state.otelEndpointError != null,
                     supportingText = if (state.otelEndpointError != null) {
-                        { Text(state.otelEndpointError!!) }
+                        {
+                            Text(
+                                text = state.otelEndpointError!!,
+                                modifier = Modifier.semantics {
+                                    liveRegion = LiveRegionMode.Polite
+                                }
+                            )
+                        }
                     } else {
                         null
                     }
@@ -223,7 +236,14 @@ private fun ReadOnlyField(label: String, value: String) {
 @Composable
 private fun SettingsToggle(title: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Switch) { onCheckedChange(!checked) }
+            .semantics {
+                contentDescription = "$title. $description"
+                stateDescription = if (checked) "On" else "Off"
+                toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+            },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -237,8 +257,8 @@ private fun SettingsToggle(title: String, description: String, checked: Boolean,
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.semantics { contentDescription = title }
+            onCheckedChange = null,
+            modifier = Modifier.clearAndSetSemantics { }
         )
     }
 }

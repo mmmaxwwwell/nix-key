@@ -50,7 +50,11 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        deepLinkPayload = extractPairPayload(intent)
+        if (savedInstanceState == null) {
+            deepLinkPayload = extractPairPayload(intent)
+            // Clear intent data to prevent reprocessing on configuration change
+            intent.data = null
+        }
         val needsAuth = !tailscaleManager.hasStoredAuthKey() && !tailscaleManager.isRunning()
 
         // Eager unlock for keys with NONE unlock policy (FR-116)
@@ -146,6 +150,9 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         extractPairPayload(intent)?.let { payload ->
             deepLinkPayload = payload
         }
+        // Clear intent data to prevent reprocessing on configuration change
+        intent.data = null
+        setIntent(Intent())
     }
 
     override fun onStart() {

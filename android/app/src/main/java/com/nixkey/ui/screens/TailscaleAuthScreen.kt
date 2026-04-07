@@ -33,6 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -124,7 +128,14 @@ fun TailscaleAuthContent(
                         modifier = Modifier.fillMaxWidth(),
                         isError = state.error != null,
                         supportingText = if (state.error != null) {
-                            { Text(state.error) }
+                            {
+                                Text(
+                                    text = state.error,
+                                    modifier = Modifier.semantics {
+                                        liveRegion = LiveRegionMode.Polite
+                                    }
+                                )
+                            }
                         } else {
                             null
                         }
@@ -183,11 +194,16 @@ fun TailscaleAuthContent(
                 }
 
                 TailscaleAuthPhase.ERROR -> {
+                    val errorText = state.error ?: "An unknown error occurred"
                     Text(
-                        text = state.error ?: "An unknown error occurred",
+                        text = errorText,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.semantics {
+                            contentDescription = errorText
+                            liveRegion = LiveRegionMode.Polite
+                        }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(

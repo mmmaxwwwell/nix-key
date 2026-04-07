@@ -90,7 +90,7 @@ class TailscaleAuthViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         phase = TailscaleAuthPhase.ERROR,
-                        error = "Connection failed: ${e.message}"
+                        error = userFriendlyError(e)
                     )
                 }
             }
@@ -138,7 +138,7 @@ class TailscaleAuthViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         phase = TailscaleAuthPhase.ERROR,
-                        error = "Connection failed: ${e.message}"
+                        error = userFriendlyError(e)
                     )
                 }
             }
@@ -163,12 +163,23 @@ class TailscaleAuthViewModel @Inject constructor(
         }
     }
 
+    private fun userFriendlyError(e: Exception): String = when {
+        e is IllegalStateException && e.message?.contains("already running") == true ->
+            "Connection failed. Please try again."
+        e.message?.contains("timeout", ignoreCase = true) == true ->
+            "Connection timed out. Check your network and try again."
+        else ->
+            "Unable to connect to Tailscale. Please check your network and try again."
+    }
+
     companion object {
         private const val CONNECTION_TIMEOUT_MS = 30_000L
 
+        private val AUTH_KEY_PATTERN = "^tskey-(auth-)?[a-zA-Z0-9-]+$".toRegex()
+
         fun isValidAuthKeyFormat(key: String): Boolean {
             if (key.isEmpty() || key.contains("\\s".toRegex())) return false
-            return key.startsWith("tskey-auth-") || key.startsWith("tskey-")
+            return AUTH_KEY_PATTERN.matches(key)
         }
     }
 }

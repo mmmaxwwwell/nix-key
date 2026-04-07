@@ -38,6 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -346,12 +349,18 @@ private fun ErrorContent(error: String, onDone: () -> Unit) {
             Text(
                 text = "Pairing Failed",
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.semantics {
+                    liveRegion = LiveRegionMode.Polite
+                }
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = error,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.semantics {
+                    liveRegion = LiveRegionMode.Polite
+                }
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onDone) {
