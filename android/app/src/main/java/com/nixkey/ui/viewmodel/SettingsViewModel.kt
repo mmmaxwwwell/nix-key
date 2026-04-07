@@ -83,7 +83,9 @@ class SettingsViewModel @Inject constructor(
             null
         }
         _state.update { it.copy(otelEndpoint = endpoint, otelEndpointError = error) }
-        settingsRepository.otelEndpoint = endpoint
+        if (error == null) {
+            settingsRepository.otelEndpoint = endpoint
+        }
     }
 
     fun validateOtelEndpoint() {
