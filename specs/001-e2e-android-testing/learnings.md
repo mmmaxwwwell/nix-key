@@ -18,9 +18,10 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 
 ## T003 — Headscale/tailscale/daemon infrastructure
 
-- **`tailscale up` may fail if chained immediately after `tailscaled &`.** The daemon needs ~3s to initialize its IPN state machine. The E2E script's `sleep 2` is borderline; running `tailscale up` as a separate step (not `&&`-chained) is more reliable.
+- **`tailscale up` may fail if chained immediately after `tailscaled &`.** The daemon needs ~3s to initialize its IPN state machine. The E2E script's `sleep 2` is borderline; `sleep 3` is safer.
 - **Headscale 0.28+ uses numeric user IDs for `--user` flag.** The `users list -o json` + python3 extraction pattern in `android_e2e_test.sh` is required; passing the username string no longer works for `preauthkeys create`.
 - **Agent socket responds immediately after creation.** `ssh-add -L` returns "no identities" (exit 1) which is correct with no paired devices — the protocol is functional.
+- **setup.sh and android_e2e_test.sh both work correctly.** `setup.sh` uses `go run` for the daemon (no pre-built binary needed) and writes connection info to `$STATE_DIR/env`. Both scripts add `unix_socket` to the headscale config, which setup.sh has but android_e2e_test.sh omits — not critical but worth noting.
 
 ## T001 — Infrastructure verification
 

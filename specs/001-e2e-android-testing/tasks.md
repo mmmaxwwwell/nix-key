@@ -42,11 +42,21 @@
 **Purpose**: Agent explores each screen and navigation flows on the live emulator.
 Each screen gets its own E2E task for tight research→fix→verify cycles.
 
-- [ ] T004 Validate TailscaleAuth + ServerList screens [needs: mcp-android, e2e-loop] [FR-004, SC-001]
-  Done when: agent has visited TailscaleAuth and ServerList screens on the live emulator;
-  each screen has DumpHierarchy + Screenshot verification of layout elements from UI_FLOW.md;
-  tested: auth key validation (valid/invalid), connection indicator, empty state, back navigation;
-  findings.json has pass/fail entries for both screens.
+- [ ] T004 Validate TailscaleAuth screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
+  Done when: agent has visited TailscaleAuth screen on the live emulator;
+  Screenshot verification of layout elements (logo, title, subtitle, auth key field, Connect button,
+  "or" divider, "Sign in with Tailscale" button, connection indicator);
+  tested: auth key validation (valid tskey-auth-*/tskey-*, invalid, empty, whitespace),
+  connection indicator initial state (red/Disconnected), back navigation exits app;
+  findings.json has pass/fail entries for TailscaleAuth.
+
+- [ ] T004b Validate ServerList screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
+  Done when: agent has navigated to ServerList (via valid auth key on TailscaleAuth);
+  Screenshot verification of empty-state layout (title, connection indicator, gear icon,
+  illustration, "No paired hosts yet", "Scan QR Code" button);
+  tested: connection indicator after auth (yellow/Connecting), gear → Settings navigation,
+  "Scan QR Code" → Pairing navigation, back navigation exits app;
+  findings.json has pass/fail entries for ServerList.
 
 - [ ] T005 Validate Pairing screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
   Done when: agent has visited Pairing screen via deep link and QR button;
