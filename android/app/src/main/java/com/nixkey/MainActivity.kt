@@ -21,7 +21,6 @@ import com.nixkey.keystore.KeyUnlockManager
 import com.nixkey.keystore.SignRequest
 import com.nixkey.keystore.SignRequestQueue
 import com.nixkey.keystore.SignRequestStatus
-import com.nixkey.keystore.UnlockPolicy
 import com.nixkey.service.GrpcServerService
 import com.nixkey.tailscale.TailscaleManager
 import com.nixkey.ui.NixKeyAppUi
@@ -146,7 +145,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                 is AuthResult.Failure -> {
                     Timber.w(
                         "Sign request denied due to auth failure: code=%d msg=%s",
-                        result.errorCode, result.message
+                        result.errorCode,
+                        result.message
                     )
                     android.widget.Toast.makeText(
                         this@MainActivity,
