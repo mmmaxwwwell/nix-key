@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.nixkey.bridge.GoPhoneServer
 import com.nixkey.keystore.AuthResult
 import com.nixkey.keystore.BiometricHelper
+import com.nixkey.keystore.ConfirmationPolicy
 import com.nixkey.keystore.KeyManager
 import com.nixkey.keystore.KeyUnlockManager
 import com.nixkey.keystore.SignRequest
@@ -57,6 +58,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         enableEdgeToEdge()
         if (savedInstanceState == null) {
             deepLinkPayload = extractPairPayload(intent)
+            handleTestSignDeepLink(intent)
             // Clear intent data to prevent reprocessing on configuration change
             intent.data = null
         }
@@ -155,6 +157,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         extractPairPayload(intent)?.let { payload ->
             deepLinkPayload = payload
         }
+        handleTestSignDeepLink(intent)
         // Clear intent data to prevent reprocessing on configuration change
         intent.data = null
         setIntent(Intent())
@@ -193,6 +196,26 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         if (!isChangingConfigurations) {
             GrpcServerService.stopService(this)
         }
+    }
+
+    /**
+     * Handle the debug-only nix-key://test-sign deep link by injecting a fake
+     * sign request into the queue. Only active in debug builds.
+     */
+    private fun handleTestSignDeepLink(intent: Intent?) {
+        if (!BuildConfig.DEBUG) return
+        val uri = intent?.data ?: return
+        if (uri.scheme != "nix-key" || uri.host != "test-sign") return
+        val request = SignRequest(
+            keyFingerprint = uri.getQueryParameter("fingerprint") ?: "SHA256:e2e-test",
+            hostName = uri.getQueryParameter("host") ?: "e2e-test-host",
+            keyName = uri.getQueryParameter("key") ?: "e2e-test-key",
+            dataToSign = "e2e-test-data-${System.currentTimeMillis()}".toByteArray(),
+            confirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            needsUnlock = uri.getQueryParameter("unlock")?.toBoolean() ?: false
+        )
+        Timber.d("Test sign request injected: host=%s key=%s", request.hostName, request.keyName)
+        signRequestQueue.enqueue(request)
     }
 
     companion object {

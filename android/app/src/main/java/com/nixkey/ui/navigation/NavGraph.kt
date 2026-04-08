@@ -82,7 +82,12 @@ fun NixKeyNavGraph(
             PairingScreen(
                 onBack = { navController.popBackStack() },
                 onPairingComplete = {
-                    navController.popBackStack(Routes.SERVER_LIST, inclusive = false)
+                    val popped = navController.popBackStack(Routes.SERVER_LIST, inclusive = false)
+                    if (!popped) {
+                        navController.navigate(Routes.SERVER_LIST) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    }
                 },
                 initialPayload = initialPayload
             )

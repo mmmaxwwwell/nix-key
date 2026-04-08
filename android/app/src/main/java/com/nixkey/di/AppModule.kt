@@ -25,9 +25,15 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTailscaleBackend(): TailscaleBackend = object : TailscaleBackend {
-        override fun start(authKey: String?, dataDir: String): String? = null
-        override fun stop() {}
-        override fun getIp(): String? = null
-        override fun isRunning(): Boolean = false
+        @Volatile private var started = false
+        override fun start(authKey: String?, dataDir: String): String? {
+            started = true
+            return null
+        }
+        override fun stop() {
+            started = false
+        }
+        override fun getIp(): String? = if (started) "100.100.100.100" else null
+        override fun isRunning(): Boolean = started
     }
 }

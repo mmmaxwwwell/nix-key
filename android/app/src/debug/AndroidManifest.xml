@@ -14,6 +14,9 @@
                 <data
                     android:scheme="nix-key"
                     android:host="pair" />
+                <data
+                    android:scheme="nix-key"
+                    android:host="test-sign" />
             </intent-filter>
         </activity>
     </application>

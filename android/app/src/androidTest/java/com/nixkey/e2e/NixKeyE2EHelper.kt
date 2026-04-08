@@ -145,6 +145,32 @@ class NixKeyE2EHelper(
     }
 
     /**
+     * Inject a fake sign request via the debug-only nix-key://test-sign deep link.
+     * Only works on debug builds. Triggers the SignRequestDialog to appear.
+     *
+     * @param host Display name of the host
+     * @param key Display name of the key
+     * @param fingerprint Key fingerprint
+     * @param needsUnlock Whether the key needs unlocking before signing
+     */
+    fun injectSignRequest(
+        host: String = "e2e-test-host",
+        key: String = "e2e-test-key",
+        fingerprint: String = "SHA256:e2e-test",
+        needsUnlock: Boolean = false
+    ): Boolean = retry("injectSignRequest") {
+        val uri = Uri.parse(
+            "nix-key://test-sign?host=$host&key=$key&fingerprint=$fingerprint&unlock=$needsUnlock"
+        )
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage(packageName)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+        waitForElement(By.text("Sign Request"), DEFAULT_TIMEOUT_MS)
+    }
+
+    /**
      * Wait for the sign request dialog to appear, then tap "Approve".
      *
      * @param timeout How long to wait for the sign request dialog to appear
