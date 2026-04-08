@@ -40,16 +40,22 @@ class TailscaleAuthViewModel @Inject constructor(
     private var connectJob: Job? = null
 
     fun onAuthKeyChanged(key: String) {
-        _state.update { it.copy(authKey = key) }
+        val error = if (key.isNotEmpty() && !isValidAuthKeyFormat(key)) {
+            "Invalid auth key format"
+        } else {
+            null
+        }
+        _state.update { it.copy(authKey = key, error = error) }
     }
 
     fun connectWithAuthKey() {
-        val key = _state.value.authKey.trim()
+        val key = _state.value.authKey
         if (!isValidAuthKeyFormat(key)) {
             _state.update { it.copy(error = "Invalid auth key format") }
             return
         }
 
+        val trimmedKey = key.trim()
         _state.update {
             it.copy(
                 phase = TailscaleAuthPhase.CONNECTING,
@@ -72,7 +78,7 @@ class TailscaleAuthViewModel @Inject constructor(
                         }
                     }
                 }
-                val oauthUrl = tailscaleManager.start(key)
+                val oauthUrl = tailscaleManager.start(trimmedKey)
                 timeoutJob.cancel()
                 if (oauthUrl != null) {
                     _state.update {
