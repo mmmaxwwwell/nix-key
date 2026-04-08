@@ -76,7 +76,7 @@ Agents interact with the emulator exclusively through MCP-android tools:
 | Type | Input text via keyboard | Auth key entry, key name entry |
 | SetText | Set text field value directly | Fast text input (bypasses keyboard) |
 | Press | Press hardware/soft key (Back, Home, Enter) | Navigation, dialog dismissal |
-| WaitForElement | Wait for element to appear (with timeout) | Synchronization, loading states |
+| Wait-Tool | Pause for N **seconds** (`{"duration": 2}` = 2s, max 5) | Brief pauses between interactions |
 | GetScreenInfo | Get screen dimensions and density | Layout calculations |
 
 ## Agent-Spec Reference Contract
