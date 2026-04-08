@@ -92,6 +92,14 @@ nix-key test <device>    # test connectivity to a paired device
 | `make clean`            | Remove binary, coverage, and test-logs             |
 | `make clean-all`        | Clean + remove generated protobuf code, vendor, caches |
 
+### Android Test Commands
+
+```bash
+cd android && ./gradlew testDebugUnitTest        # JVM unit tests (no emulator needed)
+cd android && ./gradlew connectedDebugAndroidTest # Instrumented tests (requires running emulator)
+cd android && ./gradlew ktlintCheck              # Kotlin lint
+```
+
 ## Nix Commands
 
 ```bash
