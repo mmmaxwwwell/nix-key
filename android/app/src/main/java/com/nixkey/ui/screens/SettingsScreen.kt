@@ -173,7 +173,8 @@ fun SettingsScreen(
                         {
                             Text(
                                 text = state.otelEndpointError!!,
-                                modifier = Modifier.semantics {
+                                modifier = Modifier.semantics(mergeDescendants = true) {
+                                    contentDescription = state.otelEndpointError!!
                                     liveRegion = LiveRegionMode.Polite
                                 }
                             )
@@ -242,7 +243,7 @@ private fun SettingsToggle(title: String, description: String, checked: Boolean,
                 role = Role.Switch,
                 onValueChange = onCheckedChange
             )
-            .semantics {
+            .semantics(mergeDescendants = true) {
                 contentDescription = "$title. $description"
                 stateDescription = if (checked) "On" else "Off"
             },

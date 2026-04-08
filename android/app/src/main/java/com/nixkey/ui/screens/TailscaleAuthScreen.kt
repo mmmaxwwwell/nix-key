@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +90,7 @@ fun TailscaleAuthContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -131,7 +134,8 @@ fun TailscaleAuthContent(
                             {
                                 Text(
                                     text = state.error,
-                                    modifier = Modifier.semantics {
+                                    modifier = Modifier.semantics(mergeDescendants = true) {
+                                        contentDescription = state.error
                                         liveRegion = LiveRegionMode.Polite
                                     }
                                 )
@@ -200,7 +204,7 @@ fun TailscaleAuthContent(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.semantics {
+                        modifier = Modifier.semantics(mergeDescendants = true) {
                             contentDescription = errorText
                             liveRegion = LiveRegionMode.Polite
                         }

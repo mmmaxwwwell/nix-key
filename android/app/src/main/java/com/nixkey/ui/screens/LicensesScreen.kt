@@ -19,6 +19,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,7 +57,11 @@ fun LicensesScreen(onBack: () -> Unit) {
 
 @Composable
 private fun LicenseEntry(license: LicenseInfo) {
-    Column {
+    Column(
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            contentDescription = "${license.name}, ${license.license}"
+        }
+    ) {
         Text(text = license.name, style = MaterialTheme.typography.titleSmall)
         Text(
             text = license.license,

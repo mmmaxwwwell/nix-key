@@ -60,7 +60,15 @@ fun ServerListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("nix-key") },
+                title = {
+                    Text(
+                        "nix-key",
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            heading()
+                            contentDescription = "nix-key"
+                        }
+                    )
+                },
                 actions = {
                     TailnetIndicator(state = tailnetState)
                     IconButton(onClick = onNavigateToSettings) {
@@ -117,7 +125,7 @@ private fun EmptyHostsState(modifier: Modifier = Modifier) {
             Text(
                 text = "No paired hosts yet",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics {
+                modifier = Modifier.semantics(mergeDescendants = true) {
                     heading()
                     contentDescription = "No paired hosts yet"
                 }
@@ -127,7 +135,7 @@ private fun EmptyHostsState(modifier: Modifier = Modifier) {
                 text = "Scan a QR code to pair.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics {
+                modifier = Modifier.semantics(mergeDescendants = true) {
                     contentDescription = "Scan a QR code to pair."
                 }
             )
