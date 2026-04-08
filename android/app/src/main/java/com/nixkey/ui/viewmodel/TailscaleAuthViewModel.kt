@@ -189,7 +189,7 @@ class TailscaleAuthViewModel @Inject constructor(
     companion object {
         private const val CONNECTION_TIMEOUT_MS = 30_000L
 
-        private val AUTH_KEY_PATTERN = "^tskey-(auth-)?[a-zA-Z0-9-]+$".toRegex()
+        private val AUTH_KEY_PATTERN = "^(tskey|hskey)-(auth-)?[a-zA-Z0-9_-]+$".toRegex()
 
         fun isValidAuthKeyFormat(key: String): Boolean {
             if (key.isEmpty() || key.contains("\\s".toRegex())) return false

@@ -117,7 +117,10 @@ class PairingViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val phoneName = android.os.Build.MODEL
-                val tsIp = tailscaleManager.getIp() ?: throw IllegalStateException("Tailscale not connected")
+                val tsIp = tailscaleManager.getIp() ?: run {
+                    Timber.w("Tailscale IP unavailable, using payload host as fallback for pairing")
+                    payload.host
+                }
                 val listenPort = settingsRepository.listenPort
 
                 // Determine phone server cert alias: reuse if one exists, else use default

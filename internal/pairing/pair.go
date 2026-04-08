@@ -12,7 +12,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -167,11 +166,11 @@ func RunPair(ctx context.Context, cfg PairConfig) error {
 
 	// Write pairing info to file for E2E test automation.
 	if cfg.PairInfoFile != "" {
-		infoJSON, err := json.Marshal(qrParams)
+		payload, err := GenerateQRPayload(qrParams)
 		if err != nil {
-			return fmt.Errorf("marshal pair info: %w", err)
+			return fmt.Errorf("generate pair info payload: %w", err)
 		}
-		if err := os.WriteFile(cfg.PairInfoFile, infoJSON, 0600); err != nil {
+		if err := os.WriteFile(cfg.PairInfoFile, []byte(payload), 0600); err != nil {
 			return fmt.Errorf("write pair info file: %w", err)
 		}
 	}

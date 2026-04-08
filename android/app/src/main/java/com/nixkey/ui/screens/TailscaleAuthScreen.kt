@@ -130,7 +130,7 @@ fun TailscaleAuthContent(
                         value = state.authKey,
                         onValueChange = onAuthKeyChanged,
                         label = { Text("Auth Key") },
-                        placeholder = { Text("tskey-auth-...") },
+                        placeholder = { Text("tskey-auth-... or hskey-auth-...") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         isError = state.error != null,
