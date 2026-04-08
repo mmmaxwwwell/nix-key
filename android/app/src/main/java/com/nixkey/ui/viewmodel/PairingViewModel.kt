@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.nixkey.data.HostRepository
 import com.nixkey.data.PairedHost
 import com.nixkey.data.SettingsRepository
+import com.nixkey.keystore.KeyManager
 import com.nixkey.logging.SecurityLog
 import com.nixkey.pairing.PairingClient
 import com.nixkey.pairing.QrPayload
@@ -46,7 +47,8 @@ class PairingViewModel @Inject constructor(
     private val hostRepository: HostRepository,
     private val settingsRepository: SettingsRepository,
     private val tailscaleManager: TailscaleManager,
-    private val pairingClient: PairingClient
+    private val pairingClient: PairingClient,
+    private val keyManager: KeyManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PairingState())
@@ -125,6 +127,8 @@ class PairingViewModel @Inject constructor(
 
                 // Determine phone server cert alias: reuse if one exists, else use default
                 val serverCertAlias = getOrCreateServerCertAlias()
+                // Export the actual PEM certificate from Android KeyStore for the host
+                val serverCertPem = keyManager.getServerCertPem(serverCertAlias)
 
                 _state.update { it.copy(pairingStatusText = "Waiting for host approval...") }
 
@@ -137,7 +141,7 @@ class PairingViewModel @Inject constructor(
                     phoneName = phoneName,
                     tailscaleIp = tsIp,
                     listenPort = listenPort,
-                    phoneServerCert = serverCertAlias
+                    phoneServerCert = serverCertPem
                 )
 
                 // Compute host ID from the host client cert fingerprint

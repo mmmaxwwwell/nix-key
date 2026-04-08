@@ -104,6 +104,18 @@ class KeyManager @Inject constructor(
 
     fun getKey(alias: String): SshKeyInfo? = loadKeyInfo(alias)
 
+    /**
+     * Export the certificate for the given alias as a PEM-encoded string.
+     * Used during pairing to send the phone's server certificate to the host.
+     */
+    fun getServerCertPem(alias: String): String {
+        val cert = keyStore.getCertificate(alias)
+            ?: throw IllegalStateException("No certificate for alias: $alias")
+        val derBytes = cert.encoded
+        val base64 = Base64.getEncoder().encodeToString(derBytes)
+        return "-----BEGIN CERTIFICATE-----\n$base64\n-----END CERTIFICATE-----\n"
+    }
+
     fun deleteKey(alias: String) {
         val info = loadKeyInfo(alias)
             ?: throw IllegalArgumentException("Key not found: $alias")

@@ -227,6 +227,13 @@ class BiometricHelper @Inject constructor(
             builder.setNegativeButtonText(negativeButtonText)
         }
 
+        val canAuth = biometricManager.canAuthenticate(authenticators)
+        if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+            Timber.e("Cannot authenticate: authenticators=%d, result=%d", authenticators, canAuth)
+            callback(AuthResult.Failure(canAuth, "Device does not support requested authentication"))
+            return
+        }
+
         prompt.authenticate(builder.build())
     }
 }

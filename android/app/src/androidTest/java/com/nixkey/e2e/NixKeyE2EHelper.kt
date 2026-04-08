@@ -157,10 +157,11 @@ class NixKeyE2EHelper(
         host: String = "e2e-test-host",
         key: String = "e2e-test-key",
         fingerprint: String = "SHA256:e2e-test",
-        needsUnlock: Boolean = false
+        needsUnlock: Boolean = false,
+        policy: String = "AUTO_APPROVE"
     ): Boolean = retry("injectSignRequest") {
         val uri = Uri.parse(
-            "nix-key://test-sign?host=$host&key=$key&fingerprint=$fingerprint&unlock=$needsUnlock"
+            "nix-key://test-sign?host=$host&key=$key&fingerprint=$fingerprint&unlock=$needsUnlock&policy=$policy"
         )
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             setPackage(packageName)

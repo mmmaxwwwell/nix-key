@@ -206,12 +206,22 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         if (!BuildConfig.DEBUG) return
         val uri = intent?.data ?: return
         if (uri.scheme != "nix-key" || uri.host != "test-sign") return
+        val policyParam = uri.getQueryParameter("policy")?.uppercase()
+        val confirmationPolicy = if (policyParam != null) {
+            try {
+                ConfirmationPolicy.valueOf(policyParam)
+            } catch (_: IllegalArgumentException) {
+                ConfirmationPolicy.ALWAYS_ASK
+            }
+        } else {
+            ConfirmationPolicy.ALWAYS_ASK
+        }
         val request = SignRequest(
             keyFingerprint = uri.getQueryParameter("fingerprint") ?: "SHA256:e2e-test",
             hostName = uri.getQueryParameter("host") ?: "e2e-test-host",
             keyName = uri.getQueryParameter("key") ?: "e2e-test-key",
             dataToSign = "e2e-test-data-${System.currentTimeMillis()}".toByteArray(),
-            confirmationPolicy = ConfirmationPolicy.ALWAYS_ASK,
+            confirmationPolicy = confirmationPolicy,
             needsUnlock = uri.getQueryParameter("unlock")?.toBoolean() ?: false
         )
         Timber.d("Test sign request injected: host=%s key=%s", request.hostName, request.keyName)

@@ -31,6 +31,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,6 +62,11 @@ fun ServerListScreen(
     val hosts by viewModel.hosts.collectAsState()
     val tailnetState by LocalTailnetConnectionState.current.collectAsState()
     val connectionError by viewModel.connectionError.collectAsState()
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.refresh()
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         topBar = {
