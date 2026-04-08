@@ -1,6 +1,7 @@
 # Spec-kit / agent artifacts
 test-logs/
 logs/
+test/e2e/.state/
 validate/
 BLOCKED.md
 DEFER-*.md

@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    nix-mcp-debugkit.url = "github:mmmaxwwwell/nix-mcp-debugkit";
   };
 
   outputs =
@@ -11,6 +12,7 @@
       self,
       nixpkgs,
       flake-utils,
+      nix-mcp-debugkit,
     }:
     {
       # System-independent outputs
@@ -52,6 +54,7 @@
         packages.android-sdk = androidApk.androidSdk;
         packages.start-emulator = androidEmulator.start-emulator;
         packages.emulator-sdk = androidEmulator.emulatorSdk;
+        packages.mcp-android = nix-mcp-debugkit.packages.${system}.mcp-android;
 
         devShells.default = pkgs.mkShell {
           packages =
