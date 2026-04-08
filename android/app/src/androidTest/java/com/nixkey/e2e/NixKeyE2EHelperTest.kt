@@ -1,8 +1,8 @@
 package com.nixkey.e2e
 
 import android.util.Base64
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.runner.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import org.json.JSONObject

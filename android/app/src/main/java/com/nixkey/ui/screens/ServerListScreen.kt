@@ -1,5 +1,6 @@
 package com.nixkey.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,13 +15,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.ui.res.painterResource
-import com.nixkey.R
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,11 +34,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nixkey.R
 import com.nixkey.data.ConnectionStatus
 import com.nixkey.data.PairedHost
 import com.nixkey.ui.components.LocalTailnetConnectionState
@@ -56,6 +60,7 @@ fun ServerListScreen(
 ) {
     val hosts by viewModel.hosts.collectAsState()
     val tailnetState by LocalTailnetConnectionState.current.collectAsState()
+    val connectionError by viewModel.connectionError.collectAsState()
 
     Scaffold(
         topBar = {
@@ -83,6 +88,32 @@ fun ServerListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            if (connectionError != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = connectionError!!,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.semantics {
+                                contentDescription = connectionError!!
+                                liveRegion = LiveRegionMode.Polite
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = { viewModel.retryConnection() }) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            }
             if (hosts.isEmpty()) {
                 EmptyHostsState(modifier = Modifier.weight(1f))
             } else {
@@ -148,6 +179,7 @@ private fun HostCard(host: PairedHost, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .testTag("host_card")
             .clickable(onClick = onClick)
     ) {
         Row(

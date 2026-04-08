@@ -10,9 +10,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nixkey.ui.screens.KeyDetailScreen
 import com.nixkey.ui.screens.KeyListScreen
+import com.nixkey.ui.screens.LicensesScreen
 import com.nixkey.ui.screens.PairingScreen
 import com.nixkey.ui.screens.ServerListScreen
-import com.nixkey.ui.screens.LicensesScreen
 import com.nixkey.ui.screens.SettingsScreen
 import com.nixkey.ui.screens.TailscaleAuthScreen
 

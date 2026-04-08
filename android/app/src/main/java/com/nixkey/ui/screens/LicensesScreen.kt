@@ -89,5 +89,5 @@ private val licenses = listOf(
     LicenseInfo("Protocol Buffers", "BSD 3-Clause License"),
     LicenseInfo("Bouncy Castle", "MIT License"),
     LicenseInfo("Timber", "Apache License 2.0"),
-    LicenseInfo("OkHttp", "Apache License 2.0"),
+    LicenseInfo("OkHttp", "Apache License 2.0")
 )
