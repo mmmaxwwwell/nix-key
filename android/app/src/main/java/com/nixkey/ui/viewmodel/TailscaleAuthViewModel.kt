@@ -87,6 +87,10 @@ class TailscaleAuthViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Tailscale auth failed")
+                // Ensure TailscaleManager transitions to DISCONNECTED on error
+                if (tailscaleManager.isRunning()) {
+                    tailscaleManager.stop()
+                }
                 _state.update {
                     it.copy(
                         phase = TailscaleAuthPhase.ERROR,
@@ -135,6 +139,10 @@ class TailscaleAuthViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Tailscale OAuth failed")
+                // Ensure TailscaleManager transitions to DISCONNECTED on error
+                if (tailscaleManager.isRunning()) {
+                    tailscaleManager.stop()
+                }
                 _state.update {
                     it.copy(
                         phase = TailscaleAuthPhase.ERROR,

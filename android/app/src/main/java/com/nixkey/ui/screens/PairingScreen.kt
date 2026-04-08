@@ -352,7 +352,7 @@ private fun ErrorContent(error: String, onDone: () -> Unit) {
                 text = "Pairing Failed",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.semantics(mergeDescendants = true) {
+                modifier = Modifier.semantics {
                     heading()
                     contentDescription = "Pairing Failed"
                     liveRegion = LiveRegionMode.Polite
@@ -362,7 +362,7 @@ private fun ErrorContent(error: String, onDone: () -> Unit) {
             Text(
                 text = error,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.semantics(mergeDescendants = true) {
+                modifier = Modifier.semantics {
                     contentDescription = error
                     liveRegion = LiveRegionMode.Polite
                 }

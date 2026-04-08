@@ -58,7 +58,7 @@ fun LicensesScreen(onBack: () -> Unit) {
 @Composable
 private fun LicenseEntry(license: LicenseInfo) {
     Column(
-        modifier = Modifier.semantics(mergeDescendants = true) {
+        modifier = Modifier.semantics {
             contentDescription = "${license.name}, ${license.license}"
         }
     ) {

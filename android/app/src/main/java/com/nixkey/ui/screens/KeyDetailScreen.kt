@@ -83,6 +83,13 @@ fun KeyDetailScreen(onBack: () -> Unit, viewModel: KeyDetailViewModel = hiltView
         )
     }
 
+    if (state.showDeleteConfirmation) {
+        DeleteKeyConfirmationDialog(
+            onConfirm = viewModel::confirmDeleteKey,
+            onDismiss = viewModel::dismissDeleteConfirmation
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -341,6 +348,30 @@ private fun AutoApproveWarningDialog(onConfirm: () -> Unit, onDismiss: () -> Uni
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text("Enable Auto-Approve")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun DeleteKeyConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete Key?") },
+        text = {
+            Text(
+                "This will permanently delete the key from the hardware keystore. " +
+                    "This action cannot be undone."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete", color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {

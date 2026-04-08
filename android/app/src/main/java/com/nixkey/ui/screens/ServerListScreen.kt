@@ -63,7 +63,7 @@ fun ServerListScreen(
                 title = {
                     Text(
                         "nix-key",
-                        modifier = Modifier.semantics(mergeDescendants = true) {
+                        modifier = Modifier.semantics {
                             heading()
                             contentDescription = "nix-key"
                         }
@@ -125,7 +125,7 @@ private fun EmptyHostsState(modifier: Modifier = Modifier) {
             Text(
                 text = "No paired hosts yet",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics(mergeDescendants = true) {
+                modifier = Modifier.semantics {
                     heading()
                     contentDescription = "No paired hosts yet"
                 }
@@ -135,7 +135,7 @@ private fun EmptyHostsState(modifier: Modifier = Modifier) {
                 text = "Scan a QR code to pair.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics(mergeDescendants = true) {
+                modifier = Modifier.semantics {
                     contentDescription = "Scan a QR code to pair."
                 }
             )

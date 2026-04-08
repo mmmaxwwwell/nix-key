@@ -32,7 +32,8 @@ data class KeyDetailState(
     val showNoneUnlockWarning: Boolean = false,
     val keyCreated: Boolean = false,
     val keyDeleted: Boolean = false,
-    val isUnlocked: Boolean = false
+    val isUnlocked: Boolean = false,
+    val showDeleteConfirmation: Boolean = false
 )
 
 @HiltViewModel
@@ -218,6 +219,11 @@ class KeyDetailViewModel @Inject constructor(
     }
 
     fun deleteKey() {
+        _state.update { it.copy(showDeleteConfirmation = true) }
+    }
+
+    fun confirmDeleteKey() {
+        _state.update { it.copy(showDeleteConfirmation = false) }
         val alias = _state.value.keyInfo?.alias ?: return
         val fp = _state.value.keyInfo?.fingerprint
         try {
@@ -227,6 +233,10 @@ class KeyDetailViewModel @Inject constructor(
         } catch (e: Exception) {
             _state.update { it.copy(error = "Failed to delete: ${e.message}") }
         }
+    }
+
+    fun dismissDeleteConfirmation() {
+        _state.update { it.copy(showDeleteConfirmation = false) }
     }
 
     fun clearError() {

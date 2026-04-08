@@ -120,7 +120,7 @@ class GrpcServerService : Service() {
                 updateNotification("Port ${settingsRepository.listenPort} already in use")
             } else {
                 Timber.e(e, "GrpcServerService: failed to start server")
-                updateNotification("Server error: ${e.message}")
+                updateNotification("Server error — check logs for details")
             }
         }
     }

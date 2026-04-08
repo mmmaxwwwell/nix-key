@@ -82,7 +82,11 @@ fun TailscaleAuthContent(
     val tailnetState by LocalTailnetConnectionState.current.collectAsState()
 
     BackHandler {
-        (context as? Activity)?.finishAffinity()
+        if (state.phase == TailscaleAuthPhase.INPUT) {
+            (context as? Activity)?.finishAffinity()
+        } else {
+            onRetry()
+        }
     }
 
     Scaffold { padding ->
@@ -204,7 +208,7 @@ fun TailscaleAuthContent(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.semantics(mergeDescendants = true) {
+                        modifier = Modifier.semantics {
                             contentDescription = errorText
                             liveRegion = LiveRegionMode.Polite
                         }

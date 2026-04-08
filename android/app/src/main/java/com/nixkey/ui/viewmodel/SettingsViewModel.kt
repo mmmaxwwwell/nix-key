@@ -110,10 +110,23 @@ class SettingsViewModel @Inject constructor(
 
     companion object {
         fun isValidHostPort(value: String): Boolean {
-            val parts = value.split(":")
-            if (parts.size != 2) return false
-            val host = parts[0]
-            val port = parts[1].toIntOrNull()
+            // Handle IPv6 bracket notation: [host]:port
+            val host: String
+            val portStr: String
+            if (value.startsWith("[")) {
+                val closeBracket = value.indexOf("]")
+                if (closeBracket < 0) return false
+                host = value.substring(1, closeBracket)
+                val remainder = value.substring(closeBracket + 1)
+                if (!remainder.startsWith(":")) return false
+                portStr = remainder.substring(1)
+            } else {
+                val parts = value.split(":")
+                if (parts.size != 2) return false
+                host = parts[0]
+                portStr = parts[1]
+            }
+            val port = portStr.toIntOrNull()
             return host.isNotEmpty() && port != null && port in 1..65535
         }
     }
