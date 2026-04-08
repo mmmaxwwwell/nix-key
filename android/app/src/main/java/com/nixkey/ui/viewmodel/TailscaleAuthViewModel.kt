@@ -78,6 +78,12 @@ class TailscaleAuthViewModel @Inject constructor(
                         }
                     }
                 }
+                // Stop existing session before starting with new auth key.
+                // GrpcServerService auto-starts the manager without an auth key,
+                // so it may already be running when the user taps Connect.
+                if (tailscaleManager.isRunning()) {
+                    tailscaleManager.stop()
+                }
                 val oauthUrl = tailscaleManager.start(trimmedKey)
                 timeoutJob.cancel()
                 if (oauthUrl != null) {
@@ -129,6 +135,9 @@ class TailscaleAuthViewModel @Inject constructor(
                             )
                         }
                     }
+                }
+                if (tailscaleManager.isRunning()) {
+                    tailscaleManager.stop()
                 }
                 val oauthUrl = tailscaleManager.start(null)
                 timeoutJob.cancel()
