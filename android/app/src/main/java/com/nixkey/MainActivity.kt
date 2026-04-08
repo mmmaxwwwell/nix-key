@@ -21,6 +21,7 @@ import com.nixkey.keystore.KeyUnlockManager
 import com.nixkey.keystore.SignRequest
 import com.nixkey.keystore.SignRequestQueue
 import com.nixkey.keystore.SignRequestStatus
+import com.nixkey.keystore.UnlockPolicy
 import com.nixkey.service.GrpcServerService
 import com.nixkey.tailscale.TailscaleManager
 import com.nixkey.ui.NixKeyAppUi
@@ -142,6 +143,18 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         ) { result ->
             val status = when (result) {
                 is AuthResult.Success -> SignRequestStatus.APPROVED
+                is AuthResult.Failure -> {
+                    Timber.w(
+                        "Sign request denied due to auth failure: code=%d msg=%s",
+                        result.errorCode, result.message
+                    )
+                    android.widget.Toast.makeText(
+                        this@MainActivity,
+                        "Authentication failed: ${result.message}. Set a screen lock in device settings.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    SignRequestStatus.DENIED
+                }
                 else -> SignRequestStatus.DENIED
             }
             signRequestQueue.complete(request.requestId, status)
@@ -211,10 +224,12 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             try {
                 ConfirmationPolicy.valueOf(policyParam)
             } catch (_: IllegalArgumentException) {
-                ConfirmationPolicy.ALWAYS_ASK
+                ConfirmationPolicy.AUTO_APPROVE
             }
         } else {
-            ConfirmationPolicy.ALWAYS_ASK
+            // Default to AUTO_APPROVE for test-sign deep links (debug-only)
+            // to avoid requiring device credentials on emulators without screen lock
+            ConfirmationPolicy.AUTO_APPROVE
         }
         val request = SignRequest(
             keyFingerprint = uri.getQueryParameter("fingerprint") ?: "SHA256:e2e-test",

@@ -105,6 +105,35 @@ class KeyManager @Inject constructor(
     fun getKey(alias: String): SshKeyInfo? = loadKeyInfo(alias)
 
     /**
+     * Ensure a self-signed ECDSA-P256 certificate exists in the Android Keystore
+     * at the given alias. If no certificate exists, generates a new key pair
+     * (which creates an associated self-signed X.509 certificate automatically).
+     */
+    fun ensureServerCertExists(alias: String) {
+        if (keyStore.containsAlias(alias)) {
+            Timber.d("Server cert already exists at alias=%s", alias)
+            return
+        }
+        Timber.i("Generating self-signed server certificate at alias=%s", alias)
+        val builder = KeyGenParameterSpec.Builder(
+            alias,
+            KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
+        )
+            .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+            .setDigests(KeyProperties.DIGEST_SHA256)
+            .setKeySize(256)
+            .setCertificateSubject(javax.security.auth.x500.X500Principal("CN=nix-key phone server"))
+            .setCertificateNotBefore(java.util.Date())
+            .setCertificateNotAfter(
+                java.util.Date(System.currentTimeMillis() + 10L * 365 * 24 * 60 * 60 * 1000)
+            )
+        val kpg = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, ANDROID_KEYSTORE)
+        kpg.initialize(builder.build())
+        kpg.generateKeyPair()
+        Timber.i("Server certificate generated at alias=%s", alias)
+    }
+
+    /**
      * Export the certificate for the given alias as a PEM-encoded string.
      * Used during pairing to send the phone's server certificate to the host.
      */

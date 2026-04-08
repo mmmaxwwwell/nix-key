@@ -127,6 +127,8 @@ class PairingViewModel @Inject constructor(
 
                 // Determine phone server cert alias: reuse if one exists, else use default
                 val serverCertAlias = getOrCreateServerCertAlias()
+                // Ensure the certificate actually exists in the Android Keystore
+                keyManager.ensureServerCertExists(serverCertAlias)
                 // Export the actual PEM certificate from Android KeyStore for the host
                 val serverCertPem = keyManager.getServerCertPem(serverCertAlias)
 
