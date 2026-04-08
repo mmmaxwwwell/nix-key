@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -156,7 +157,7 @@ func (s *PairingServer) handlePair(w http.ResponseWriter, r *http.Request) {
 
 	// Validate and consume one-time token (FR-027, FR-E10)
 	s.mu.Lock()
-	if s.tokenUsed || req.Token != s.config.Token {
+	if s.tokenUsed || subtle.ConstantTimeCompare([]byte(req.Token), []byte(s.config.Token)) != 1 {
 		tokenWasUsed := s.tokenUsed
 		s.mu.Unlock()
 		if tokenWasUsed {

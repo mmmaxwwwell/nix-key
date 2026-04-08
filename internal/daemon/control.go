@@ -95,6 +95,7 @@ type ControlServer struct {
 	listener    net.Listener
 	wg          sync.WaitGroup
 	done        chan struct{}
+	stopOnce    sync.Once
 }
 
 // NewControlServer creates a new control socket server.
@@ -135,10 +136,12 @@ func (s *ControlServer) Start() error {
 
 // Stop shuts down the control socket server.
 func (s *ControlServer) Stop() {
-	close(s.done)
-	if s.listener != nil {
-		s.listener.Close()
-	}
+	s.stopOnce.Do(func() {
+		close(s.done)
+		if s.listener != nil {
+			s.listener.Close()
+		}
+	})
 	s.wg.Wait()
 }
 
