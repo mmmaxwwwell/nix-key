@@ -137,7 +137,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
 
 **Purpose**: Verify all builds pass, tests are green, lint is clean, no regressions from fix agent changes.
 
-- [ ] T014 [P] Go build and test validation
+- [x] T014 [P] Go build and test validation
   Done when: `make test` passes (unit + integration), `make build` produces nix-key binary.
   Fix any failures introduced by fix-agent source changes. Fix-validate loop, 20-iteration cap.
 
