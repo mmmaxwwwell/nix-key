@@ -149,7 +149,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
   Done when: `make lint` passes (golangci-lint + nixfmt). Fix any new warnings.
   Fix-validate loop, 20-iteration cap.
 
-- [ ] T017 [P] Security scan validation
+- [x] T017 [P] Security scan validation
   Done when: `make security-scan` completes with no new findings introduced by fix-agent changes.
   Fix-validate loop, 20-iteration cap.
 
