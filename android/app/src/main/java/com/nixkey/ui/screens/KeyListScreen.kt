@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.nixkey.keystore.SshKeyInfo
 import com.nixkey.ui.components.LocalTailnetConnectionState
 import com.nixkey.ui.components.TailnetIndicator
@@ -55,6 +56,11 @@ fun KeyListScreen(
     val keys by viewModel.keys.collectAsState()
     val unlockedFingerprints by viewModel.unlockedFingerprints.collectAsState()
     val tailnetState by LocalTailnetConnectionState.current.collectAsState()
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.refresh()
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         topBar = {
