@@ -157,7 +157,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
   Done when: `test/e2e/android_e2e_test.sh --skip-build` passes. The existing CI regression
   test still works after any source changes from the fix agent. Fix-validate loop, 10-iteration cap.
 
-- [ ] T019 CI verification [needs: gh, ci-loop]
+- [x] T019 CI verification [needs: gh, ci-loop]
   Done when: push to remote, CI passes on all jobs (lint, test-host, test-android, security).
   Fix CI failures in a loop. Requires all T014-T018 complete first.
 
