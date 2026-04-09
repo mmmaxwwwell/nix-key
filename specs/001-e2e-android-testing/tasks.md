@@ -153,7 +153,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
   Done when: `make security-scan` completes with no new findings introduced by fix-agent changes.
   Fix-validate loop, 20-iteration cap.
 
-- [ ] T018 Existing E2E gate validation
+- [x] T018 Existing E2E gate validation
   Done when: `test/e2e/android_e2e_test.sh --skip-build` passes. The existing CI regression
   test still works after any source changes from the fix agent. Fix-validate loop, 10-iteration cap.
 

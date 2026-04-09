@@ -174,6 +174,19 @@ setup_work_dirs() {
 start_headscale() {
   log_step "1. Start headscale"
 
+  # Check if default port is already in use (stale process from previous run)
+  if ss -tln 2>/dev/null | grep -q ":${HEADSCALE_PORT} "; then
+    log_warn "Port ${HEADSCALE_PORT} already in use, finding free port..."
+    local try_port
+    for try_port in $(seq 18081 18099); do
+      if ! ss -tln 2>/dev/null | grep -q ":${try_port} "; then
+        HEADSCALE_PORT="$try_port"
+        log "Using port ${HEADSCALE_PORT}"
+        break
+      fi
+    done
+  fi
+
   # Write headscale config
   cat > "$HEADSCALE_DIR/config.yaml" <<EOF
 server_url: http://127.0.0.1:${HEADSCALE_PORT}
@@ -200,6 +213,8 @@ dns:
   nameservers:
     global:
       - 1.1.1.1
+unix_socket: ${HEADSCALE_DIR}/headscale.sock
+unix_socket_permission: "0770"
 log:
   level: warn
 EOF
@@ -209,9 +224,14 @@ EOF
     &>"$WORK_DIR/headscale.log" &
   HEADSCALE_PID=$!
 
-  # Wait for headscale to be ready
+  # Wait for headscale to be ready — verify OUR process is alive and health endpoint responds
   local elapsed=0
   while [ $elapsed -lt 30 ]; do
+    if ! kill -0 "$HEADSCALE_PID" 2>/dev/null; then
+      log_fail "Headscale process died during startup"
+      cat "$WORK_DIR/headscale.log" >&2
+      return 1
+    fi
     if curl -sf "http://127.0.0.1:${HEADSCALE_PORT}/health" >/dev/null 2>&1; then
       break
     fi
@@ -472,6 +492,10 @@ boot_emulator_and_install() {
       log "  Still waiting for services... (${pm_elapsed}s, packages: ${pm_count:-0})"
     fi
   done
+
+  # Uninstall existing APK if present (avoids INSTALL_FAILED_UPDATE_INCOMPATIBLE
+  # when signing keys differ between builds)
+  adb -s "$EMULATOR_SERIAL" shell pm uninstall "$APK_PACKAGE" 2>/dev/null || true
 
   # Install APK (push first to avoid streaming timeout on slow emulators)
   log "Pushing APK to emulator..."

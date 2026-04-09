@@ -96,6 +96,12 @@ In Jetpack Compose, `Modifier.semantics { ... }` adds properties to the semantic
 - **Notification internal error (BUG-027):** `GrpcServerService` passed raw `e.message` to notification text. Fix: replaced with generic "Server error — check logs for details" message. Internal details still logged via Timber.
 - **Delete key without confirmation (BUG-028):** `deleteKey()` immediately deleted from hardware keystore with no undo possible. Fix: added `showDeleteConfirmation` state + `DeleteKeyConfirmationDialog` (matching existing `AutoApproveWarningDialog` pattern). `deleteKey()` now shows dialog; `confirmDeleteKey()` performs actual deletion.
 
+## Phase 5 Validation (T018)
+
+- **Headscale 0.28 requires `unix_socket` config for CLI commands.** Without it, `headscale users create` and `preauthkeys create` fail with "Could not connect: context deadline exceeded" even though the HTTP health endpoint responds. Add `unix_socket: <path>/headscale.sock` and `unix_socket_permission: "0770"` to the config.
+- **Stale headscale sockets survive process death.** If a previous test run's headscale isn't cleanly shut down, the port remains bound (orphaned socket). The E2E script must detect port conflicts and fall back to alternate ports.
+- **APK install needs `pm uninstall` first.** When re-running E2E tests, signing keys may differ between builds, causing `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Always uninstall before install.
+
 ## Phase 5 Validation (T015)
 
 - **NixOS Android builds require AAPT2 override.** Running `./gradlew` directly fails with "AAPT2 Daemon startup failed" because Maven-cached AAPT2 binaries have wrong dynamic linker. Must pass `-Pandroid.aapt2FromMavenOverride="$ANDROID_HOME/build-tools/35.0.0/aapt2"` and set `ANDROID_HOME`/`JAVA_HOME` from the Nix store paths used in `build-android-apk`. The `make android-apk` wrapper handles this automatically.
