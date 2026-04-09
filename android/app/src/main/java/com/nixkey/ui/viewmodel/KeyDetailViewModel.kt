@@ -170,6 +170,11 @@ class KeyDetailViewModel @Inject constructor(
             _state.update { it.copy(error = "Name must be 1-64 characters (letters, numbers, hyphens, underscores)") }
             return
         }
+        val existingKeys = keyManager.listKeys()
+        if (existingKeys.any { it.displayName == s.displayName }) {
+            _state.update { it.copy(error = "A key with this name already exists") }
+            return
+        }
         try {
             val info = keyManager.createKey(
                 s.displayName,
@@ -201,6 +206,11 @@ class KeyDetailViewModel @Inject constructor(
         }
         if (!s.displayName.matches(KEY_NAME_REGEX)) {
             _state.update { it.copy(error = "Name must be 1-64 characters (letters, numbers, hyphens, underscores)") }
+            return
+        }
+        val existingKeys = keyManager.listKeys()
+        if (existingKeys.any { it.displayName == s.displayName && it.alias != alias }) {
+            _state.update { it.copy(error = "A key with this name already exists") }
             return
         }
         try {
