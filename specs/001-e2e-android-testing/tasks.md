@@ -42,7 +42,7 @@
 **Purpose**: Agent explores each screen and navigation flows on the live emulator.
 Each screen gets its own E2E task for tight research→fix→verify cycles.
 
-- [ ] T004 Validate TailscaleAuth screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
+- [x] T004 Validate TailscaleAuth screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
   Done when: agent has visited TailscaleAuth screen on the live emulator;
   Screenshot verification of layout elements (logo, title, subtitle, auth key field, Connect button,
   "or" divider, "Sign in with Tailscale" button, connection indicator);
@@ -50,7 +50,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
   connection indicator initial state (red/Disconnected), back navigation exits app;
   findings.json has pass/fail entries for TailscaleAuth.
 
-- [ ] T004b Validate ServerList screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
+- [x] T004b Validate ServerList screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
   Done when: agent has navigated to ServerList (via valid auth key on TailscaleAuth);
   Screenshot verification of empty-state layout (title, connection indicator, gear icon,
   illustration, "No paired hosts yet", "Scan QR Code" button);
@@ -58,30 +58,30 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
   "Scan QR Code" → Pairing navigation, back navigation exits app;
   findings.json has pass/fail entries for ServerList.
 
-- [ ] T005 Validate Pairing screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
+- [x] T005 Validate Pairing screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
   Done when: agent has visited Pairing screen via deep link and QR button;
   verified: pairing phases (scanning, connecting, success, error), Cancel/Done buttons,
   error messages for malformed payloads; back navigation to ServerList;
   findings.json has pass/fail for Pairing screen.
 
-- [ ] T006 Validate Settings screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
+- [x] T006 Validate Settings screen [needs: mcp-android, e2e-loop] [FR-004, SC-001]
   Done when: agent has visited Settings screen; verified: Security section (toggles, dropdowns
   with correct labels/defaults per UI_FLOW.md), Tailscale section (IP, tailnet, re-authenticate),
   Tracing section (toggle, OTEL endpoint validation), About section (version, build, licenses);
   back navigation; findings.json has pass/fail for Settings screen.
 
-- [ ] T007 Validate KeyManagement + KeyDetail screens [needs: mcp-android, e2e-loop] [FR-004, SC-001]
+- [x] T007 Validate KeyManagement + KeyDetail screens [needs: mcp-android, e2e-loop] [FR-004, SC-001]
   Done when: agent has paired a host (via deep link with PHONE_AUTH_KEY), created a key,
   visited KeyManagement list and KeyDetail screens; verified: key creation, name editing,
   policy dropdowns, delete with confirmation, unlock state, back navigation;
   findings.json has pass/fail for both screens.
 
-- [ ] T008 Validate SignRequestDialog [needs: mcp-android, e2e-loop] [FR-004, SC-001]
+- [x] T008 Validate SignRequestDialog [needs: mcp-android, e2e-loop] [FR-004, SC-001]
   Done when: agent has triggered a sign request from the host (via ssh-keygen -Y sign
   through SSH_AUTH_SOCK) and observed the overlay dialog via MCP; verified: approve/deny
   buttons, biometric simulation, dialog dismissal; findings.json has pass/fail.
 
-- [ ] T009 Validate all navigation flows from UI_FLOW.md flowchart [needs: mcp-android, e2e-loop] [FR-005, SC-002]
+- [x] T009 Validate all navigation flows from UI_FLOW.md flowchart [needs: mcp-android, e2e-loop] [FR-005, SC-002]
   Done when: agent has exercised every navigation edge: first-launch (TailscaleAuth → ServerList
   with back stack cleared), ServerList → Pairing → ServerList, ServerList → KeyManagement →
   KeyDetail → KeyManagement → ServerList, ServerList → Settings → ServerList; back navigation
@@ -95,13 +95,13 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
 
 **Purpose**: Verify the core product flow — SSH signing via phone through headscale mesh.
 
-- [ ] T010 Verify sign approval round-trip [needs: mcp-android, e2e-loop] [FR-012, FR-007, SC-003]
+- [x] T010 Verify sign approval round-trip [needs: mcp-android, e2e-loop] [FR-012, FR-007, SC-003]
   Done when: headscale mesh running with daemon and emulator app paired via deep link;
   `ssh-keygen -Y sign` triggered from host; agent observes sign dialog via MCP Screenshot +
   WaitForElement within 5 seconds; agent taps Approve; biometric simulated via fingerprint;
   SSH operation exits 0 with valid signature file.
 
-- [ ] T011 Verify sign denial round-trip [needs: mcp-android, e2e-loop] [FR-012, SC-003]
+- [x] T011 Verify sign denial round-trip [needs: mcp-android, e2e-loop] [FR-012, SC-003]
   Done when: sign request triggered from host; agent observes dialog via MCP;
   agent taps Deny; SSH operation fails with SSH_AGENT_FAILURE; dialog dismissed.
 
@@ -113,7 +113,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
 
 **Purpose**: Validate error handling and state persistence on the live emulator.
 
-- [ ] T012 Validate error paths from Field Validation Reference Table [needs: mcp-android, e2e-loop] [FR-008, SC-004]
+- [x] T012 Validate error paths from Field Validation Reference Table [needs: mcp-android, e2e-loop] [FR-008, SC-004]
   Done when: agent has entered every invalid input from the Field Validation table via MCP
   Type/SetText and verified exact error message text via DumpHierarchy:
   - TailscaleAuth: invalid key → "Invalid auth key format"
@@ -123,7 +123,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
   - Pairing: malformed deep link → "Invalid QR code" or "Not a nix-key pairing code"
   All error messages match spec text exactly in findings.json.
 
-- [ ] T013 Validate persistence across force-stop/restart [needs: mcp-android, e2e-loop] [FR-011, SC-005]
+- [x] T013 Validate persistence across force-stop/restart [needs: mcp-android, e2e-loop] [FR-011, SC-005]
   Done when: agent creates state (paired host + key), force-stops app via
   `adb shell am force-stop com.nixkey`, restarts app, verifies via DumpHierarchy:
   host still in ServerList, key still in KeyManagement, key shows locked state
@@ -145,7 +145,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
   Done when: `make android-apk` produces debug APK, APK installs and launches on emulator,
   `./gradlew testDebugUnitTest` passes in `android/`. Fix any failures. Fix-validate loop, 20-iteration cap.
 
-- [ ] T016 [P] Lint validation
+- [x] T016 [P] Lint validation
   Done when: `make lint` passes (golangci-lint + nixfmt). Fix any new warnings.
   Fix-validate loop, 20-iteration cap.
 
