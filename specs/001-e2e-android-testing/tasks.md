@@ -169,7 +169,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
 
 **Purpose**: Create PR with E2E findings and any fixes applied.
 
-- [ ] T020 Create PR to develop
+- [x] T020 Create PR to develop
   Done when: all changes committed, PR created with summary of E2E findings
   (screens validated, bugs found and fixed, sign round-trip verified),
   CI green, ready for review.
