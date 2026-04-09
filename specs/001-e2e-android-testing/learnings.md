@@ -4,31 +4,12 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 
 ---
 
-## Pre-implementation (from failed attempt 1)
 
 - **NEVER write orchestration code for MCP E2E tasks.** The first attempt produced ~6000 lines of shell scripts (scenario runners, prompt templates, report libraries) that duplicated what the runner already provides. Agents must use MCP tools directly against the live emulator.
 - **Validate with real infrastructure, not synthetic data.** The first attempt's "validation" tasks tested the framework with fake data instead of booting an emulator. Every validation must touch the real app.
 - **The parallel runner handles emulator boot, APK build+install, MCP server lifecycle.** Tasks just need `[needs: mcp-android, e2e-loop]` — the runner does the rest.
 
-## T002 — Test bypass mechanisms
-
-- **Deep link pairing works on debug APK only.** The intent filter is in `src/debug/AndroidManifest.xml` (not main). Camera permission dialog still appears on first deep link — dismiss it or grant camera before testing pairing flow.
-- **Fingerprint simulation + AUTO_APPROVE are two independent bypass paths.** `adb -e emu finger touch 1` works with `BiometricPrompt` (BIOMETRIC policy), while `AUTO_APPROVE` policy skips prompts entirely. For E2E, prefer AUTO_APPROVE + UnlockPolicy.NONE to avoid any biometric interaction.
-- **StrongBox fallback is automatic — no debug flag needed.** Emulators have no StrongBox; KeyManager.kt catches the exception and retries without it. No special configuration for E2E.
-
-## T003 — Headscale/tailscale/daemon infrastructure
-
-- **`tailscale up` may fail if chained immediately after `tailscaled &`.** The daemon needs ~3s to initialize its IPN state machine. The E2E script's `sleep 2` is borderline; `sleep 3` is safer.
-- **Headscale 0.28+ uses numeric user IDs for `--user` flag.** The `users list -o json` + python3 extraction pattern in `android_e2e_test.sh` is required; passing the username string no longer works for `preauthkeys create`.
-- **Agent socket responds immediately after creation.** `ssh-add -L` returns "no identities" (exit 1) which is correct with no paired devices — the protocol is functional.
-- **setup.sh and android_e2e_test.sh both work correctly.** `setup.sh` uses `go run` for the daemon (no pre-built binary needed) and writes connection info to `$STATE_DIR/env`. Both scripts add `unix_socket` to the headscale config, which setup.sh has but android_e2e_test.sh omits — not critical but worth noting.
-
-## T001 — Infrastructure verification
-
-- **Emulator boots in ~40s with KVM.** `start-emulator --no-wait` + polling `sys.boot_completed` is the pattern. AVD creation via `avdmanager` may fail in Nix (path issues); the script's manual fallback handles this.
-- **"System UI isn't responding" dialog appears on first boot** — dismiss it before UI assertions. It's the system launcher, not the app.
-- **MCP Screenshot/DumpHierarchy map to `adb exec-out screencap -p` and `uiautomator dump`** respectively. Both work on the emulator out of the box.
-
+## Pre-implementation (from failed attempt 1)
 ## E2E Bug Fix Pass (12 bugs)
 
 - **Auth key validation (BUG-001):** `TailscaleAuthViewModel.connectWithAuthKey()` only checked for empty string. Keys must start with `tskey-auth-` or `tskey-` prefix.
@@ -114,3 +95,8 @@ In Jetpack Compose, `Modifier.semantics { ... }` adds properties to the semantic
 - **Back navigation on error (BUG-026):** `BackHandler` in `TailscaleAuthContent` always called `finishAffinity()` regardless of phase. Fix: only exit app when `phase == INPUT`; otherwise call `onRetry()` to return to the input screen.
 - **Notification internal error (BUG-027):** `GrpcServerService` passed raw `e.message` to notification text. Fix: replaced with generic "Server error — check logs for details" message. Internal details still logged via Timber.
 - **Delete key without confirmation (BUG-028):** `deleteKey()` immediately deleted from hardware keystore with no undo possible. Fix: added `showDeleteConfirmation` state + `DeleteKeyConfirmationDialog` (matching existing `AutoApproveWarningDialog` pattern). `deleteKey()` now shows dialog; `confirmDeleteKey()` performs actual deletion.
+
+## Phase 5 Validation (T015)
+
+- **NixOS Android builds require AAPT2 override.** Running `./gradlew` directly fails with "AAPT2 Daemon startup failed" because Maven-cached AAPT2 binaries have wrong dynamic linker. Must pass `-Pandroid.aapt2FromMavenOverride="$ANDROID_HOME/build-tools/35.0.0/aapt2"` and set `ANDROID_HOME`/`JAVA_HOME` from the Nix store paths used in `build-android-apk`. The `make android-apk` wrapper handles this automatically.
+- **Two different androidsdk paths in Nix store.** The devshell may resolve a different `androidsdk` than the `build-android-apk` script. Always use the paths from `build-android-apk` (`cp53mxl02qhfag6jg0ar8s389vgqxzcm-androidsdk`) for consistency.

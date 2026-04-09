@@ -141,7 +141,7 @@ Each screen gets its own E2E task for tight research→fix→verify cycles.
   Done when: `make test` passes (unit + integration), `make build` produces nix-key binary.
   Fix any failures introduced by fix-agent source changes. Fix-validate loop, 20-iteration cap.
 
-- [ ] T015 [P] Android build and test validation
+- [x] T015 [P] Android build and test validation
   Done when: `make android-apk` produces debug APK, APK installs and launches on emulator,
   `./gradlew testDebugUnitTest` passes in `android/`. Fix any failures. Fix-validate loop, 20-iteration cap.
 
