@@ -2,7 +2,7 @@
 
 **Approach**: Clean-slate E2E after 002 fixes. MCP exploration with inline regression tests — every bug fix gets a test before the task is marked done. Sequential execution.
 
-**CRITICAL**: For every bug found and fixed during MCP exploration, the agent MUST write a UI Automator regression test in `android/app/src/androidTest/java/com/nixkey/e2e/regression/` BEFORE marking the task done. Use `NixKeyE2EHelper` methods. A fix without a test is not done.
+**CRITICAL**: For every app bug found and fixed during MCP exploration (Phases 2-4), the agent MUST write a UI Automator regression test in `android/app/src/androidTest/java/com/nixkey/e2e/regression/` BEFORE marking the task done. Use `NixKeyE2EHelper` methods. A fix without a test is not done. Phase 5-6 scripted tasks do NOT generate separate regression tests — the scripted tests themselves ARE the regression tests (they run in CI via `e2e.yml`).
 
 ---
 
@@ -11,8 +11,8 @@
 - [ ] T300 Verify emulator, APK, MCP tools, and headscale infrastructure. (1) Boot emulator via `start-emulator`, verify `sys.boot_completed` = 1. (2) Build debug APK via `make android-apk`, install via `adb install`. (3) Launch app, verify no crash. (4) Verify MCP Screenshot returns valid PNG, DumpHierarchy returns XML with UI elements. (5) Run `test/e2e/setup.sh` — verify headscale starts, host tailscale joins mesh, nix-key daemon exposes SSH_AUTH_SOCK. (6) Verify deep link pairing works: `adb shell am start -a android.intent.action.VIEW -d "nix-key://pair?payload=..."`. (7) Verify fingerprint simulation: `adb -e emu finger touch 1`. [FR-500, FR-501, FR-502, FR-503]
   **Done when**: Emulator running, APK installed, MCP tools functional, headscale mesh operational, deep link + fingerprint simulation both work.
 
-- [ ] T301 Set up second host and Jaeger collector for extended testing. (1) In headscale, create a second pre-auth key. (2) Start a second nix-key daemon instance (different config, different device name) or configure the existing daemon to simulate a second host for pairing. (3) Start Jaeger all-in-one (from `nix/jaeger.nix` or `nix develop`) with OTLP receiver on port 4317. (4) Export `OTEL_ENDPOINT`, `HOST2_NAME`, `HOST2_IP` to `test/e2e/.state/env`. (5) Update `test/e2e/teardown.sh` to clean up. [FR-504]
-  **Done when**: Second host joinable via headscale. Jaeger accepting traces on :4317. `.state/env` has all new vars. Teardown cleans up.
+- [ ] T301 Set up second host and Jaeger collector for extended testing. (1) In headscale, create a second pre-auth key for a second host node. (2) Start a second `nix-key daemon` with a separate config directory (`/tmp/nix-key-host2/config/`), separate socket paths (`socketPath: /tmp/nix-key-host2/agent.sock`, `controlSocketPath: /tmp/nix-key-host2/control.sock`), separate state dir (`/tmp/nix-key-host2/state/`), and the second pre-auth key. This daemon runs alongside the primary one — each has its own SSH_AUTH_SOCK and device registry. (3) Start Jaeger all-in-one (from `nix/jaeger.nix` or `nix develop`) with OTLP receiver on port 4317. (4) Export `OTEL_ENDPOINT=127.0.0.1:4317`, `HOST2_NAME=host2`, `HOST2_IP=<host2 tailscale IP>`, `HOST2_SOCKET=/tmp/nix-key-host2/agent.sock` to `test/e2e/.state/env`. (5) Update `test/e2e/teardown.sh` to kill the second daemon and Jaeger, and clean up `/tmp/nix-key-host2/`. [FR-504]
+  **Done when**: Second daemon running with its own sockets. `nix-key --config /tmp/nix-key-host2/config/config.json status` responds. Jaeger accepting traces on :4317 (verify: `curl -s http://localhost:16686/api/services` returns JSON). `.state/env` has `OTEL_ENDPOINT`, `HOST2_NAME`, `HOST2_IP`, `HOST2_SOCKET`. Teardown cleans up both daemons and Jaeger.
 
 ## Phase 2: Screen Exploration (MCP — one per screen)
 
@@ -33,7 +33,7 @@
   **Done when**: findings.json has pass/fail for KeyManagement. Loading state verified. Every fixed bug has a regression test.
 
 - [ ] T306 Validate KeyDetailScreen [needs: mcp-android, e2e-loop] [FR-510, FR-512, SC-300]
-  Explore KeyDetail in both create and view/edit modes. Verify: **loading state** (CircularProgressIndicator during detail fetch — new from 002), key name field, key type selector (Ed25519 default, ECDSA-P256), type info text per UI_FLOW.md, unlock policy picker (Password default), signing policy picker (Biometric default), Create button (create mode), fingerprint (view mode), export section (clipboard/share/QR — verify all 3 buttons exist), delete button, save button (appears on change). Test: create Ed25519 key, edit name, change policies, back navigation. Write regression test for each bug fixed.
+  Explore KeyDetail in both create and view/edit modes. Verify: **loading state** (CircularProgressIndicator during detail fetch — new from 002), key name field, key type selector (Ed25519 default, ECDSA-P256), type info text per UI_FLOW.md, unlock policy picker (Password default), signing policy picker (Biometric default), Create button (create mode), fingerprint (view mode), export section (clipboard/share/QR — verify all 3 buttons exist; functional testing of export actions is in T312), delete button, save button (appears on change). Test: create Ed25519 key, edit name, change policies, back navigation. Write regression test for each bug fixed.
   **Done when**: findings.json has pass/fail for KeyDetail create + view/edit modes. Loading state verified. Every fixed bug has a regression test.
 
 - [ ] T307 Validate SettingsScreen [needs: mcp-android, e2e-loop] [FR-510, SC-300]
@@ -75,8 +75,8 @@
   **Done when**: findings.json confirms both dialogs with exact text. Cancel and enable buttons work. Regression tests written.
 
 - [ ] T314 Validate connection state transitions [needs: mcp-android, e2e-loop] [FR-522, SC-300]
-  (a) Verify Tailnet indicator green/"Connected" on ServerList. (b) Kill headscale or tailscaled. (c) Wait for indicator → red/"Disconnected". (d) Restart. (e) Wait for indicator → green/"Connected". (f) Check per-host connection dots. Write regression test if transitions work; file bug if not.
-  **Done when**: findings.json confirms green→red→green transitions.
+  (a) Verify Tailnet indicator green/"Connected" on ServerList via MCP Screenshot/DumpHierarchy. (b) Kill the host's tailscaled process (`sudo kill $(pgrep tailscaled)` or `systemctl stop tailscaled`) — this tests the phone detecting that the host is unreachable, which is the production failure mode. Do NOT kill headscale (that tests control plane loss, a different scenario). (c) Wait up to 30s for Tailnet indicator to change to red/"Disconnected". (d) Restart tailscaled (`systemctl start tailscaled` + rejoin headscale). (e) Wait up to 60s for indicator to return to green/"Connected". (f) Verify per-host connection status dots updated (host dot should go red then green). Write regression test if transitions work; file bug if not.
+  **Done when**: findings.json confirms Tailnet indicator transitions green→red→green. Per-host connection dot also transitions.
 
 - [ ] T315 Validate long-press re-lock + lock/unlock button [needs: mcp-android, e2e-loop] [FR-523, FR-524, SC-300]
   (a) Unlock a key (trigger sign, approve). (b) On KeyManagement, long-press unlocked key → "Re-lock key" context menu → tap → key shows locked. (c) On KeyDetail, verify "Unlock Key" button → tap → auth prompt → complete → button changes to "Lock Key" → tap → key re-locked. Write regression tests.
@@ -98,14 +98,14 @@
 - [ ] T319 Add device revocation scenario. `nix-key revoke <device>`, verify `nix-key devices` no longer lists it, verify sign request fails. [FR-535, SC-305]
   **Done when**: Script runs `nix-key revoke`, device gone from output, sign fails with SSH_AGENT_FAILURE.
 
-- [ ] T320 Add concurrent sign scenario. Trigger 3 `ssh-keygen -Y sign` in background, approve each in order, verify all 3 succeed. [FR-533, SC-303]
-  **Done when**: 3 concurrent signs all exit 0. Script waits for all background PIDs.
+- [ ] T320 Add concurrent sign scenario. The shell script triggers 3 `ssh-keygen -Y sign` commands in background from the host. To approve each on the emulator, the script calls `adb shell am instrument -w -e class com.nixkey.e2e.NixKeyE2EHelper#approveSignRequest com.nixkey.test/androidx.test.runner.AndroidJUnitRunner` three times in sequence (or writes a small instrumented test class `ConcurrentSignHelper` that calls `NixKeyE2EHelper.approveSignRequest(30000)` three times). After all 3 approvals, wait for all background SSH PIDs and verify exit code 0 for each. [FR-533, SC-303]
+  **Done when**: 3 concurrent signs all exit 0. Script orchestrates host-side signs via background processes and emulator-side approvals via `adb shell am instrument`. All 3 SSH processes exit 0.
 
-- [ ] T321 Add sign timeout scenario. Set signTimeout=5s, trigger sign, don't interact, wait 10s, verify SSH fails. [FR-532, SC-303]
-  **Done when**: SSH fails after timeout. Sign dialog auto-dismissed.
+- [ ] T321 Add sign timeout scenario. (1) Set `signTimeout` to 5s in the daemon config (update config.json, restart daemon). (2) Trigger `ssh-keygen -Y sign` from the host. (3) Do NOT interact with the emulator — no `approveSignRequest`, no `denySignRequest`. (4) Wait 10s. (5) Verify the SSH operation failed (non-zero exit code). (6) Optionally verify via `adb shell am instrument` or MCP that the sign dialog is no longer visible on the emulator. (7) Restore original `signTimeout` and restart daemon. [FR-532, SC-303]
+  **Done when**: SSH fails after timeout with non-zero exit code. No emulator interaction occurred during the timeout window.
 
-- [ ] T322 Add CLI exercise scenario. With paired device: `nix-key status` → `"running"`, `nix-key devices` → contains `"STATUS"` and `"SOURCE"`, `nix-key export <fingerprint>` → starts with `ssh-ed25519` or `ecdsa-sha2-nistp256`, `nix-key test <device>` → contains `"success"`. [FR-540, FR-541, FR-542, FR-543, SC-306]
-  **Done when**: All 4 CLI commands produce expected output. Script asserts exact strings.
+- [ ] T322 Add CLI exercise scenario. Requires 002-deficiency-fixes T054-fix (STATUS column) to be complete. With paired device: `nix-key status` → output contains `"running"`, `nix-key devices` → output contains column headers `"STATUS"` and `"SOURCE"` (both must be present — STATUS is from T054-fix, SOURCE is from original implementation), `nix-key export <fingerprint>` → output starts with `ssh-ed25519` or `ecdsa-sha2-nistp256`, `nix-key test <device>` → output contains `"success"`. [FR-540, FR-541, FR-542, FR-543, SC-306]
+  **Done when**: All 4 CLI commands produce expected output. Script asserts: `"running"` in status output, `"STATUS"` in devices header, `"SOURCE"` in devices header, `"ssh-ed25519"` or `"ecdsa-sha2-nistp256"` in export output, `"success"` in test output.
 
 ## Phase 6: Resilience + OTEL (Scripted)
 
@@ -115,8 +115,8 @@
 - [ ] T324 Add app restart resilience test. Verify signing → `adb shell am force-stop` → relaunch → poll `nix-key test <device>` until reachable → verify signing works. [FR-561, SC-310]
   **Done when**: Sign succeeds after app restart. Script polls until device reachable.
 
-- [ ] T325 Add OTEL trace verification. Pair with OTEL endpoint, trigger sign, query Jaeger API, verify trace contains spans from `nix-key` and `nix-key-phone`, verify parent-child via traceparent. [FR-563, SC-309]
-  **Done when**: Jaeger API returns trace with both services. Phone spans are children of host spans.
+- [ ] T325 Add OTEL trace verification. (1) Pair emulator app with OTEL endpoint from `.state/env` included in the QR deep link payload. (2) Trigger and approve a sign request. (3) Wait 5s for trace export. (4) Query Jaeger v2 API: `curl -s "http://localhost:16686/api/traces?service=nix-key&limit=1"`. (5) Assert the response JSON contains at least one trace. (6) Assert the trace's `processes` map contains both `nix-key` and `nix-key-phone` service names. (7) Assert at least one phone span has a `CHILD_OF` reference whose `traceID` matches a host span (traceparent propagation). [FR-563, SC-309]
+  **Done when**: `curl http://localhost:16686/api/traces?service=nix-key&limit=1` returns JSON with a trace containing both `nix-key` and `nix-key-phone` services. Phone spans have `CHILD_OF` references to host spans.
 
 ## Phase 7: Final Validation
 

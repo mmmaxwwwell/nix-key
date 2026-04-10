@@ -23,7 +23,7 @@ Navigation flows, error paths, persistence across restart.
 Key export, security warnings, lock/unlock, multi-host, ECDSA-P256, connection state transitions.
 
 ### Phase 5: Cross-System Tests (Scripted)
-Sign approve/deny/timeout/concurrent, multi-key, revocation, CLI exercise. These are deterministic and go in `test/e2e/android_e2e_test.sh`.
+Sign approve/deny/timeout/concurrent, multi-key, revocation, CLI exercise. These are deterministic and go in `test/e2e/android_e2e_test.sh`. For scenarios requiring emulator interaction (approve/deny sign dialogs), the shell script invokes `NixKeyE2EHelper` methods via `adb shell am instrument` — no MCP needed. This keeps the tests fully deterministic and CI-runnable.
 
 ### Phase 6: Resilience + OTEL (Scripted)
 Daemon restart, app restart, network partition, OTEL trace verification.

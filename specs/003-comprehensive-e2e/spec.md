@@ -202,7 +202,7 @@ Re-validate all field validation error messages from UI_FLOW.md and state persis
 
 - **SC-300**: All 7 screens explored, findings.json has entries for every screen
 - **SC-301**: All navigation edges exercised
-- **SC-302**: Every bug fixed has a regression test — zero unprotected fixes
+- **SC-302**: Every app bug fixed during MCP exploration (Phases 2-4) has a UI Automator regression test — zero unprotected fixes. Phase 5-6 scripted tests are themselves the regression tests and don't need separate UI Automator tests.
 - **SC-303**: Sign approve, deny, timeout, concurrent all work
 - **SC-304**: Multi-key (Ed25519 + P256) signing works
 - **SC-305**: Device revocation prevents signing
