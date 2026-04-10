@@ -335,6 +335,69 @@ func TestMultipleValidationErrors(t *testing.T) {
 	}
 }
 
+func TestStructTagValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       map[string]interface{}
+		wantInErr string
+	}{
+		{
+			name: "port 0 fails min tag",
+			cfg: map[string]interface{}{
+				"port":               0,
+				"socketPath":         "/tmp/agent.sock",
+				"controlSocketPath":  "/tmp/control.sock",
+				"tailscaleInterface": "tailscale0",
+			},
+			wantInErr: "min",
+		},
+		{
+			name: "port 70000 fails max tag",
+			cfg: map[string]interface{}{
+				"port":               70000,
+				"socketPath":         "/tmp/agent.sock",
+				"controlSocketPath":  "/tmp/control.sock",
+				"tailscaleInterface": "tailscale0",
+			},
+			wantInErr: "max",
+		},
+		{
+			name: "empty tailscaleInterface fails required tag",
+			cfg: map[string]interface{}{
+				"socketPath":         "/tmp/agent.sock",
+				"controlSocketPath":  "/tmp/control.sock",
+				"tailscaleInterface": "",
+			},
+			wantInErr: "required",
+		},
+		{
+			name: "logLevel trace fails oneof tag",
+			cfg: map[string]interface{}{
+				"socketPath":         "/tmp/agent.sock",
+				"controlSocketPath":  "/tmp/control.sock",
+				"tailscaleInterface": "tailscale0",
+				"logLevel":           "trace",
+			},
+			wantInErr: "oneof",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeConfigFile(t, dir, tc.cfg)
+
+			_, err := Load(filepath.Join(dir, ".config", "nix-key", "config.json"))
+			if err == nil {
+				t.Fatal("expected validation error")
+			}
+			if !containsSubstring(err.Error(), tc.wantInErr) {
+				t.Errorf("error %q should contain %q", err.Error(), tc.wantInErr)
+			}
+		})
+	}
+}
+
 func containsSubstring(s, substr string) bool {
 	return len(s) >= len(substr) && searchSubstring(s, substr)
 }

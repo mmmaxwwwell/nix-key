@@ -13,27 +13,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	nixerrors "github.com/phaedrus-raznikov/nix-key/internal/errors"
 )
 
 // Config holds all nix-key daemon configuration.
 type Config struct {
-	Port                int     `json:"port"`
-	TailscaleInterface  string  `json:"tailscaleInterface"`
-	AllowKeyListing     bool    `json:"allowKeyListing"`
-	SignTimeout         int     `json:"signTimeout"`
-	ConnectionTimeout   int     `json:"connectionTimeout"`
-	SocketPath          string  `json:"socketPath"`
-	ControlSocketPath   string  `json:"controlSocketPath"`
-	LogLevel            string  `json:"logLevel"`
-	OtelEndpoint        *string `json:"otelEndpoint"`
-	JaegerEnable        bool    `json:"jaegerEnable"`
-	AgeKeyFile          string  `json:"ageKeyFile"`
+	Port                 int     `json:"port" validate:"required,min=1,max=65535"`
+	TailscaleInterface   string  `json:"tailscaleInterface" validate:"required"`
+	AllowKeyListing      bool    `json:"allowKeyListing"`
+	SignTimeout          int     `json:"signTimeout" validate:"required,min=1"`
+	ConnectionTimeout    int     `json:"connectionTimeout" validate:"required,min=1"`
+	SocketPath           string  `json:"socketPath" validate:"required"`
+	ControlSocketPath    string  `json:"controlSocketPath" validate:"required"`
+	LogLevel             string  `json:"logLevel" validate:"required,oneof=debug info warn error fatal"`
+	OtelEndpoint         *string `json:"otelEndpoint"`
+	JaegerEnable         bool    `json:"jaegerEnable"`
+	AgeKeyFile           string  `json:"ageKeyFile"`
 	TailscaleAuthKeyFile *string `json:"tailscaleAuthKeyFile"`
-	CertExpiry          string  `json:"certExpiry"`
+	CertExpiry           string  `json:"certExpiry" validate:"required"`
 }
 
 // defaults returns a Config populated with hardcoded default values.
@@ -182,6 +184,21 @@ var validLogLevels = map[string]bool{
 func validate(cfg *Config) []string {
 	var errs []string
 
+	// First pass: struct tag validation.
+	v := validator.New()
+	if err := v.Struct(cfg); err != nil {
+		for _, fe := range err.(validator.ValidationErrors) {
+			tag := fe.Tag()
+			// For numeric fields, a "required" failure (zero value) is
+			// semantically a "min" constraint violation.
+			if tag == "required" && isNumericKind(fe.Kind()) {
+				tag = "min"
+			}
+			errs = append(errs, fmt.Sprintf("%s: failed on tag %q", fe.Field(), tag))
+		}
+	}
+
+	// Second pass: custom validation rules.
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		errs = append(errs, fmt.Sprintf("port: must be 1-65535, got %d", cfg.Port))
 	}
@@ -224,6 +241,10 @@ func (c *Config) RedactedFields() map[string]string {
 	redacted["tailscaleAuthKeyFile"] = presentOrMissing(tailscaleAuthKey)
 
 	return redacted
+}
+
+func isNumericKind(k reflect.Kind) bool {
+	return k >= reflect.Int && k <= reflect.Float64
 }
 
 func presentOrMissing(val string) string {
