@@ -1,16 +1,20 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	nixkeyv1 "github.com/phaedrus-raznikov/nix-key/gen/nixkey/v1"
 	"github.com/phaedrus-raznikov/nix-key/internal/config"
 	"github.com/phaedrus-raznikov/nix-key/internal/daemon"
 	"github.com/phaedrus-raznikov/nix-key/internal/mtls"
+	"google.golang.org/grpc"
 )
 
 // startIntegrationDaemon creates a shared control server with test fixtures
@@ -88,12 +92,15 @@ func TestIntegrationDevicesListAndFormat(t *testing.T) {
 		t.Fatalf("expected 2 devices, got %d", len(devices))
 	}
 
+	// Build statuses: no cert paths → "unknown" for both devices.
+	statuses := probeDeviceStatuses(devices)
+
 	var buf strings.Builder
-	formatDevicesTable(&buf, devices)
+	formatDevicesTable(&buf, devices, statuses)
 	output := buf.String()
 
 	for _, want := range []string{
-		"NAME", "TAILSCALE IP", "CERT FINGERPRINT", "LAST SEEN", "SOURCE",
+		"NAME", "TAILSCALE IP", "CERT FINGERPRINT", "LAST SEEN", "STATUS", "SOURCE",
 		"Pixel 7", "100.64.0.1", "runtime-paired",
 		"Samsung S24", "100.64.0.2", "nix-declared",
 	} {
@@ -772,7 +779,7 @@ func TestIntegrationDevicesEmptyList(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	formatDevicesTable(&buf, devices)
+	formatDevicesTable(&buf, devices, nil)
 	output := buf.String()
 
 	if !strings.Contains(output, "No devices paired") {
@@ -900,5 +907,147 @@ func TestIntegrationNixDevicesAndRuntimeMerge(t *testing.T) {
 	}
 	if rtDev.TailscaleIP != "100.64.0.20" {
 		t.Errorf("runtime-phone TailscaleIP = %q, want %q", rtDev.TailscaleIP, "100.64.0.20")
+	}
+}
+
+// pingOnlyServer implements just the Ping RPC for testing.
+type pingOnlyServer struct {
+	nixkeyv1.UnimplementedNixKeyAgentServer
+}
+
+func (p *pingOnlyServer) Ping(_ context.Context, _ *nixkeyv1.PingRequest) (*nixkeyv1.PingResponse, error) {
+	return &nixkeyv1.PingResponse{TimestampMs: time.Now().UnixMilli()}, nil
+}
+
+// TestIntegrationDevicesStatusColumn verifies that the devices table includes
+// a STATUS column with "online", "offline", and "unknown" values.
+func TestIntegrationDevicesStatusColumn(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	dir := t.TempDir()
+
+	// Generate mTLS cert pair (phone=server, host=client).
+	phoneCertPEM, phoneKeyPEM, err := mtls.GenerateCert(mtls.CertOptions{
+		KeyType:    mtls.KeyTypeEd25519,
+		CommonName: "phone-server",
+	})
+	if err != nil {
+		t.Fatalf("generate phone cert: %v", err)
+	}
+	hostCertPEM, hostKeyPEM, err := mtls.GenerateCert(mtls.CertOptions{
+		KeyType:    mtls.KeyTypeEd25519,
+		CommonName: "host-client",
+	})
+	if err != nil {
+		t.Fatalf("generate host cert: %v", err)
+	}
+
+	phoneFP, _ := mtls.CertFingerprint(phoneCertPEM)
+	hostFP, _ := mtls.CertFingerprint(hostCertPEM)
+
+	// Write cert files.
+	phoneCertPath := filepath.Join(dir, "phone-cert.pem")
+	phoneKeyPath := filepath.Join(dir, "phone-key.pem")
+	hostCertPath := filepath.Join(dir, "host-cert.pem")
+	hostKeyPath := filepath.Join(dir, "host-key.pem")
+
+	for path, data := range map[string][]byte{
+		phoneCertPath: phoneCertPEM,
+		phoneKeyPath:  phoneKeyPEM,
+		hostCertPath:  hostCertPEM,
+		hostKeyPath:   hostKeyPEM,
+	} {
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Fatalf("write %s: %v", filepath.Base(path), err)
+		}
+	}
+
+	// Start a gRPC server with mTLS for the "online" device.
+	lis, err := mtls.ListenMTLS("127.0.0.1:0", phoneCertPath, phoneKeyPath, hostFP, "")
+	if err != nil {
+		t.Fatalf("ListenMTLS: %v", err)
+	}
+	defer lis.Close()
+
+	gs := grpc.NewServer()
+	nixkeyv1.RegisterNixKeyAgentServer(gs, &pingOnlyServer{})
+	go func() { _ = gs.Serve(lis) }()
+	defer gs.GracefulStop()
+
+	// Extract port from listener address.
+	_, portStr, _ := strings.Cut(lis.Addr().String(), ":")
+	listenPort, _ := strconv.Atoi(portStr)
+
+	// Build DeviceInfo list with three devices:
+	// 1. reachable (has cert paths, server running) → "online"
+	// 2. unreachable (has cert paths, no server) → "offline"
+	// 3. no cert paths → "unknown"
+	devices := []daemon.DeviceInfo{
+		{
+			ID:              "online-dev",
+			Name:            "Online Phone",
+			TailscaleIP:     "127.0.0.1",
+			ListenPort:      listenPort,
+			CertFingerprint: phoneFP,
+			ClientCertPath:  hostCertPath,
+			ClientKeyPath:   hostKeyPath,
+			Source:          "runtime-paired",
+		},
+		{
+			ID:              "offline-dev",
+			Name:            "Offline Phone",
+			TailscaleIP:     "127.0.0.1",
+			ListenPort:      19999, // no server listening here
+			CertFingerprint: phoneFP,
+			ClientCertPath:  hostCertPath,
+			ClientKeyPath:   hostKeyPath,
+			Source:          "runtime-paired",
+		},
+		{
+			ID:              "unknown-dev",
+			Name:            "Unknown Phone",
+			TailscaleIP:     "100.64.0.5",
+			ListenPort:      29418,
+			CertFingerprint: "SHA256:nocerts",
+			Source:          "nix-declared",
+		},
+	}
+
+	statuses := probeDeviceStatuses(devices)
+
+	var buf strings.Builder
+	formatDevicesTable(&buf, devices, statuses)
+	output := buf.String()
+
+	// Assert STATUS column header is present.
+	if !strings.Contains(output, "STATUS") {
+		t.Errorf("output should contain STATUS column header:\n%s", output)
+	}
+
+	// Assert SOURCE column still present alongside STATUS.
+	if !strings.Contains(output, "SOURCE") {
+		t.Errorf("output should contain SOURCE column header:\n%s", output)
+	}
+
+	// Find device rows and check status values.
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Online Phone") {
+			if !strings.Contains(line, "online") {
+				t.Errorf("Online Phone row should contain 'online':\n%s", line)
+			}
+		}
+		if strings.Contains(line, "Offline Phone") {
+			if !strings.Contains(line, "offline") {
+				t.Errorf("Offline Phone row should contain 'offline':\n%s", line)
+			}
+		}
+		if strings.Contains(line, "Unknown Phone") {
+			if !strings.Contains(line, "unknown") {
+				t.Errorf("Unknown Phone row should contain 'unknown':\n%s", line)
+			}
+		}
 	}
 }

@@ -19,3 +19,8 @@ Discoveries, gotchas, and decisions recorded by the implementation agent across 
 - NixOS module outputs `clientCertPath`/`clientKeyPath` as `null` when not set — must use `*string` in Go struct to distinguish null from empty string. The daemon.Device struct uses plain `string`, so dereference only when non-nil during conversion.
 - The Nix module uses `port` as the JSON key but daemon.Device uses `listenPort` — the conversion in daemon.go maps `dc.Port` → `dev.ListenPort`.
 
+## T054-fix: STATUS column in devices output
+
+- `DeviceInfo` (list-devices wire format) needed cert path fields added — `FullDeviceInfo` (get-device) already had them but list-devices used the lighter struct.
+- `formatDevicesTable` signature changed to accept a statuses map — callers in tests pass `nil` which defaults all devices to "unknown" (safe fallback).
+

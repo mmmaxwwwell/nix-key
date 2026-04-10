@@ -1,14 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"text/tabwriter"
+	"time"
 
+	nixkeyv1 "github.com/phaedrus-raznikov/nix-key/gen/nixkey/v1"
 	"github.com/phaedrus-raznikov/nix-key/internal/daemon"
+	"github.com/phaedrus-raznikov/nix-key/internal/mtls"
 )
 
 // defaultControlSocket returns the default control socket path based on
@@ -33,7 +38,8 @@ func runDevices(controlSocket string) error {
 		return err
 	}
 
-	formatDevicesTable(os.Stdout, devices)
+	statuses := probeDeviceStatuses(devices)
+	formatDevicesTable(os.Stdout, devices, statuses)
 	return nil
 }
 
@@ -56,6 +62,58 @@ func parseDeviceInfos(resp *daemon.Response) ([]daemon.DeviceInfo, error) {
 	return devices, nil
 }
 
+// probeDeviceStatuses performs concurrent mTLS Ping RPCs to each device
+// and returns a map of device ID -> status string ("online", "offline", "unknown").
+func probeDeviceStatuses(devices []daemon.DeviceInfo) map[string]string {
+	statuses := make(map[string]string, len(devices))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, d := range devices {
+		d := d
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			status := pingDevice(d)
+			mu.Lock()
+			statuses[d.ID] = status
+			mu.Unlock()
+		}()
+	}
+
+	wg.Wait()
+	return statuses
+}
+
+// pingDevice attempts an mTLS Ping RPC to a single device with a 2s timeout.
+// Returns "online", "offline", or "unknown".
+func pingDevice(d daemon.DeviceInfo) string {
+	if d.TailscaleIP == "" || d.ListenPort == 0 {
+		return "unknown"
+	}
+	if d.ClientCertPath == "" || d.ClientKeyPath == "" {
+		return "unknown"
+	}
+
+	addr := fmt.Sprintf("%s:%d", d.TailscaleIP, d.ListenPort)
+
+	conn, err := mtls.DialMTLS(addr, d.ClientCertPath, d.ClientKeyPath, d.CertFingerprint, "")
+	if err != nil {
+		return "offline"
+	}
+	defer func() { _ = conn.Close() }()
+
+	grpcClient := nixkeyv1.NewNixKeyAgentClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err = grpcClient.Ping(ctx, &nixkeyv1.PingRequest{})
+	if err != nil {
+		return "offline"
+	}
+	return "online"
+}
+
 // truncateFingerprint returns the first n characters of a cert fingerprint
 // for display. If the fingerprint includes a "SHA256:" prefix, that prefix
 // plus n hex characters are returned.
@@ -74,14 +132,14 @@ func truncateFingerprint(fp string, n int) string {
 	return fp[:n]
 }
 
-func formatDevicesTable(w io.Writer, devices []daemon.DeviceInfo) {
+func formatDevicesTable(w io.Writer, devices []daemon.DeviceInfo, statuses map[string]string) {
 	if len(devices) == 0 {
 		fmt.Fprintln(w, "No devices paired.")
 		return
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tTAILSCALE IP\tCERT FINGERPRINT\tLAST SEEN\tSOURCE")
+	fmt.Fprintln(tw, "NAME\tTAILSCALE IP\tCERT FINGERPRINT\tLAST SEEN\tSTATUS\tSOURCE")
 
 	for _, d := range devices {
 		ip := d.TailscaleIP
@@ -96,8 +154,13 @@ func formatDevicesTable(w io.Writer, devices []daemon.DeviceInfo) {
 			lastSeen = d.LastSeen.Format("2006-01-02 15:04:05")
 		}
 
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
-			d.Name, ip, fp, lastSeen, d.Source)
+		status := "unknown"
+		if s, ok := statuses[d.ID]; ok {
+			status = s
+		}
+
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			d.Name, ip, fp, lastSeen, status, d.Source)
 	}
 	_ = tw.Flush()
 }

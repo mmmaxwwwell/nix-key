@@ -46,6 +46,7 @@ func TestFormatDevicesTable(t *testing.T) {
 				"TAILSCALE IP",
 				"CERT FINGERPRINT",
 				"LAST SEEN",
+				"STATUS",
 				"SOURCE",
 			},
 		},
@@ -104,7 +105,7 @@ func TestFormatDevicesTable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf strings.Builder
-			formatDevicesTable(&buf, tt.devices)
+			formatDevicesTable(&buf, tt.devices, nil)
 			output := buf.String()
 
 			for _, s := range tt.want {

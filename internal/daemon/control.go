@@ -33,6 +33,9 @@ type DeviceInfo struct {
 	TailscaleIP     string     `json:"tailscaleIp"`
 	ListenPort      int        `json:"listenPort"`
 	CertFingerprint string     `json:"certFingerprint"`
+	CertPath        string     `json:"certPath,omitempty"`
+	ClientCertPath  string     `json:"clientCertPath,omitempty"`
+	ClientKeyPath   string     `json:"clientKeyPath,omitempty"`
 	LastSeen        *time.Time `json:"lastSeen,omitempty"`
 	Source          string     `json:"source"`
 }
@@ -251,6 +254,9 @@ func (s *ControlServer) handleListDevices() Response {
 			TailscaleIP:     d.TailscaleIP,
 			ListenPort:      d.ListenPort,
 			CertFingerprint: d.CertFingerprint,
+			CertPath:        d.CertPath,
+			ClientCertPath:  d.ClientCertPath,
+			ClientKeyPath:   d.ClientKeyPath,
 			LastSeen:        d.LastSeen,
 			Source:          string(d.Source),
 		})
