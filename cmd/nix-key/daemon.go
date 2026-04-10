@@ -114,8 +114,27 @@ func runDaemon(configPath string) error {
 		return fmt.Errorf("loading devices: %w", err)
 	}
 
+	// Convert Nix-declared devices from config to daemon.Device slice.
+	var nixDevices []daemon.Device
+	for id, dc := range cfg.Devices {
+		dev := daemon.Device{
+			ID:              id,
+			Name:            dc.Name,
+			TailscaleIP:     dc.TailscaleIP,
+			ListenPort:      dc.Port,
+			CertFingerprint: dc.CertFingerprint,
+		}
+		if dc.ClientCertPath != nil {
+			dev.ClientCertPath = *dc.ClientCertPath
+		}
+		if dc.ClientKeyPath != nil {
+			dev.ClientKeyPath = *dc.ClientKeyPath
+		}
+		nixDevices = append(nixDevices, dev)
+	}
+
 	registry := daemon.NewRegistry()
-	registry.Merge(nil, runtimeDevices)
+	registry.Merge(nixDevices, runtimeDevices)
 
 	// Create dialer
 	dialer := &productionDialer{

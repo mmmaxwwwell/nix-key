@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/phaedrus-raznikov/nix-key/internal/config"
 	"github.com/phaedrus-raznikov/nix-key/internal/daemon"
 	"github.com/phaedrus-raznikov/nix-key/internal/mtls"
 )
@@ -775,5 +777,128 @@ func TestIntegrationDevicesEmptyList(t *testing.T) {
 
 	if !strings.Contains(output, "No devices paired") {
 		t.Errorf("empty devices list should show 'No devices paired':\n%s", output)
+	}
+}
+
+// TestIntegrationNixDevicesAndRuntimeMerge verifies that a daemon with
+// Nix-declared devices in config AND runtime-paired devices in devices.json
+// produces a registry containing both sources.
+func TestIntegrationNixDevicesAndRuntimeMerge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	dir := t.TempDir()
+
+	// Write a config.json with Nix-declared devices.
+	cfgData := map[string]interface{}{
+		"port":               29418,
+		"socketPath":         filepath.Join(dir, "agent.sock"),
+		"controlSocketPath":  filepath.Join(dir, "control.sock"),
+		"tailscaleInterface": "tailscale0",
+		"logLevel":           "info",
+		"signTimeout":        30,
+		"connectionTimeout":  10,
+		"ageKeyFile":         filepath.Join(dir, "age.txt"),
+		"certExpiry":         "365d",
+		"devices": map[string]interface{}{
+			"nix-phone": map[string]interface{}{
+				"name":            "nix-phone",
+				"tailscaleIp":     "100.64.0.10",
+				"port":            50051,
+				"certFingerprint": "SHA256:nixfp",
+				"clientCertPath":  nil,
+				"clientKeyPath":   nil,
+			},
+		},
+	}
+	cfgJSON, err := json.Marshal(cfgData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(configPath, cfgJSON, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Load config and convert Nix devices.
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("Load config: %v", err)
+	}
+
+	var nixDevices []daemon.Device
+	for id, dc := range cfg.Devices {
+		dev := daemon.Device{
+			ID:              id,
+			Name:            dc.Name,
+			TailscaleIP:     dc.TailscaleIP,
+			ListenPort:      dc.Port,
+			CertFingerprint: dc.CertFingerprint,
+		}
+		if dc.ClientCertPath != nil {
+			dev.ClientCertPath = *dc.ClientCertPath
+		}
+		if dc.ClientKeyPath != nil {
+			dev.ClientKeyPath = *dc.ClientKeyPath
+		}
+		nixDevices = append(nixDevices, dev)
+	}
+
+	// Write a devices.json with a runtime-paired device.
+	devicesPath := filepath.Join(dir, "devices.json")
+	runtimeDevs := []daemon.Device{
+		{
+			ID: "runtime-phone", Name: "Runtime Phone", TailscaleIP: "100.64.0.20",
+			ListenPort: 29418, CertFingerprint: "SHA256:rtfp",
+			Source: daemon.SourceRuntimePaired,
+		},
+	}
+	devJSON, err := json.Marshal(runtimeDevs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(devicesPath, devJSON, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	runtimeDevices, err := daemon.LoadDevicesFromJSON(devicesPath)
+	if err != nil {
+		t.Fatalf("LoadDevicesFromJSON: %v", err)
+	}
+
+	// Merge both sources into registry.
+	registry := daemon.NewRegistry()
+	registry.Merge(nixDevices, runtimeDevices)
+
+	// Verify both devices are visible.
+	all := registry.ListAll()
+	if len(all) != 2 {
+		t.Fatalf("expected 2 devices in registry, got %d", len(all))
+	}
+
+	nixDev, ok := registry.Get("nix-phone")
+	if !ok {
+		t.Fatal("nix-phone not found in registry")
+	}
+	if nixDev.Source != daemon.SourceNixDeclared {
+		t.Errorf("nix-phone Source = %q, want %q", nixDev.Source, daemon.SourceNixDeclared)
+	}
+	if nixDev.TailscaleIP != "100.64.0.10" {
+		t.Errorf("nix-phone TailscaleIP = %q, want %q", nixDev.TailscaleIP, "100.64.0.10")
+	}
+	if nixDev.ListenPort != 50051 {
+		t.Errorf("nix-phone ListenPort = %d, want 50051", nixDev.ListenPort)
+	}
+
+	rtDev, ok := registry.Get("runtime-phone")
+	if !ok {
+		t.Fatal("runtime-phone not found in registry")
+	}
+	if rtDev.Source != daemon.SourceRuntimePaired {
+		t.Errorf("runtime-phone Source = %q, want %q", rtDev.Source, daemon.SourceRuntimePaired)
+	}
+	if rtDev.TailscaleIP != "100.64.0.20" {
+		t.Errorf("runtime-phone TailscaleIP = %q, want %q", rtDev.TailscaleIP, "100.64.0.20")
 	}
 }

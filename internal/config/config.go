@@ -21,6 +21,17 @@ import (
 	nixerrors "github.com/phaedrus-raznikov/nix-key/internal/errors"
 )
 
+// DeviceConfig represents a Nix-declared device from the NixOS module's JSON output.
+// Field names and JSON tags match the format produced by nix/module.nix.
+type DeviceConfig struct {
+	Name            string  `json:"name"`
+	TailscaleIP     string  `json:"tailscaleIp"`
+	Port            int     `json:"port"`
+	CertFingerprint string  `json:"certFingerprint"`
+	ClientCertPath  *string `json:"clientCertPath"`
+	ClientKeyPath   *string `json:"clientKeyPath"`
+}
+
 // Config holds all nix-key daemon configuration.
 type Config struct {
 	Port                 int     `json:"port" validate:"required,min=1,max=65535"`
@@ -36,6 +47,7 @@ type Config struct {
 	AgeKeyFile           string  `json:"ageKeyFile"`
 	TailscaleAuthKeyFile *string `json:"tailscaleAuthKeyFile"`
 	CertExpiry           string  `json:"certExpiry" validate:"required"`
+	Devices              map[string]DeviceConfig `json:"devices,omitempty"`
 }
 
 // defaults returns a Config populated with hardcoded default values.

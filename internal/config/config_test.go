@@ -398,6 +398,106 @@ func TestStructTagValidation(t *testing.T) {
 	}
 }
 
+// TestNixModuleDeviceContractRoundTrip verifies that the JSON format produced
+// by the NixOS module (nix/module.nix) round-trips through Config.Devices.
+// This is a cross-boundary contract test: the Nix producer writes JSON with
+// specific keys, and the Go consumer must deserialize them correctly.
+func TestNixModuleDeviceContractRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+
+	// JSON matching the exact format the NixOS module produces, including
+	// null values for optional clientCertPath/clientKeyPath fields.
+	writeConfigFile(t, dir, map[string]interface{}{
+		"socketPath":         "/run/user/1000/nix-key/agent.sock",
+		"controlSocketPath":  "/run/user/1000/nix-key/control.sock",
+		"tailscaleInterface": "tailscale0",
+		"devices": map[string]interface{}{
+			"myphone": map[string]interface{}{
+				"name":            "myphone",
+				"tailscaleIp":     "100.64.0.2",
+				"port":            50051,
+				"certFingerprint": "SHA256:abc",
+				"clientCertPath":  nil,
+				"clientKeyPath":   nil,
+			},
+		},
+	})
+
+	cfg, err := Load(filepath.Join(dir, ".config", "nix-key", "config.json"))
+	if err != nil {
+		t.Fatalf("expected config with devices to load, got error: %v", err)
+	}
+
+	if cfg.Devices == nil {
+		t.Fatal("Devices map should not be nil")
+	}
+
+	dev, ok := cfg.Devices["myphone"]
+	if !ok {
+		t.Fatal("expected device 'myphone' in Devices map")
+	}
+
+	if dev.Name != "myphone" {
+		t.Errorf("Name = %q, want %q", dev.Name, "myphone")
+	}
+	if dev.TailscaleIP != "100.64.0.2" {
+		t.Errorf("TailscaleIP = %q, want %q", dev.TailscaleIP, "100.64.0.2")
+	}
+	if dev.Port != 50051 {
+		t.Errorf("Port = %d, want 50051", dev.Port)
+	}
+	if dev.CertFingerprint != "SHA256:abc" {
+		t.Errorf("CertFingerprint = %q, want %q", dev.CertFingerprint, "SHA256:abc")
+	}
+	if dev.ClientCertPath != nil {
+		t.Errorf("ClientCertPath should be nil for null JSON value, got %q", *dev.ClientCertPath)
+	}
+	if dev.ClientKeyPath != nil {
+		t.Errorf("ClientKeyPath should be nil for null JSON value, got %q", *dev.ClientKeyPath)
+	}
+}
+
+// TestNixModuleDeviceContractWithCertPaths verifies that when the NixOS module
+// sets clientCertPath and clientKeyPath (non-null), they deserialize correctly.
+func TestNixModuleDeviceContractWithCertPaths(t *testing.T) {
+	dir := t.TempDir()
+
+	writeConfigFile(t, dir, map[string]interface{}{
+		"socketPath":         "/run/user/1000/nix-key/agent.sock",
+		"controlSocketPath":  "/run/user/1000/nix-key/control.sock",
+		"tailscaleInterface": "tailscale0",
+		"devices": map[string]interface{}{
+			"work-phone": map[string]interface{}{
+				"name":            "work-phone",
+				"tailscaleIp":     "100.64.0.5",
+				"port":            50051,
+				"certFingerprint": "SHA256:def",
+				"clientCertPath":  "/etc/nix-key/certs/client.crt",
+				"clientKeyPath":   "/etc/nix-key/certs/client.key",
+			},
+		},
+	})
+
+	cfg, err := Load(filepath.Join(dir, ".config", "nix-key", "config.json"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	dev := cfg.Devices["work-phone"]
+	if dev.ClientCertPath == nil {
+		t.Fatal("ClientCertPath should not be nil")
+	}
+	if *dev.ClientCertPath != "/etc/nix-key/certs/client.crt" {
+		t.Errorf("ClientCertPath = %q, want %q", *dev.ClientCertPath, "/etc/nix-key/certs/client.crt")
+	}
+	if dev.ClientKeyPath == nil {
+		t.Fatal("ClientKeyPath should not be nil")
+	}
+	if *dev.ClientKeyPath != "/etc/nix-key/certs/client.key" {
+		t.Errorf("ClientKeyPath = %q, want %q", *dev.ClientKeyPath, "/etc/nix-key/certs/client.key")
+	}
+}
+
 func containsSubstring(s, substr string) bool {
 	return len(s) >= len(substr) && searchSubstring(s, substr)
 }
