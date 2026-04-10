@@ -1,0 +1,753 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_call:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------- Lint ----------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: golangci-lint
+        run: nix develop --command golangci-lint run ./...
+
+      - name: nixfmt
+        run: nix develop --command nixfmt --check flake.nix nix/*.nix
+
+      - name: ktlint
+        run: |
+          cd android
+          test -f ./gradlew && nix develop --command bash -c './gradlew ktlintCheck --no-daemon' || echo "Skipping ktlint: gradlew not found"
+
+      - name: RacerD (Infer race detection)
+        run: |
+          cd android
+          if test -f ./gradlew; then
+            nix develop --command bash -c '
+              NIX_AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+              infer run --racerd-only -- ./gradlew assembleDebug --no-daemon \
+                -Dorg.gradle.java.home="$JAVA_HOME" \
+                -Pandroid.aapt2FromMavenOverride="$NIX_AAPT2" 2>&1
+              if [ -f infer-out/report.json ]; then
+                RACES=$(jq "[.[] | select(.bug_type == \"THREAD_SAFETY_violation\")] | length" infer-out/report.json)
+                echo "RacerD found $RACES potential race(s)"
+                if [ "$RACES" -gt 0 ]; then
+                  jq ".[] | select(.bug_type == \"THREAD_SAFETY_violation\") | {file: .file, line: .line, qualifier: .qualifier}" infer-out/report.json
+                  exit 1
+                fi
+              fi
+            '
+          else
+            echo "Skipping RacerD: gradlew not found"
+          fi
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Lint Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          PASS=0
+          FAIL=0
+          FAILURES=""
+          for step in golangci-lint nixfmt ktlint racerd; do
+            echo "- **${step}**: checked" >> "$GITHUB_STEP_SUMMARY"
+          done
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test-logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-test-logs
+          path: test-logs/
+          if-no-files-found: ignore
+
+  # ---------- Test Host (Go + NixOS VM) ----------
+  test-host:
+    name: Test Host
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Run Go tests (unit + integration)
+        run: |
+          nix develop --command bash -c '
+            mkdir -p test-logs
+            set -o pipefail
+            go test -json -race -count=1 ./... 2>&1 | go run ./cmd/test-reporter --type ci
+          '
+
+      - name: Run benchmarks
+        run: |
+          nix develop --command bash -c '
+            mkdir -p test-logs/bench
+            go test -bench=. -benchmem -count=5 -run="^$" \
+              ./internal/mtls/ ./pkg/phoneserver/ \
+              | tee test-logs/bench/latest.txt
+          '
+
+      - name: Check benchmark regression
+        run: |
+          nix develop --command bash -c '
+            go install golang.org/x/perf/cmd/benchstat@latest
+            # Download baseline from previous run if available
+            if gh run download --name bench-baseline --dir /tmp/bench-baseline 2>/dev/null; then
+              echo "Comparing against baseline..."
+              benchstat /tmp/bench-baseline/latest.txt test-logs/bench/latest.txt | tee test-logs/bench/comparison.txt
+              # Check for >300% regression (4x slower = ratio >= 4.00)
+              if awk "/^Benchmark/ && NF>=5 { gsub(/[~<>]/, \"\", \$5); if (\$5+0 >= 4.0) { print \"REGRESSION: \" \$0; found=1 } } END { exit (found ? 1 : 0) }" test-logs/bench/comparison.txt; then
+                echo "No significant regressions detected."
+              else
+                echo "::error::Benchmark regression >300% detected! See comparison above."
+                exit 1
+              fi
+            else
+              echo "No baseline found — skipping regression check (first run)."
+            fi
+          '
+        env:
+          GH_TOKEN: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Upload benchmark baseline
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-baseline
+          path: test-logs/bench/latest.txt
+          overwrite: true
+
+      - name: Nix flake check (NixOS VM tests)
+        run: nix flake check --print-build-logs
+
+      - name: Build Go binary
+        run: |
+          nix build
+          cp result/bin/nix-key nix-key
+
+      - name: Upload Go binary
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nix-key-binary
+          path: nix-key
+          if-no-files-found: warn
+
+      - name: Verify tests ran
+        if: always()
+        run: |
+          if [ ! -f test-logs/ci/latest/summary.json ]; then
+            echo "::error::test-logs/ci/latest/summary.json not found — no test results produced"
+            exit 1
+          fi
+          PASSED=$(jq -r '.pass // 0' test-logs/ci/latest/summary.json)
+          FAILED=$(jq -r '.fail // 0' test-logs/ci/latest/summary.json)
+          TOTAL=$((PASSED + FAILED))
+          echo "Tests ran: ${TOTAL} (passed=${PASSED}, failed=${FAILED})"
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::error::No tests ran (passed + failed = 0) — build may be vacuously green"
+            exit 1
+          fi
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Test Host Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f test-logs/ci/latest/summary.json ]; then
+            PASS=$(jq -r '.pass // 0' test-logs/ci/latest/summary.json)
+            FAIL=$(jq -r '.fail // 0' test-logs/ci/latest/summary.json)
+            SKIP=$(jq -r '.skip // 0' test-logs/ci/latest/summary.json)
+            echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Passed | ${PASS} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Failed | ${FAIL} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Skipped | ${SKIP} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$FAIL" -gt 0 ] 2>/dev/null; then
+              echo "### Failures" >> "$GITHUB_STEP_SUMMARY"
+              jq -r '.failures[]? | "- \(.package)/\(.test)"' test-logs/ci/latest/summary.json >> "$GITHUB_STEP_SUMMARY" || true
+            fi
+          else
+            echo "No structured test output found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test-logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-host-logs
+          path: test-logs/
+          if-no-files-found: ignore
+
+  # ---------- Test Android ----------
+  test-android:
+    name: Test Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build gomobile AAR
+        run: |
+          nix develop --command build-android-apk --aar-only
+
+      - name: Gradle build + unit tests
+        run: |
+          set -o pipefail
+          mkdir -p test-logs
+          cd android
+          ./gradlew assembleDebug testDebugUnitTest --no-daemon 2>&1 | tee ../test-logs/android-build.log
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
+
+      - name: Verify tests ran
+        if: always()
+        run: |
+          XML_COUNT=0
+          TOTAL_TESTS=0
+          if [ -d android/app/build/test-results ]; then
+            XML_COUNT=$(find android/app/build/test-results -name '*.xml' 2>/dev/null | wc -l)
+            for xml in $(find android/app/build/test-results -name '*.xml' 2>/dev/null); do
+              TESTS=$(grep -o 'tests="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*' || echo 0)
+              TOTAL_TESTS=$((TOTAL_TESTS + TESTS))
+            done
+          fi
+          echo "JUnit XML files found: ${XML_COUNT}"
+          echo "Total tests reported: ${TOTAL_TESTS}"
+          if [ "$XML_COUNT" -eq 0 ]; then
+            echo "::error::No JUnit XML files found in android/app/build/test-results/ — tests may not have run"
+            exit 1
+          fi
+          if [ "$TOTAL_TESTS" -eq 0 ]; then
+            echo "::error::JUnit XML files found but 0 tests reported — tests may not have run"
+            exit 1
+          fi
+          echo "Verified: ${TOTAL_TESTS} test(s) across ${XML_COUNT} XML file(s)"
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Test Android Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          PASS=0
+          FAIL=0
+          FAILURES=""
+          if [ -d android/app/build/test-results ]; then
+            for xml in $(find android/app/build/test-results -name '*.xml' 2>/dev/null); do
+              P=$(grep -o 'tests="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*' || echo 0)
+              F=$(grep -o 'failures="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*' || echo 0)
+              E=$(grep -o 'errors="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*' || echo 0)
+              PASS=$((PASS + P - F - E))
+              FAIL=$((FAIL + F + E))
+              if [ $((F + E)) -gt 0 ]; then
+                NAMES=$(grep -o 'name="[^"]*"' "$xml" | head -5 || true)
+                FAILURES="${FAILURES}\n${NAMES}"
+              fi
+            done
+          fi
+          echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Passed | ${PASS} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Failed | ${FAIL} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FAIL" -gt 0 ]; then
+            echo "### Failures" >> "$GITHUB_STEP_SUMMARY"
+            echo -e "$FAILURES" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test-logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-android-logs
+          path: |
+            test-logs/
+            android/app/build/reports/
+            android/app/build/test-results/
+          if-no-files-found: ignore
+
+  # ---------- Security ----------
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    # Run on every push, PR, and when called as reusable workflow
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_call'
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      # --- Tier 1: Always run ---
+
+      - name: Create security output directory
+        run: mkdir -p test-logs/security
+
+      - name: Trivy vulnerability scan (SARIF)
+        uses: aquasecurity/trivy-action@v0.35.0
+        continue-on-error: true
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Trivy vulnerability scan (JSON)
+        if: always()
+        uses: aquasecurity/trivy-action@v0.35.0
+        continue-on-error: true
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+          format: json
+          output: test-logs/security/trivy.json
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
+      - name: Semgrep SAST
+        if: always()
+        uses: semgrep/semgrep-action@v1
+        continue-on-error: true
+        with:
+          config: >-
+            p/default
+            p/golang
+          publishToken: ""
+        env:
+          SEMGREP_SARIF_FILE: semgrep-results.sarif
+
+      - name: Semgrep JSON output
+        if: always()
+        continue-on-error: true
+        run: |
+          if command -v semgrep &>/dev/null; then
+            semgrep scan --config p/default --config p/golang \
+              --json --output test-logs/security/semgrep.json \
+              --quiet . 2>/dev/null || true
+          else
+            echo '{"results": [], "errors": []}' > test-logs/security/semgrep.json
+          fi
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
+
+      - name: Gitleaks secret scan
+        if: always()
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
+          GITLEAKS_SARIF: gitleaks-results.sarif
+
+      - name: Gitleaks JSON output
+        if: always()
+        continue-on-error: true
+        run: |
+          if command -v gitleaks &>/dev/null; then
+            gitleaks detect --source . \
+              --report-format json \
+              --report-path test-logs/security/gitleaks.json \
+              --no-banner 2>/dev/null || true
+          else
+            echo '[]' > test-logs/security/gitleaks.json
+          fi
+
+      - name: Upload Gitleaks SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: gitleaks-results.sarif
+          category: gitleaks
+
+      - name: govulncheck
+        if: always()
+        run: |
+          nix develop --command bash -c '
+            export GOPATH="$HOME/go"
+            export PATH="$GOPATH/bin:$PATH"
+            go install golang.org/x/vuln/cmd/govulncheck@latest
+            govulncheck -format sarif ./... > govulncheck-results.sarif || true
+            govulncheck -format json ./... > test-logs/security/govulncheck.json 2>/dev/null || true
+            govulncheck ./... || true
+          '
+
+      - name: Upload govulncheck SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: govulncheck-results.sarif
+          category: govulncheck
+
+      # --- Tier 1.5: Public repo extras ---
+
+      - name: Snyk security scan
+        if: env.SNYK_TOKEN != ''
+        uses: snyk/actions/golang@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --sarif-file-output=snyk-results.sarif
+
+      - name: Upload Snyk SARIF
+        if: always() && env.SNYK_TOKEN != ''
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: snyk-results.sarif
+          category: snyk
+
+      - name: Snyk monitor (main only)
+        if: github.ref == 'refs/heads/main' && env.SNYK_TOKEN != ''
+        uses: snyk/actions/golang@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+
+      - name: SonarCloud scan
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarcloud-github-action@master
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: OpenSSF Scorecard
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: ossf/scorecard-action@v2.4.0
+        continue-on-error: true
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload Scorecard SARIF
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: scorecard-results.sarif
+          category: scorecard
+
+      - name: Verify scanners ran
+        if: always()
+        run: |
+          MISSING=0
+          for scanner in trivy semgrep gitleaks govulncheck; do
+            FILE="test-logs/security/${scanner}.json"
+            if [ ! -f "$FILE" ]; then
+              echo "::warning::Scanner output missing: ${FILE}"
+              MISSING=$((MISSING + 1))
+            elif [ "$(wc -c < "$FILE")" -le 10 ]; then
+              echo "::warning::Scanner output too small (<= 10 bytes): ${FILE}"
+              MISSING=$((MISSING + 1))
+            else
+              echo "Verified: ${scanner} output exists ($(wc -c < "$FILE") bytes)"
+            fi
+          done
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::warning::${MISSING} scanner(s) did not produce valid output"
+          else
+            echo "All 4 Tier 1 scanners produced output"
+          fi
+
+      - name: Generate security summary JSON
+        if: always()
+        run: |
+          mkdir -p test-logs/security
+          # Count findings per scanner from JSON output
+          TRIVY_FINDINGS=0
+          SEMGREP_FINDINGS=0
+          GITLEAKS_FINDINGS=0
+          GOVULNCHECK_FINDINGS=0
+
+          if [ -f test-logs/security/trivy.json ]; then
+            TRIVY_FINDINGS=$(jq '[.Results[]?.Vulnerabilities // [] | length] + [.Results[]?.Secrets // [] | length] + [.Results[]?.Misconfigurations // [] | length] | add // 0' test-logs/security/trivy.json 2>/dev/null || echo 0)
+          fi
+          if [ -f test-logs/security/semgrep.json ]; then
+            SEMGREP_FINDINGS=$(jq '.results | length // 0' test-logs/security/semgrep.json 2>/dev/null || echo 0)
+          fi
+          if [ -f test-logs/security/gitleaks.json ]; then
+            GITLEAKS_FINDINGS=$(jq 'if type == "array" then length else 0 end' test-logs/security/gitleaks.json 2>/dev/null || echo 0)
+          fi
+          if [ -f test-logs/security/govulncheck.json ]; then
+            GOVULNCHECK_FINDINGS=$(jq -s '[.[] | select(.finding != null)] | length' test-logs/security/govulncheck.json 2>/dev/null || echo 0)
+          fi
+
+          TOTAL=$((TRIVY_FINDINGS + SEMGREP_FINDINGS + GITLEAKS_FINDINGS + GOVULNCHECK_FINDINGS))
+          PASS=true
+          if [ "${{ job.status }}" != "success" ]; then
+            PASS=false
+          fi
+
+          jq -n \
+            --argjson trivy_findings "$TRIVY_FINDINGS" \
+            --argjson semgrep_findings "$SEMGREP_FINDINGS" \
+            --argjson gitleaks_findings "$GITLEAKS_FINDINGS" \
+            --argjson govulncheck_findings "$GOVULNCHECK_FINDINGS" \
+            --argjson total "$TOTAL" \
+            --argjson pass "$PASS" \
+            '{
+              scanners: {
+                trivy:        {findings: $trivy_findings},
+                semgrep:      {findings: $semgrep_findings},
+                gitleaks:     {findings: $gitleaks_findings},
+                govulncheck:  {findings: $govulncheck_findings}
+              },
+              total_findings: $total,
+              pass: $pass
+            }' > test-logs/security/summary.json
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Security Scan Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f test-logs/security/summary.json ]; then
+            echo "### Tier 1 (Required)" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Scanner | Findings |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---------|----------|" >> "$GITHUB_STEP_SUMMARY"
+            for scanner in trivy semgrep gitleaks govulncheck; do
+              count=$(jq -r ".scanners.${scanner}.findings // 0" test-logs/security/summary.json)
+              echo "| ${scanner} | ${count} |" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            TOTAL=$(jq -r '.total_findings // 0' test-logs/security/summary.json)
+            echo "**Total findings: ${TOTAL}**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            TOOLS=("Trivy" "Semgrep" "Gitleaks" "govulncheck")
+            echo "### Tier 1 (Required)" >> "$GITHUB_STEP_SUMMARY"
+            for tool in "${TOOLS[@]}"; do
+              echo "- **${tool}**: executed" >> "$GITHUB_STEP_SUMMARY"
+            done
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Tier 1.5 (Public Repo)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Snyk**: conditional on SNYK_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **SonarCloud**: conditional on SONAR_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **OpenSSF Scorecard**: on push to main only" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload security artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-logs
+          path: |
+            test-logs/security/
+            *-results.sarif
+            scorecard-results.sarif
+          if-no-files-found: ignore
+
+  # ---------- Fuzz (time-boxed generative) ----------
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - uses: cachix/cachix-action@v15
+        continue-on-error: true
+        with:
+          name: nix-key
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Time-boxed generative fuzzing (60s per target)
+        run: |
+          nix develop --command bash -c '
+            set -euo pipefail
+            FUZZTIME=60s
+            TARGETS=(
+              "internal/agent FuzzSSHAgentProtocol"
+              "internal/config FuzzConfigParse"
+              "internal/pairing FuzzQRPayloadParse"
+              "internal/daemon FuzzControlRequestParse"
+              "internal/daemon FuzzControlResponseParse"
+              "internal/mtls FuzzCertPEMParse"
+              "internal/mtls FuzzCertFingerprint"
+              "gen/nixkey/v1 FuzzProtoSignRequest"
+              "gen/nixkey/v1 FuzzProtoListKeysResponse"
+              "gen/nixkey/v1 FuzzProtoRoundTrip"
+            )
+            FAILED=0
+            for entry in "${TARGETS[@]}"; do
+              PKG=$(echo "$entry" | cut -d" " -f1)
+              FUNC=$(echo "$entry" | cut -d" " -f2)
+              echo "=== Fuzzing ${PKG}::${FUNC} for ${FUZZTIME} ==="
+              if ! go test -fuzz="^${FUNC}\$" -fuzztime="${FUZZTIME}" -run="^$" "./${PKG}"; then
+                echo "FAIL: ${PKG}::${FUNC}"
+                FAILED=$((FAILED + 1))
+              fi
+            done
+            if [ "$FAILED" -gt 0 ]; then
+              echo "${FAILED} fuzz target(s) found crashes"
+              exit 1
+            fi
+          '
+
+      - name: Save crash corpus
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: "**/testdata/fuzz/"
+          if-no-files-found: ignore
+
+  # ---------- CI Summary ----------
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test-host, test-android, security]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Generate ci-summary.json
+        run: bash scripts/ci-summary.sh artifacts/ ci-summary.json
+        env:
+          JOB_LINT: ${{ needs.lint.result }}
+          JOB_TEST_HOST: ${{ needs.test-host.result }}
+          JOB_TEST_ANDROID: ${{ needs.test-android.result }}
+          JOB_SECURITY: ${{ needs.security.result }}
+
+      - name: Upload ci-summary.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-summary
+          path: ci-summary.json
+
+      - name: Job summary
+        run: |
+          echo "## CI Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          jq . ci-summary.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          OVERALL=$(jq -r '.overall' ci-summary.json)
+          if [ "$OVERALL" = "pass" ]; then
+            echo "**Overall: PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Overall: FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi

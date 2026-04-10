@@ -1,8 +1,17 @@
 # Spec-kit / agent artifacts
 test-logs/
 logs/
+test/e2e/.state/
 validate/
 BLOCKED.md
+DEFER-*.md
+ci-debug/
+REVIEW-TODO.md
+**/validate/
+**/attempts/
+specs/nix-key/benchark_prompt.md
+specs/nix-key/learnings.md
+.claude/settings.json
 
 # Environment
 .env
@@ -18,16 +27,24 @@ BLOCKED.md
 *~
 
 # Nix
-result
+/result
+/result-*
 
 # Security
 *.pem
 *.key
 credentials.json
 
+# Allow test fixture certs (not real secrets)
+!test/fixtures/*.pem
+!test/fixtures/adversarial/*.pem
+
 # Build
+/nix-key
+/phonesim
+/test-reporter
 dist/
-build/
+/build/
 
 # Python
 __pycache__/
@@ -41,12 +58,18 @@ node_modules/
 # Android
 *.apk
 *.aab
+*.aar
 .gradle/
 local.properties
+android/app/libs/
+android/**/build/
+android/infer-out/
+android/result
 
 # Dev certs
 certs/
 
 # Coverage
 coverage/
+coverage.out
 htmlcov/

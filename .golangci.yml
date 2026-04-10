@@ -1,0 +1,36 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net.Listener).Close
+        - (net.Conn).Close
+        - (*net.UnixListener).Close
+        - (*crypto/tls.Conn).Close
+        - os.Remove
+        - os.RemoveAll
+        - fmt.Fprintf
+        - fmt.Fprint
+        - fmt.Fprintln
+        - (net.Conn).SetDeadline
+        - (*net/http.Server).Shutdown
+        - (*google.golang.org/grpc.Server).GracefulStop
+    staticcheck:
+      checks:
+        - "all"
+        - "-QF*"
+        - "-SA1019"
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck

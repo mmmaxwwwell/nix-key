@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Gitleaks pre-commit hook — scans staged changes for secrets
+set -euo pipefail
+
+if ! command -v gitleaks &>/dev/null; then
+  echo "gitleaks not found — enter nix develop shell first"
+  exit 1
+fi
+
+gitleaks git --staged --verbose
