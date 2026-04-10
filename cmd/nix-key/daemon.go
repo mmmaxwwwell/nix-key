@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -94,7 +95,13 @@ func runDaemon(configPath string) error {
 	}
 
 	// Set up shutdown manager
-	sm := daemon.NewShutdownManager(30 * time.Second)
+	slogHandler := slog.NewJSONHandler(os.Stderr, nil)
+	slogLogger := slog.New(slogHandler)
+	sm := daemon.NewShutdownManager(30*time.Second, slogLogger)
+	sm.SetLogFlush(func() {
+		// JSONHandler writes to os.Stderr which is unbuffered, but sync for safety
+		_ = os.Stderr.Sync()
+	})
 	sm.RegisterHook("tracing", func(ctx context.Context) error {
 		return tp.Shutdown(ctx)
 	})

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -25,6 +26,8 @@ type ShutdownManager struct {
 	deadline time.Duration
 	hooks    []namedHook
 	stopFunc func() // called to stop accepting new connections
+	logger   *slog.Logger
+	logFlush func() // called as the very last step after shutdown complete
 
 	inFlight sync.WaitGroup
 
@@ -34,9 +37,10 @@ type ShutdownManager struct {
 }
 
 // NewShutdownManager creates a ShutdownManager with the given drain deadline.
-func NewShutdownManager(deadline time.Duration) *ShutdownManager {
+func NewShutdownManager(deadline time.Duration, logger *slog.Logger) *ShutdownManager {
 	return &ShutdownManager{
 		deadline: deadline,
+		logger:   logger,
 	}
 }
 
@@ -46,6 +50,14 @@ func (sm *ShutdownManager) RegisterHook(name string, fn ShutdownHook) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.hooks = append(sm.hooks, namedHook{name: name, fn: fn})
+}
+
+// SetLogFlush sets the function called as the very last step after shutdown
+// completes. It can be used to flush buffered log output.
+func (sm *ShutdownManager) SetLogFlush(fn func()) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.logFlush = fn
 }
 
 // SetStopFunc sets the function called to stop accepting new connections.
@@ -88,6 +100,8 @@ func (sm *ShutdownManager) Shutdown(ctx context.Context) error {
 	var shutdownErr error
 
 	sm.once.Do(func() {
+		sm.logger.Info("shutdown initiated")
+
 		sm.mu.Lock()
 		sm.shutdown = true
 		stopFn := sm.stopFunc
@@ -101,11 +115,13 @@ func (sm *ShutdownManager) Shutdown(ctx context.Context) error {
 		defer cancel()
 
 		// Step 1: Stop accepting new connections
+		sm.logger.Info("stopping new connections")
 		if stopFn != nil {
 			stopFn()
 		}
 
 		// Step 2: Drain in-flight requests
+		sm.logger.Info("draining in-flight requests")
 		waitDone := make(chan struct{})
 		go func() {
 			sm.inFlight.Wait()
@@ -121,6 +137,7 @@ func (sm *ShutdownManager) Shutdown(ctx context.Context) error {
 		}
 
 		// Step 3: Call hooks in reverse order
+		sm.logger.Info("executing shutdown hooks")
 		var hookErrors []error
 		for i := len(hooks) - 1; i >= 0; i-- {
 			h := hooks[i]
@@ -131,6 +148,12 @@ func (sm *ShutdownManager) Shutdown(ctx context.Context) error {
 
 		if len(hookErrors) > 0 {
 			shutdownErr = errors.Join(hookErrors...)
+		}
+
+		sm.logger.Info("shutdown complete")
+
+		if sm.logFlush != nil {
+			sm.logFlush()
 		}
 	})
 

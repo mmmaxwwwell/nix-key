@@ -1,15 +1,23 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
+// discardLogger returns a logger that discards all output.
+func discardLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(new(bytes.Buffer), nil))
+}
+
 func TestShutdownManager_HooksCalledInReverseOrder(t *testing.T) {
-	sm := NewShutdownManager(30 * time.Second)
+	sm := NewShutdownManager(30*time.Second, discardLogger())
 
 	var order []int
 	var mu sync.Mutex
@@ -51,7 +59,7 @@ func TestShutdownManager_HooksCalledInReverseOrder(t *testing.T) {
 }
 
 func TestShutdownManager_TimeoutBehavior(t *testing.T) {
-	sm := NewShutdownManager(100 * time.Millisecond)
+	sm := NewShutdownManager(100*time.Millisecond, discardLogger())
 
 	sm.RegisterHook("slow-hook", func(ctx context.Context) error {
 		select {
@@ -77,7 +85,7 @@ func TestShutdownManager_TimeoutBehavior(t *testing.T) {
 }
 
 func TestShutdownManager_InFlightRequestsCompleteBeforeShutdown(t *testing.T) {
-	sm := NewShutdownManager(5 * time.Second)
+	sm := NewShutdownManager(5*time.Second, discardLogger())
 
 	var requestCompleted atomic.Bool
 
@@ -100,7 +108,7 @@ func TestShutdownManager_InFlightRequestsCompleteBeforeShutdown(t *testing.T) {
 }
 
 func TestShutdownManager_InFlightRequestsTimeoutOnDeadline(t *testing.T) {
-	sm := NewShutdownManager(100 * time.Millisecond)
+	sm := NewShutdownManager(100*time.Millisecond, discardLogger())
 
 	// Simulate a request that never completes
 	sm.AddInFlight()
@@ -119,7 +127,7 @@ func TestShutdownManager_InFlightRequestsTimeoutOnDeadline(t *testing.T) {
 }
 
 func TestShutdownManager_SignalTriggersShutdown(t *testing.T) {
-	sm := NewShutdownManager(5 * time.Second)
+	sm := NewShutdownManager(5*time.Second, discardLogger())
 
 	var hookCalled atomic.Bool
 	sm.RegisterHook("test-hook", func(ctx context.Context) error {
@@ -156,7 +164,7 @@ func TestShutdownManager_SignalTriggersShutdown(t *testing.T) {
 }
 
 func TestShutdownManager_StopAcceptingBeforeDraining(t *testing.T) {
-	sm := NewShutdownManager(5 * time.Second)
+	sm := NewShutdownManager(5*time.Second, discardLogger())
 
 	var sequence []string
 	var mu sync.Mutex
@@ -194,7 +202,7 @@ func TestShutdownManager_StopAcceptingBeforeDraining(t *testing.T) {
 }
 
 func TestShutdownManager_ShutdownOnlyOnce(t *testing.T) {
-	sm := NewShutdownManager(5 * time.Second)
+	sm := NewShutdownManager(5*time.Second, discardLogger())
 
 	var callCount atomic.Int32
 	sm.RegisterHook("counter", func(ctx context.Context) error {
@@ -218,10 +226,114 @@ func TestShutdownManager_ShutdownOnlyOnce(t *testing.T) {
 }
 
 func TestShutdownManager_NoHooksSucceeds(t *testing.T) {
-	sm := NewShutdownManager(5 * time.Second)
+	sm := NewShutdownManager(5*time.Second, discardLogger())
 
 	err := sm.Shutdown(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestShutdownManager_LoggingMessages(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	sm := NewShutdownManager(5*time.Second, logger)
+
+	sm.SetStopFunc(func() {})
+	sm.RegisterHook("test-hook", func(ctx context.Context) error {
+		return nil
+	})
+
+	var flushCalled atomic.Bool
+	sm.SetLogFlush(func() {
+		flushCalled.Store(true)
+	})
+
+	err := sm.Shutdown(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Parse JSON log lines
+	type logEntry struct {
+		Level string `json:"level"`
+		Msg   string `json:"msg"`
+	}
+
+	var entries []logEntry
+	decoder := json.NewDecoder(&buf)
+	for decoder.More() {
+		var entry logEntry
+		if err := decoder.Decode(&entry); err != nil {
+			t.Fatalf("failed to decode log entry: %v", err)
+		}
+		entries = append(entries, entry)
+	}
+
+	// Assert exactly 5 INFO messages
+	var infoEntries []logEntry
+	for _, e := range entries {
+		if e.Level == "INFO" {
+			infoEntries = append(infoEntries, e)
+		}
+	}
+	if len(infoEntries) != 5 {
+		t.Fatalf("expected exactly 5 INFO messages, got %d: %+v", len(infoEntries), infoEntries)
+	}
+
+	expectedMsgs := []string{
+		"shutdown initiated",
+		"stopping new connections",
+		"draining in-flight requests",
+		"executing shutdown hooks",
+		"shutdown complete",
+	}
+	for i, expected := range expectedMsgs {
+		if infoEntries[i].Msg != expected {
+			t.Errorf("message %d: expected %q, got %q", i, expected, infoEntries[i].Msg)
+		}
+	}
+
+	// Assert first and last
+	if infoEntries[0].Msg != "shutdown initiated" {
+		t.Errorf("first message should be %q, got %q", "shutdown initiated", infoEntries[0].Msg)
+	}
+	if infoEntries[4].Msg != "shutdown complete" {
+		t.Errorf("last message should be %q, got %q", "shutdown complete", infoEntries[4].Msg)
+	}
+
+	// Assert logFlush was called
+	if !flushCalled.Load() {
+		t.Error("logFlush callback was not invoked")
+	}
+}
+
+func TestShutdownManager_LogFlushNilIsNoop(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	sm := NewShutdownManager(5*time.Second, logger)
+
+	// No SetLogFlush call — logFlush is nil
+
+	err := sm.Shutdown(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should still have 5 log messages and not panic
+	type logEntry struct {
+		Msg string `json:"msg"`
+	}
+	var count int
+	decoder := json.NewDecoder(&buf)
+	for decoder.More() {
+		var entry logEntry
+		if err := decoder.Decode(&entry); err != nil {
+			t.Fatalf("failed to decode log entry: %v", err)
+		}
+		count++
+	}
+	if count != 5 {
+		t.Fatalf("expected 5 log messages, got %d", count)
 	}
 }
